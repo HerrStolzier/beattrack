@@ -1,0 +1,10 @@
+[project]
+name = "beattrack-eval"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "essentia-tensorflow>=2.1b6.dev1389",
+    "numpy>=2.4.3",
+]
