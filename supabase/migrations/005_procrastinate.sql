@@ -1,0 +1,12 @@
+-- Procrastinate job queue schema
+-- Applied automatically by procrastinate at runtime via:
+--   app.admin.aiopg_connector.apply_schema()
+-- This migration is a placeholder — the actual schema is managed by
+-- the procrastinate library. Keeping it here for documentation.
+--
+-- See: https://procrastinate.readthedocs.io/en/stable/howto/django/migrations.html
+--
+-- Tables created by procrastinate:
+--   procrastinate_jobs
+--   procrastinate_periodic_defers
+--   procrastinate_events
