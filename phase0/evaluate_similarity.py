@@ -150,9 +150,14 @@ def evaluate(embeddings_path: Path) -> dict:
     """Run P@10 evaluation on saved embeddings."""
     data = np.load(embeddings_path, allow_pickle=True).item()
 
-    track_ids = sorted(data["learned"].keys())
+    # Filter out malformed embeddings (NaN scalars instead of vectors)
+    track_ids = [
+        tid for tid in sorted(data["learned"].keys())
+        if isinstance(data["learned"][tid], list) and len(data["learned"][tid]) == 200
+    ]
     n = len(track_ids)
-    print(f"\nEvaluating {n} tracks...")
+    skipped = len(data["learned"]) - n
+    print(f"\nEvaluating {n} tracks (skipped {skipped} malformed)...")
 
     learned = np.array([data["learned"][tid] for tid in track_ids])
     handcrafted = np.array([data["handcrafted"][tid] for tid in track_ids])
