@@ -115,12 +115,12 @@ async def find_similar(
 
     return [
         SimilarSong(
-            id=r["id"],
+            id=str(r["id"]),
             title=r["title"],
             artist=r["artist"],
             album=r.get("album"),
             bpm=r.get("bpm"),
-            similarity=r["similarity"],
+            similarity=float(r["similarity"]),
         )
         for r in results
     ]
