@@ -7,11 +7,12 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
+from app.limiter import limiter
 from app.services.validation import validate_upload, validate_audio
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,8 @@ class AnalyzeResponse(BaseModel):
 
 
 @router.post("", response_model=AnalyzeResponse)
-async def upload_and_analyze(file: UploadFile):
+@limiter.limit("10/minute")
+async def upload_and_analyze(request: Request, file: UploadFile):
     """Upload audio file for analysis.
 
     Validates the file, saves to temp, enqueues analysis job.
