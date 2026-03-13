@@ -1,8 +1,11 @@
+import logging
 import math
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from supabase import Client
+
+logger = logging.getLogger(__name__)
 
 from app.db import get_supabase
 
@@ -71,41 +74,44 @@ async def find_similar(
 
     try:
         rpc_result = sb.rpc("find_similar_songs", rpc_params).execute()
-    except Exception:
-        raise HTTPException(status_code=502, detail="Similarity search failed")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Similarity search failed: {exc}")
     results = rpc_result.data or []
 
     # 3. Late Fusion: blend learned_similarity with handcrafted cosine similarity
-    query_handcrafted: list[float] | None = query_song.get("handcrafted_norm")
+    try:
+        query_handcrafted: list[float] | None = query_song.get("handcrafted_norm")
 
-    if query_handcrafted and results:
-        result_ids = [r["id"] for r in results]
-        hc_result = (
-            sb.table("songs")
-            .select("id, handcrafted_norm")
-            .in_("id", result_ids)
-            .execute()
-        )
-        hc_map: dict[str, list[float]] = {
-            row["id"]: row["handcrafted_norm"]
-            for row in (hc_result.data or [])
-            if row.get("handcrafted_norm")
-        }
+        if query_handcrafted and results:
+            result_ids = [str(r["id"]) for r in results]
+            hc_result = (
+                sb.table("songs")
+                .select("id, handcrafted_norm")
+                .in_("id", result_ids)
+                .execute()
+            )
+            hc_map: dict[str, list[float]] = {
+                str(row["id"]): row["handcrafted_norm"]
+                for row in (hc_result.data or [])
+                if row.get("handcrafted_norm")
+            }
 
-        fused: list[dict] = []
-        for row in results:
-            learned_sim: float = row.get("similarity", 0.0)
-            hc_vec = hc_map.get(row["id"])
-            if hc_vec:
-                hc_sim = _cosine_similarity(query_handcrafted, hc_vec)
-                fused_score = 0.8 * learned_sim + 0.2 * hc_sim
-            else:
-                fused_score = learned_sim
-            fused.append({**row, "similarity": fused_score})
+            fused: list[dict] = []
+            for row in results:
+                learned_sim: float = row.get("similarity", 0.0)
+                hc_vec = hc_map.get(str(row["id"]))
+                if hc_vec:
+                    hc_sim = _cosine_similarity(query_handcrafted, hc_vec)
+                    fused_score = 0.8 * learned_sim + 0.2 * hc_sim
+                else:
+                    fused_score = learned_sim
+                fused.append({**row, "similarity": fused_score})
 
-        # 4. Re-sort by fused score
-        fused.sort(key=lambda x: x["similarity"], reverse=True)
-        results = fused
+            # 4. Re-sort by fused score
+            fused.sort(key=lambda x: x["similarity"], reverse=True)
+            results = fused
+    except Exception as exc:
+        logger.warning("Late fusion failed, returning learned-only results: %s", exc)
 
     return [
         SimilarSong(
