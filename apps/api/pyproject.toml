@@ -8,6 +8,14 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
     "pydantic>=2.11.0",
     "supabase>=2.0.0",
+    "python-magic>=0.4.27",
+    "slowapi>=0.1.9",
+    "procrastinate[asyncio]>=2.0.0",
+    "sse-starlette>=2.0.0",
+    "python-multipart>=0.0.20",
+    "numpy>=1.26.0",
+    "essentia>=2.1b6.dev1110",
+    "essentia-tensorflow>=2.1b6.dev1110",
 ]
 
 [project.optional-dependencies]

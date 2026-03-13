@@ -3,6 +3,7 @@ FROM python:3.12-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    libmagic-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
@@ -20,6 +21,7 @@ FROM python:3.12-slim
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
+    libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -27,6 +29,9 @@ WORKDIR /app
 # Copy virtual environment from builder
 COPY --from=builder /build/.venv /app/.venv
 COPY --from=builder /build/app /app/app
+
+# Copy MusiCNN model
+COPY models/ /app/models/
 
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
