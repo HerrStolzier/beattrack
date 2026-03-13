@@ -17,7 +17,7 @@ RUN uv sync --frozen --no-dev
 # Stage 2: Runtime
 FROM python:3.12-slim
 
-# Install runtime dependencies for essentia + chromaprint (added later)
+# Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
