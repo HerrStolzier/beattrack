@@ -15,7 +15,7 @@ export type SimilarSong = Song & { similarity: number };
 export async function searchSongs(q: string, limit?: number): Promise<Song[]> {
   const params = new URLSearchParams({ q });
   if (limit !== undefined) params.set("limit", String(limit));
-  const res = await fetch(`${API_URL}/songs/search?${params}`);
+  const res = await fetch(`${API_URL}/songs?${params}`);
   if (!res.ok) throw new Error(`searchSongs failed: ${res.status}`);
   return res.json();
 }
@@ -30,12 +30,15 @@ export async function findSimilar(
   songId: string,
   opts?: { limit?: number; minBpm?: number; maxBpm?: number }
 ): Promise<SimilarSong[]> {
-  const params = new URLSearchParams();
-  if (opts?.limit !== undefined) params.set("limit", String(opts.limit));
-  if (opts?.minBpm !== undefined) params.set("min_bpm", String(opts.minBpm));
-  if (opts?.maxBpm !== undefined) params.set("max_bpm", String(opts.maxBpm));
-  const query = params.toString() ? `?${params}` : "";
-  const res = await fetch(`${API_URL}/songs/${songId}/similar${query}`);
+  const body: Record<string, unknown> = { song_id: songId };
+  if (opts?.limit !== undefined) body.limit = opts.limit;
+  if (opts?.minBpm !== undefined) body.min_bpm = opts.minBpm;
+  if (opts?.maxBpm !== undefined) body.max_bpm = opts.maxBpm;
+  const res = await fetch(`${API_URL}/similar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
   if (!res.ok) throw new Error(`findSimilar failed: ${res.status}`);
   return res.json();
 }
