@@ -40,7 +40,7 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 // ---------------------------------------------------------------------------
 
 const variantBorder: Record<ToastVariant, string> = {
-  info: "border-l-blue-500",
+  info: "border-l-amber-500",
   error: "border-l-red-500",
   success: "border-l-emerald-500",
 };
@@ -52,7 +52,7 @@ const variantIcon: Record<ToastVariant, string> = {
 };
 
 const variantIconColor: Record<ToastVariant, string> = {
-  info: "text-blue-400",
+  info: "text-amber",
   error: "text-red-400",
   success: "text-emerald-400",
 };
@@ -71,7 +71,7 @@ function Toast({ item, onClose }: ToastProps) {
     <div
       role="alert"
       className={[
-        "flex items-start gap-3 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 shadow-lg",
+        "glass flex items-start gap-3 rounded-xl border bg-surface-glass px-4 py-3 shadow-lg backdrop-blur-xl",
         "border-l-4",
         variantBorder[item.variant],
         "transition-all duration-300 ease-out",
@@ -86,11 +86,11 @@ function Toast({ item, onClose }: ToastProps) {
       >
         {variantIcon[item.variant]}
       </span>
-      <p className="flex-1 text-sm text-zinc-100">{item.message}</p>
+      <p className="flex-1 text-sm text-text-primary">{item.message}</p>
       <button
         onClick={() => onClose(item.id)}
         aria-label="Close notification"
-        className="ml-1 mt-0.5 text-zinc-500 transition hover:text-zinc-300"
+        className="ml-1 mt-0.5 text-text-tertiary transition hover:text-text-primary"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

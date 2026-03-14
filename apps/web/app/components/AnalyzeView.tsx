@@ -103,9 +103,9 @@ export default function AnalyzeView() {
           <UploadZone onFileSelected={handleFileSelected} />
 
           <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-zinc-800" />
-            <span className="text-xs text-zinc-600">oder</span>
-            <div className="h-px flex-1 bg-zinc-800" />
+            <div className="h-px flex-1 bg-border-subtle" />
+            <span className="text-xs text-text-tertiary">oder</span>
+            <div className="h-px flex-1 bg-border-subtle" />
           </div>
 
           <UrlInput onMatch={handleYouTubeMatch} />
@@ -114,13 +114,13 @@ export default function AnalyzeView() {
 
       {/* Uploading */}
       {phase === "uploading" && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 text-center">
-          <svg className="mx-auto mb-3 h-8 w-8 animate-spin text-blue-500" viewBox="0 0 24 24" fill="none">
+        <div className="glass animate-fade-in-up rounded-xl p-6 text-center">
+          <svg className="mx-auto mb-3 h-8 w-8 animate-spin text-amber" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
             <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" />
           </svg>
-          <p className="text-sm text-zinc-400">
-            Lade <span className="font-medium text-zinc-300">{uploadedFileName}</span> hoch...
+          <p className="text-sm text-text-secondary">
+            Lade <span className="font-medium text-text-primary">{uploadedFileName}</span> hoch...
           </p>
         </div>
       )}
@@ -132,7 +132,7 @@ export default function AnalyzeView() {
 
       {/* Error */}
       {phase === "error" && (
-        <div className="rounded-xl border border-red-900/50 bg-red-950/30 p-6">
+        <div className="animate-fade-in-up rounded-xl border border-red-900/50 bg-red-950/30 p-6">
           <p className="text-sm text-red-400">{error}</p>
           <button
             onClick={() => {
@@ -140,7 +140,7 @@ export default function AnalyzeView() {
               setError(null);
               setUploadedFileName("");
             }}
-            className="mt-3 rounded-lg bg-zinc-800 px-4 py-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
+            className="mt-3 rounded-lg bg-amber/20 px-4 py-2 text-xs text-amber-light transition-colors hover:bg-amber/30"
           >
             Nochmal versuchen
           </button>
@@ -149,16 +149,16 @@ export default function AnalyzeView() {
 
       {/* YouTube result — no match */}
       {phase === "youtube-result" && ytResult && !ytResult.matched && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
-          <p className="text-sm text-zinc-300">
+        <div className="glass animate-fade-in-up rounded-xl p-6">
+          <p className="text-sm text-text-primary">
             <span className="font-medium">{ytResult.parsed_artist}</span>
             {" — "}
             <span className="font-medium">{ytResult.parsed_title}</span>
           </p>
-          <p className="mt-2 text-sm text-zinc-500">{ytResult.message}</p>
+          <p className="mt-2 text-sm text-text-tertiary">{ytResult.message}</p>
           <button
             onClick={handleReset}
-            className="mt-3 text-xs text-blue-400 underline hover:text-blue-300"
+            className="mt-3 text-xs text-amber-light underline hover:text-amber"
           >
             Audio-Datei hochladen
           </button>
@@ -169,13 +169,13 @@ export default function AnalyzeView() {
       {(phase === "results" || (phase === "youtube-result" && ytResult?.matched)) &&
         result &&
         querySong && (
-          <div className="space-y-4">
+          <div className="animate-fade-in-up space-y-4">
             {/* Song info header */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-              <h3 className="text-sm font-medium text-zinc-300">
+            <div className="glass rounded-xl p-4">
+              <h3 className="font-display text-sm font-medium text-text-primary">
                 {querySong.artist} — {querySong.title}
               </h3>
-              <div className="mt-1 flex gap-3 text-xs text-zinc-500">
+              <div className="mt-1 flex gap-3 text-xs text-text-tertiary">
                 {result.bpm > 0 && <span>{Math.round(result.bpm)} BPM</span>}
                 {result.key && <span>{result.key}</span>}
                 {result.duration > 0 && (
@@ -194,12 +194,12 @@ export default function AnalyzeView() {
                 }}
               />
             ) : (
-              <p className="text-sm text-zinc-500">Keine ähnlichen Songs gefunden.</p>
+              <p className="text-sm text-text-tertiary">Keine ähnlichen Songs gefunden.</p>
             )}
 
             <button
               onClick={handleReset}
-              className="text-xs text-zinc-400 underline hover:text-zinc-300"
+              className="text-xs text-text-secondary underline hover:text-text-primary"
             >
               Neue Analyse starten
             </button>

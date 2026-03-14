@@ -94,14 +94,14 @@ export default function UploadZone({ onFileSelected, disabled }: UploadZoneProps
           if ((e.key === "Enter" || e.key === " ") && !disabled) inputRef.current?.click();
         }}
         className={`
-          flex cursor-pointer flex-col items-center justify-center
+          glass flex cursor-pointer flex-col items-center justify-center
           rounded-xl border-2 border-dashed p-8 transition-colors
-          ${disabled ? "cursor-not-allowed border-zinc-800 bg-zinc-900/50 opacity-50" : ""}
-          ${dragOver ? "border-blue-500 bg-blue-500/10" : "border-zinc-700 bg-zinc-900 hover:border-zinc-500"}
+          ${disabled ? "cursor-not-allowed border-border-subtle opacity-50" : ""}
+          ${dragOver ? "border-amber/50 bg-amber-dim glow-md" : "border-border-glass hover:border-amber/30"}
         `}
       >
         <svg
-          className="mb-3 h-10 w-10 text-zinc-500"
+          className="mb-3 h-10 w-10 text-text-tertiary"
           fill="none"
           viewBox="0 0 24 24"
           strokeWidth={1.5}
@@ -113,10 +113,10 @@ export default function UploadZone({ onFileSelected, disabled }: UploadZoneProps
             d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
           />
         </svg>
-        <p className="text-sm text-zinc-400">
-          Audio-Datei hierher ziehen oder <span className="text-blue-400 underline">durchsuchen</span>
+        <p className="text-sm text-text-secondary">
+          Audio-Datei hierher ziehen oder <span className="text-amber-light underline">durchsuchen</span>
         </p>
-        <p className="mt-1 text-xs text-zinc-600">MP3, WAV, FLAC, OGG, AAC — max. {MAX_SIZE_MB} MB</p>
+        <p className="mt-1 text-xs text-text-tertiary">MP3, WAV, FLAC, OGG, AAC — max. {MAX_SIZE_MB} MB</p>
         <input
           ref={inputRef}
           type="file"

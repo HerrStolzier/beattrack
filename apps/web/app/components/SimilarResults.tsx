@@ -12,9 +12,9 @@ interface SimilarResultsProps {
 }
 
 function similarityColor(score: number): string {
-  if (score >= 0.7) return "from-emerald-600 to-emerald-400";
-  if (score >= 0.4) return "from-yellow-600 to-yellow-400";
-  return "from-red-600 to-red-400";
+  if (score >= 0.7) return "from-amber to-gold";
+  if (score >= 0.4) return "from-amber-light to-amber";
+  return "from-red-500 to-red-400";
 }
 
 function formatDuration(sec: number | null | undefined): string {
@@ -37,13 +37,13 @@ export default function SimilarResults({ results, querySong, onFeedback }: Simil
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-sm font-semibold text-zinc-300">
+      <h2 className="text-sm font-semibold text-text-secondary">
         Similar to{" "}
-        <span className="text-zinc-100">{querySong.title}</span>
+        <span className="text-text-primary">{querySong.title}</span>
       </h2>
 
       {results.length === 0 && (
-        <p className="text-xs text-zinc-500">No similar songs found.</p>
+        <p className="text-xs text-text-secondary">No similar songs found.</p>
       )}
 
       <ul className="flex flex-col gap-3">
@@ -54,41 +54,41 @@ export default function SimilarResults({ results, querySong, onFeedback }: Simil
           return (
             <li
               key={song.id}
-              className="rounded-xl border border-zinc-800 bg-zinc-900 p-3"
+              className="rounded-xl border border-border-subtle bg-surface-raised p-3"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-zinc-100">
+                  <p className="truncate text-sm font-medium text-text-primary">
                     {song.title}
                   </p>
-                  <p className="truncate text-xs text-zinc-400">{song.artist}</p>
+                  <p className="truncate text-xs text-text-secondary">{song.artist}</p>
                 </div>
-                <span className="shrink-0 text-xs font-semibold text-zinc-300">
+                <span className={`shrink-0 text-xs font-semibold ${song.similarity >= 0.4 ? "text-amber-light" : "text-text-secondary"}`}>
                   {pct}%
                 </span>
               </div>
 
               {/* Metadata tags */}
-              <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px] text-zinc-500">
+              <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px]">
                 {song.bpm != null && (
-                  <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono">
+                  <span className="rounded bg-amber-dim px-1.5 py-0.5 font-mono text-amber-light">
                     {Math.round(song.bpm)} BPM
                   </span>
                 )}
                 {song.musical_key && (
-                  <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono">
+                  <span className="rounded bg-amber-dim px-1.5 py-0.5 font-mono text-amber-light">
                     {song.musical_key}
                   </span>
                 )}
                 {song.duration_sec != null && song.duration_sec > 0 && (
-                  <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono">
+                  <span className="rounded bg-amber-dim px-1.5 py-0.5 font-mono text-amber-light">
                     {formatDuration(song.duration_sec)}
                   </span>
                 )}
               </div>
 
               {/* Similarity bar */}
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-raised">
                 <div
                   className={`h-full rounded-full bg-gradient-to-r ${similarityColor(song.similarity)}`}
                   style={{ width: `${pct}%` }}
@@ -97,7 +97,7 @@ export default function SimilarResults({ results, querySong, onFeedback }: Simil
 
               {/* Low score explanation */}
               {song.similarity < 0.3 && (
-                <p className="mt-1 text-[10px] text-zinc-600">
+                <p className="mt-1 text-[10px] text-text-tertiary">
                   Niedrige Ähnlichkeit — der Katalog enthält möglicherweise keine engeren Matches.
                 </p>
               )}
@@ -110,7 +110,7 @@ export default function SimilarResults({ results, querySong, onFeedback }: Simil
                     href={searchUrl("spotify", song.artist, song.title)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded px-1.5 py-0.5 text-[10px] text-emerald-500 transition hover:bg-emerald-500/10"
+                    className="rounded px-1.5 py-0.5 text-[10px] text-emerald-400 transition hover:bg-emerald-400/10"
                     title="Auf Spotify suchen"
                   >
                     Spotify
@@ -127,7 +127,7 @@ export default function SimilarResults({ results, querySong, onFeedback }: Simil
                   {/* Radar toggle */}
                   <button
                     onClick={() => setExpandedId(isExpanded ? null : song.id)}
-                    className="rounded px-1.5 py-0.5 text-[10px] text-blue-400 transition hover:bg-blue-400/10"
+                    className="rounded px-1.5 py-0.5 text-[10px] text-text-tertiary transition hover:text-text-secondary"
                   >
                     {isExpanded ? "Radar -" : "Radar +"}
                   </button>
@@ -141,7 +141,7 @@ export default function SimilarResults({ results, querySong, onFeedback }: Simil
 
               {/* Radar chart (expanded) */}
               {isExpanded && (
-                <div className="mt-3 border-t border-zinc-800 pt-3">
+                <div className="mt-3 border-t border-border-subtle pt-3">
                   <RadarChart querySongId={querySong.id} resultSongId={song.id} />
                 </div>
               )}

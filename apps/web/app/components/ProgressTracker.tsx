@@ -91,16 +91,16 @@ export default function ProgressTracker({ jobId, onComplete, onError }: Progress
   }[status] || status;
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6" data-testid="progress-tracker">
+    <div className="glass rounded-xl p-6" data-testid="progress-tracker">
       <div className="mb-4 flex items-center justify-between">
-        <span className="text-sm font-medium text-zinc-300">{statusText}</span>
-        <span className="text-xs text-zinc-500">{pct}%</span>
+        <span className="text-sm font-medium text-text-secondary">{statusText}</span>
+        <span className="text-xs font-display text-amber-light">{pct}%</span>
       </div>
 
       {/* Progress bar */}
-      <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+      <div className="h-2 overflow-hidden rounded-full bg-surface-raised">
         <div
-          className="h-full rounded-full bg-blue-500 transition-all duration-500"
+          className="glow-sm h-full rounded-full bg-gradient-to-r from-amber to-gold transition-all duration-500"
           style={{ width: `${pct}%` }}
           role="progressbar"
           aria-valuenow={pct}
@@ -111,22 +111,22 @@ export default function ProgressTracker({ jobId, onComplete, onError }: Progress
 
       {/* Cold-start message */}
       {showColdStart && status === "queued" && (
-        <p className="mt-3 flex items-center text-xs text-zinc-500" data-testid="cold-start-message">
-          <span className="inline-block w-2 h-2 rounded-full bg-blue-500 animate-pulse mr-2" aria-hidden="true" />
+        <p className="mt-3 flex items-center text-xs text-amber" data-testid="cold-start-message">
+          <span className="inline-block w-2 h-2 rounded-full bg-amber animate-pulse mr-2" aria-hidden="true" />
           Server wacht gerade auf... Das kann beim ersten Start 30-90 Sekunden dauern.
         </p>
       )}
 
       {/* SSE fallback notice */}
       {!sseConnected && (
-        <p className="mt-2 text-xs text-yellow-500/80">
+        <p className="mt-2 text-xs text-amber/80">
           Live-Verbindung unterbrochen. Status wird per Polling aktualisiert.
         </p>
       )}
 
       {/* Elapsed time */}
       {status !== "completed" && status !== "failed" && (
-        <p className="mt-2 text-xs text-zinc-600">{elapsed}s vergangen</p>
+        <p className="mt-2 text-xs text-text-tertiary">{elapsed}s vergangen</p>
       )}
     </div>
   );

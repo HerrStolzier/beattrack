@@ -40,10 +40,10 @@ export default function SearchBar({ onResults }: SearchBarProps) {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search songs..."
-        className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-zinc-100 placeholder-zinc-500 outline-none transition focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600"
+        className="glass w-full rounded-xl border border-border-glass px-4 py-3 text-text-primary placeholder:text-text-tertiary outline-none transition focus:border-amber/50 focus:ring-1 focus:ring-amber/30"
       />
       {loading && (
-        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-zinc-500">
+        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-text-tertiary">
           Searching…
         </span>
       )}

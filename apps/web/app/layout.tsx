@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
-import { Space_Grotesk } from "next/font/google";
+import { Syne, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "./components/Toast";
 
-const spaceGrotesk = Space_Grotesk({
+const syne = Syne({
   subsets: ["latin"],
-  variable: "--font-space-grotesk",
+  variable: "--font-syne",
+  weight: ["700", "800"],
+});
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-dm-sans",
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -20,7 +27,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${spaceGrotesk.variable} font-sans antialiased`}>
+      <body
+        className={`${syne.variable} ${dmSans.variable} font-sans antialiased`}
+      >
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>

@@ -52,18 +52,18 @@ export default function ApiStatus() {
 
   if (state === "warming") {
     return (
-      <div className="mb-4 flex items-center gap-3 rounded-xl border border-yellow-500/20 bg-zinc-900 p-3">
-        <span className="inline-block h-2 w-2 flex-shrink-0 animate-pulse rounded-full bg-yellow-500" />
-        <p className="text-sm text-yellow-500">Backend startet gerade...</p>
+      <div className="glass mb-4 flex items-center gap-3 rounded-xl border border-amber/20 p-3">
+        <span className="inline-block h-2 w-2 flex-shrink-0 animate-pulse rounded-full bg-amber-500" />
+        <p className="text-sm text-text-secondary">Backend startet gerade...</p>
       </div>
     );
   }
 
   // "down"
   return (
-    <div className="mb-4 flex items-center gap-3 rounded-xl border border-red-500/20 bg-zinc-900 p-3">
-      <span className="inline-block h-2 w-2 flex-shrink-0 rounded-full bg-red-400" />
-      <p className="text-sm text-red-400">
+    <div className="glass mb-4 flex items-center gap-3 rounded-xl border border-red-500/20 p-3">
+      <span className="inline-block h-2 w-2 flex-shrink-0 rounded-full bg-red-500" />
+      <p className="text-sm text-text-secondary">
         Backend nicht erreichbar. Bitte später erneut versuchen.
       </p>
     </div>

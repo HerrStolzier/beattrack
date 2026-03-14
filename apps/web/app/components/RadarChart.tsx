@@ -55,11 +55,11 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
   }, [querySongId, resultSongId]);
 
   if (loading) {
-    return <p className="text-center text-xs text-zinc-500">Lade Features...</p>;
+    return <p className="text-center text-xs text-text-tertiary">Lade Features...</p>;
   }
 
   if (error || (!queryFeatures && !resultFeatures)) {
-    return <p className="text-center text-xs text-zinc-600">Keine Feature-Daten verfügbar.</p>;
+    return <p className="text-center text-xs text-text-tertiary">Keine Feature-Daten verfügbar.</p>;
   }
 
   const n = CATEGORIES.length;
@@ -67,6 +67,17 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
   return (
     <div className="flex flex-col items-center gap-2">
       <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-40 w-40">
+        <defs>
+          <filter id="glow-amber" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+          <filter id="glow-cyan" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+
         {/* Grid levels */}
         {Array.from({ length: LEVELS }, (_, lvl) => {
           const r = ((lvl + 1) / LEVELS) * RADIUS;
@@ -80,7 +91,7 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
               key={lvl}
               points={pts}
               fill="none"
-              stroke="rgb(63 63 70)"
+              stroke="rgba(255,255,255,0.08)"
               strokeWidth="0.5"
             />
           );
@@ -97,7 +108,7 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
               y1={CENTER}
               x2={x}
               y2={y}
-              stroke="rgb(63 63 70)"
+              stroke="rgba(255,255,255,0.12)"
               strokeWidth="0.5"
             />
           );
@@ -107,9 +118,10 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
         {queryFeatures && (
           <polygon
             points={polygonPoints(KEYS.map((k) => queryFeatures[k]))}
-            fill="rgba(59, 130, 246, 0.15)"
-            stroke="rgb(59, 130, 246)"
+            fill="rgba(245,158,11,0.15)"
+            stroke="#f59e0b"
             strokeWidth="1.5"
+            filter="url(#glow-amber)"
           />
         )}
 
@@ -117,9 +129,10 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
         {resultFeatures && (
           <polygon
             points={polygonPoints(KEYS.map((k) => resultFeatures[k]))}
-            fill="rgba(234, 179, 8, 0.15)"
-            stroke="rgb(234, 179, 8)"
+            fill="rgba(34,211,238,0.15)"
+            stroke="#22d3ee"
             strokeWidth="1.5"
+            filter="url(#glow-cyan)"
           />
         )}
 
@@ -134,7 +147,8 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
               y={y}
               textAnchor="middle"
               dominantBaseline="central"
-              className="fill-zinc-500 text-[7px]"
+              fill="rgba(161,161,170,1)"
+              fontSize="7"
             >
               {label}
             </text>
@@ -145,15 +159,15 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
       {/* Legend */}
       <div className="flex items-center gap-3 text-[10px]">
         {queryFeatures && (
-          <span className="flex items-center gap-1">
-            <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
+          <span className="flex items-center gap-1 text-amber">
+            <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
             Query
           </span>
         )}
         {resultFeatures && (
-          <span className="flex items-center gap-1">
-            <span className="inline-block h-2 w-2 rounded-full bg-yellow-500" />
-            Ergebnis
+          <span className="flex items-center gap-1 text-neon-cyan">
+            <span className="inline-block h-2 w-2 rounded-full bg-cyan-400" />
+            Result
           </span>
         )}
       </div>

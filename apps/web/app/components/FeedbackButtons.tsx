@@ -39,10 +39,10 @@ export default function FeedbackButtons({
       <button
         onClick={() => handleClick(1)}
         disabled={loading || selected !== null}
-        className={`rounded px-2 py-1 text-sm transition ${
+        className={`rounded border border-border-subtle px-2 py-1 text-sm transition ${
           selected === 1
-            ? "bg-emerald-600 text-white"
-            : "text-zinc-400 hover:bg-zinc-700 hover:text-zinc-100 disabled:opacity-40"
+            ? "bg-amber/30 text-amber-light"
+            : "text-text-tertiary hover:bg-amber-dim hover:text-text-secondary disabled:opacity-40"
         }`}
         title="Helpful"
       >
@@ -51,10 +51,10 @@ export default function FeedbackButtons({
       <button
         onClick={() => handleClick(-1)}
         disabled={loading || selected !== null}
-        className={`rounded px-2 py-1 text-sm transition ${
+        className={`rounded border border-border-subtle px-2 py-1 text-sm transition ${
           selected === -1
-            ? "bg-red-600 text-white"
-            : "text-zinc-400 hover:bg-zinc-700 hover:text-zinc-100 disabled:opacity-40"
+            ? "bg-red-500/30 text-red-400"
+            : "text-text-tertiary hover:bg-red-500/15 hover:text-text-secondary disabled:opacity-40"
         }`}
         title="Not helpful"
       >

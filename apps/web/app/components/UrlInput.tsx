@@ -8,10 +8,10 @@ type UrlInputProps = {
   disabled?: boolean;
 };
 
-const platformLabels: Record<string, { name: string; color: string }> = {
-  youtube: { name: "YouTube", color: "text-red-400" },
-  soundcloud: { name: "SoundCloud", color: "text-orange-400" },
-  spotify: { name: "Spotify", color: "text-emerald-400" },
+const platformLabels: Record<string, { name: string; color: string; bg: string }> = {
+  youtube: { name: "YouTube", color: "text-red-400", bg: "bg-red-500/20" },
+  soundcloud: { name: "SoundCloud", color: "text-orange-400", bg: "bg-orange-500/20" },
+  spotify: { name: "Spotify", color: "text-emerald-400", bg: "bg-emerald-500/20" },
 };
 
 export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
@@ -56,14 +56,14 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
               setError(null);
             }}
             placeholder="YouTube, SoundCloud oder Spotify URL..."
-            className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none transition focus:border-blue-500"
+            className="glass w-full rounded-xl border border-border-glass px-4 py-3 text-sm text-text-primary placeholder-text-tertiary outline-none transition focus:border-amber/50 focus:ring-1 focus:ring-amber/30"
             disabled={disabled || loading}
             data-testid="url-input"
           />
           {/* Platform badge */}
           {detected && (
             <span
-              className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium ${platformLabels[detected].color}`}
+              className={`absolute right-3 top-1/2 -translate-y-1/2 rounded px-1.5 py-0.5 text-xs font-medium ${platformLabels[detected].bg} ${platformLabels[detected].color}`}
               data-testid="platform-badge"
             >
               {platformLabels[detected].name}
@@ -73,12 +73,12 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
         <button
           type="submit"
           disabled={!url.trim() || loading || disabled}
-          className="rounded-xl bg-zinc-800 px-5 py-3 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-xl bg-amber/20 px-5 py-3 text-sm font-medium text-amber-light transition-colors hover:bg-amber/30 disabled:cursor-not-allowed disabled:opacity-50"
           data-testid="url-submit"
         >
           {loading ? (
             <span className="flex items-center gap-2">
-              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+              <svg className="h-4 w-4 animate-spin text-amber" viewBox="0 0 24 24" fill="none">
                 <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
                 <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" />
               </svg>
