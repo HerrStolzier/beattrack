@@ -12,7 +12,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.limiter import limiter
-from app.routes import songs, similar, feedback, analyze
+from app.routes import songs, similar, feedback, analyze, identify
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +40,7 @@ app.include_router(songs.router)
 app.include_router(similar.router)
 app.include_router(feedback.router)
 app.include_router(analyze.router)
+app.include_router(identify.router)
 
 
 @app.get("/health")

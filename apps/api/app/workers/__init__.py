@@ -31,7 +31,7 @@ app = procrastinate.App(
 )
 
 
-def process_analysis_result(features: dict, job_id: str) -> dict:
+def process_analysis_result(features: dict, job_id: str, audio_path: str = "") -> dict:
     """Insert song into DB, run similarity search, return result.
 
     This is extracted from the task for testability.
@@ -54,12 +54,43 @@ def process_analysis_result(features: dict, job_id: str) -> dict:
     except Exception as exc:
         logger.warning("Could not load normalization stats, using raw features: %s", exc)
 
-    # 2. Insert song into songs table
+    # 2. AcoustID fingerprinting + MusicBrainz metadata enrichment
+    song_title = f"Upload {job_id[:8]}"
+    song_artist = "Unknown"
+    song_album = None
+    musicbrainz_id = None
+
+    if audio_path:
+        try:
+            from app.services.acoustid import fingerprint_file, lookup as acoustid_lookup
+            from app.services.musicbrainz import lookup_recording
+            import os as _os
+
+            api_key = _os.environ.get("ACOUSTID_API_KEY", "")
+            fp_result = fingerprint_file(audio_path)
+            if fp_result is not None and api_key:
+                fingerprint, duration = fp_result
+                mbid = acoustid_lookup(fingerprint, duration, api_key)
+                if mbid:
+                    mb_data = lookup_recording(mbid)
+                    if mb_data:
+                        musicbrainz_id = mbid
+                        song_title = mb_data.get("title") or song_title
+                        song_artist = mb_data.get("artist") or song_artist
+                        song_album = mb_data.get("album") or None
+                        logger.info(
+                            "AcoustID resolved job %s → MBID %s (%s – %s)",
+                            job_id, mbid, song_artist, song_title,
+                        )
+        except Exception as exc:
+            logger.warning("AcoustID/MusicBrainz enrichment failed for job %s: %s", job_id, exc)
+
+    # 3. Insert song into songs table
     song_id = job_id  # Use job_id as song_id for simplicity
-    song_data = {
+    song_data: dict = {
         "id": song_id,
-        "title": f"Upload {job_id[:8]}",
-        "artist": "Unknown",
+        "title": song_title,
+        "artist": song_artist,
         "bpm": features["bpm"],
         "musical_key": features["key"],
         "duration_sec": features.get("duration", 0),
@@ -67,6 +98,10 @@ def process_analysis_result(features: dict, job_id: str) -> dict:
         "handcrafted_norm": handcrafted,
         "metadata_status": "uploaded",
     }
+    if song_album is not None:
+        song_data["album"] = song_album
+    if musicbrainz_id is not None:
+        song_data["musicbrainz_id"] = musicbrainz_id
 
     try:
         sb.table("songs").insert(song_data).execute()
@@ -74,7 +109,7 @@ def process_analysis_result(features: dict, job_id: str) -> dict:
         logger.error("Failed to insert song %s: %s", song_id, exc)
         # Don't fail the whole job — still return features
 
-    # 3. Find similar songs via RPC
+    # 4. Find similar songs via RPC
     similar_songs = []
     try:
         rpc_result = sb.rpc("find_similar_songs", {
@@ -134,9 +169,9 @@ def analyze_audio(context, *, audio_path: str, job_id: str):
 
     update_job_status(job_id, "processing", progress=0.8)
 
-    # 2. Insert into DB + find similar songs
+    # 2. Insert into DB + find similar songs (pass audio_path for AcoustID enrichment)
     try:
-        result = process_analysis_result(features, job_id)
+        result = process_analysis_result(features, job_id, audio_path=audio_path)
     except Exception as exc:
         logger.warning("DB processing failed, returning features only: %s", exc)
         result = {

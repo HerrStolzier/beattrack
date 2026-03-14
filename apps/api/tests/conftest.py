@@ -33,7 +33,7 @@ def _make_supabase_mock():
     sb = MagicMock()
     builder = MagicMock()
     sb.table.return_value = builder
-    for method in ("select", "eq", "ilike", "in_", "range", "insert", "single"):
+    for method in ("select", "eq", "ilike", "in_", "range", "insert", "single", "limit"):
         getattr(builder, method).return_value = builder
     return sb, builder
 
