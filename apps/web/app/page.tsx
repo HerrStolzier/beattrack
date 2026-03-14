@@ -5,8 +5,12 @@ import { findSimilar, searchSongs, type Song, type SimilarSong } from "@/lib/api
 import SearchBar from "./components/SearchBar";
 import SongCard from "./components/SongCard";
 import SimilarResults from "./components/SimilarResults";
+import AnalyzeView from "./components/AnalyzeView";
+
+type Tab = "catalog" | "analyze";
 
 export default function Home() {
+  const [tab, setTab] = useState<Tab>("catalog");
   const [songs, setSongs] = useState<Song[]>([]);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [similarResults, setSimilarResults] = useState<SimilarSong[]>([]);
@@ -44,50 +48,82 @@ export default function Home() {
           <p className="mt-1 text-sm text-zinc-500">Find sonically similar songs</p>
         </header>
 
-        {/* Search */}
-        <div className="mb-6">
-          <SearchBar onResults={handleResults} />
+        {/* Tabs */}
+        <div className="mb-6 flex gap-1 rounded-lg bg-zinc-900 p-1" role="tablist">
+          <button
+            role="tab"
+            aria-selected={tab === "catalog"}
+            onClick={() => setTab("catalog")}
+            className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              tab === "catalog"
+                ? "bg-zinc-800 text-zinc-100"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            Katalog durchsuchen
+          </button>
+          <button
+            role="tab"
+            aria-selected={tab === "analyze"}
+            onClick={() => setTab("analyze")}
+            className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              tab === "analyze"
+                ? "bg-zinc-800 text-zinc-100"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            Song analysieren
+          </button>
         </div>
 
-        {/* Content */}
-        <div className="flex flex-col gap-6 lg:flex-row">
-          {/* Song list */}
-          <section className="flex-1">
-            {songs.length === 0 ? (
-              <p className="text-sm text-zinc-500">No songs found.</p>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {songs.map((song) => (
-                  <SongCard
-                    key={song.id}
-                    song={song}
-                    onFindSimilar={handleFindSimilar}
-                    isSelected={selectedSong?.id === song.id}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
+        {/* Catalog tab */}
+        {tab === "catalog" && (
+          <>
+            <div className="mb-6">
+              <SearchBar onResults={handleResults} />
+            </div>
 
-          {/* Similar results panel */}
-          {selectedSong && (
-            <aside className="w-full lg:w-80 lg:shrink-0">
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-                {loadingSimilar ? (
-                  <p className="text-sm text-zinc-500">Loading similar songs…</p>
+            <div className="flex flex-col gap-6 lg:flex-row">
+              <section className="flex-1">
+                {songs.length === 0 ? (
+                  <p className="text-sm text-zinc-500">No songs found.</p>
                 ) : (
-                  <SimilarResults
-                    results={similarResults}
-                    querySong={selectedSong}
-                    onFeedback={(qId, rId, rating) => {
-                      console.log(`Feedback: ${rating} for ${qId} → ${rId}`);
-                    }}
-                  />
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {songs.map((song) => (
+                      <SongCard
+                        key={song.id}
+                        song={song}
+                        onFindSimilar={handleFindSimilar}
+                        isSelected={selectedSong?.id === song.id}
+                      />
+                    ))}
+                  </div>
                 )}
-              </div>
-            </aside>
-          )}
-        </div>
+              </section>
+
+              {selectedSong && (
+                <aside className="w-full lg:w-80 lg:shrink-0">
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+                    {loadingSimilar ? (
+                      <p className="text-sm text-zinc-500">Loading similar songs…</p>
+                    ) : (
+                      <SimilarResults
+                        results={similarResults}
+                        querySong={selectedSong}
+                        onFeedback={(qId, rId, rating) => {
+                          console.log(`Feedback: ${rating} for ${qId} → ${rId}`);
+                        }}
+                      />
+                    )}
+                  </div>
+                </aside>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Analyze tab */}
+        {tab === "analyze" && <AnalyzeView />}
       </div>
     </main>
   );
