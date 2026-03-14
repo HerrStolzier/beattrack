@@ -57,9 +57,9 @@ describe("ProgressTracker", () => {
     // Cold start message should not be visible initially
     expect(screen.queryByTestId("cold-start-message")).not.toBeInTheDocument();
 
-    // Advance past the 10s threshold
+    // Advance past the 20s threshold
     await act(async () => {
-      vi.advanceTimersByTime(11_000);
+      vi.advanceTimersByTime(21_000);
     });
 
     expect(screen.getByTestId("cold-start-message")).toBeInTheDocument();
