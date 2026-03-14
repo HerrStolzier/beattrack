@@ -203,6 +203,14 @@ export default function Home() {
         {/* Analyze tab */}
         {tab === "analyze" && <AnalyzeView />}
       </div>
+      <footer className="mx-auto max-w-6xl px-4 py-6">
+        <div className="flex items-center justify-between border-t border-zinc-800 pt-4">
+          <p className="text-xs text-zinc-600">Beattrack — Find sonically similar songs</p>
+          <a href="/privacy" className="text-xs text-zinc-600 transition-colors hover:text-zinc-400">
+            Datenschutz
+          </a>
+        </div>
+      </footer>
     </main>
   );
 }
