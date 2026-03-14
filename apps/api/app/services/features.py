@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 class FeatureExtractionError(Exception):
     """Raised when feature extraction fails."""
-    pass
 
 
 def _limit_memory(max_bytes: int = 2 * 1024**3):

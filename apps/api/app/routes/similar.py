@@ -6,13 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from supabase import Client
 
+from app.db import get_supabase
+
 logger = logging.getLogger(__name__)
 
 FEEDBACK_BOOST_ENABLED = os.getenv("FEEDBACK_BOOST", "").lower() in ("true", "1", "yes")
 POSITIVE_BOOST = 0.05
 NEGATIVE_PENALTY = 0.03
-
-from app.db import get_supabase
 
 router = APIRouter(prefix="/similar", tags=["similar"])
 
