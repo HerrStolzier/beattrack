@@ -327,3 +327,48 @@ export async function identifyYouTube(url: string): Promise<IdentifyResponse> {
   }
   return res.json();
 }
+
+export async function identifySoundCloud(url: string): Promise<IdentifyResponse> {
+  const res = await fetchWithRetry(`${API_URL}/identify/soundcloud`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ detail: undefined }));
+    throw new ApiError(data?.detail || `Identify failed`, res.status);
+  }
+  return res.json();
+}
+
+export async function identifySpotify(url: string): Promise<IdentifyResponse> {
+  const res = await fetchWithRetry(`${API_URL}/identify/spotify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ detail: undefined }));
+    throw new ApiError(data?.detail || `Identify failed`, res.status);
+  }
+  return res.json();
+}
+
+type Platform = "youtube" | "soundcloud" | "spotify" | null;
+
+export function detectPlatform(url: string): Platform {
+  if (/youtube\.com|youtu\.be/.test(url)) return "youtube";
+  if (/soundcloud\.com/.test(url)) return "soundcloud";
+  if (/open\.spotify\.com\/track/.test(url)) return "spotify";
+  return null;
+}
+
+export async function identifyUrl(url: string): Promise<IdentifyResponse> {
+  const platform = detectPlatform(url);
+  switch (platform) {
+    case "youtube": return identifyYouTube(url);
+    case "soundcloud": return identifySoundCloud(url);
+    case "spotify": return identifySpotify(url);
+    default: throw new ApiError("Ungültige URL. Unterstützt: YouTube, SoundCloud, Spotify.", 400);
+  }
+}

@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { uploadAudio, findSimilar, NetworkError, TimeoutError, ApiError, type AnalysisResult, type IdentifyResponse, type SimilarSong, type Song } from "@/lib/api";
 import UploadZone from "./UploadZone";
 import ProgressTracker from "./ProgressTracker";
-import YouTubeInput from "./YouTubeInput";
+import UrlInput from "./UrlInput";
 import SimilarResults from "./SimilarResults";
 
 type AnalyzePhase = "idle" | "uploading" | "processing" | "results" | "error" | "youtube-result";
@@ -108,7 +108,7 @@ export default function AnalyzeView() {
             <div className="h-px flex-1 bg-zinc-800" />
           </div>
 
-          <YouTubeInput onMatch={handleYouTubeMatch} />
+          <UrlInput onMatch={handleYouTubeMatch} />
         </>
       )}
 
