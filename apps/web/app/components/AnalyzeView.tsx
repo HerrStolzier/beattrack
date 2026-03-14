@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { uploadAudio, findSimilar, type AnalysisResult, type IdentifyResponse, type SimilarSong, type Song } from "@/lib/api";
+import { uploadAudio, findSimilar, NetworkError, TimeoutError, ApiError, type AnalysisResult, type IdentifyResponse, type SimilarSong, type Song } from "@/lib/api";
 import UploadZone from "./UploadZone";
 import ProgressTracker from "./ProgressTracker";
 import YouTubeInput from "./YouTubeInput";
@@ -29,7 +29,15 @@ export default function AnalyzeView() {
       setJobId(response.job_id);
       setPhase("processing");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload fehlgeschlagen.");
+      if (err instanceof TimeoutError) {
+        setError("Das Backend braucht gerade etwas länger. Bitte warte kurz und versuche es erneut.");
+      } else if (err instanceof NetworkError) {
+        setError("Keine Verbindung zum Server. Prüfe deine Internetverbindung.");
+      } else if (err instanceof ApiError) {
+        setError(err.detail);
+      } else {
+        setError("Ein unerwarteter Fehler ist aufgetreten.");
+      }
       setPhase("error");
     }
   }, []);
@@ -127,8 +135,12 @@ export default function AnalyzeView() {
         <div className="rounded-xl border border-red-900/50 bg-red-950/30 p-6">
           <p className="text-sm text-red-400">{error}</p>
           <button
-            onClick={handleReset}
-            className="mt-3 text-xs text-zinc-400 underline hover:text-zinc-300"
+            onClick={() => {
+              setPhase("idle");
+              setError(null);
+              setUploadedFileName("");
+            }}
+            className="mt-3 rounded-lg bg-zinc-800 px-4 py-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
           >
             Nochmal versuchen
           </button>

@@ -9,7 +9,7 @@ type ProgressTrackerProps = {
   onError: (error: string) => void;
 };
 
-const COLD_START_THRESHOLD_MS = 10_000;
+const COLD_START_THRESHOLD_MS = 20_000;
 
 export default function ProgressTracker({ jobId, onComplete, onError }: ProgressTrackerProps) {
   const [status, setStatus] = useState<string>("queued");
@@ -22,10 +22,7 @@ export default function ProgressTracker({ jobId, onComplete, onError }: Progress
   useEffect(() => {
     // Cold-start timer: show message if no progress after threshold
     const timer = setTimeout(() => {
-      setShowColdStart((prev) => {
-        // Only show if still queued with no progress
-        return true;
-      });
+      setShowColdStart(true);
     }, COLD_START_THRESHOLD_MS);
 
     // Start SSE stream
@@ -114,7 +111,8 @@ export default function ProgressTracker({ jobId, onComplete, onError }: Progress
 
       {/* Cold-start message */}
       {showColdStart && status === "queued" && (
-        <p className="mt-3 text-xs text-zinc-500" data-testid="cold-start-message">
+        <p className="mt-3 flex items-center text-xs text-zinc-500" data-testid="cold-start-message">
+          <span className="inline-block w-2 h-2 rounded-full bg-blue-500 animate-pulse mr-2" aria-hidden="true" />
           Server wacht gerade auf... Das kann beim ersten Start 30-90 Sekunden dauern.
         </p>
       )}

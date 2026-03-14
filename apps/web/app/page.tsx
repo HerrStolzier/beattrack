@@ -6,10 +6,13 @@ import SearchBar from "./components/SearchBar";
 import SongCard from "./components/SongCard";
 import SimilarResults from "./components/SimilarResults";
 import AnalyzeView from "./components/AnalyzeView";
+import ApiStatus from "./components/ApiStatus";
+import { useToast } from "./components/Toast";
 
 type Tab = "catalog" | "analyze";
 
 export default function Home() {
+  const toast = useToast();
   const [tab, setTab] = useState<Tab>("catalog");
   const [songs, setSongs] = useState<Song[]>([]);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
@@ -24,9 +27,9 @@ export default function Home() {
 
   // Load initial songs + count on mount
   useEffect(() => {
-    searchSongs("").then(setSongs).catch(() => {});
-    getSongCount().then(setSongCount).catch(() => {});
-  }, []);
+    searchSongs("").then(setSongs).catch((err) => toast.error(err.message || "Anfrage fehlgeschlagen"));
+    getSongCount().then(setSongCount).catch((err) => toast.error(err.message || "Anfrage fehlgeschlagen"));
+  }, [toast]);
 
   const handleResults = useCallback((results: Song[]) => {
     setSongs(results);
@@ -42,8 +45,9 @@ export default function Home() {
       if (maxBpm) opts.maxBpm = Number(maxBpm);
       const results = await findSimilar(song.id, opts);
       setSimilarResults(results);
-    } catch {
+    } catch (err) {
       setSimilarResults([]);
+      toast.error((err instanceof Error ? err.message : null) || "Anfrage fehlgeschlagen");
     } finally {
       setLoadingSimilar(false);
     }
@@ -55,6 +59,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-zinc-950 font-[var(--font-space-grotesk)] text-zinc-100">
       <div className="mx-auto max-w-6xl px-4 py-8">
+        <ApiStatus />
         {/* Header */}
         <header className="mb-8 flex items-end justify-between">
           <div>

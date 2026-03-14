@@ -1,5 +1,104 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+// ---------------------------------------------------------------------------
+// Custom error types
+// ---------------------------------------------------------------------------
+
+export class NetworkError extends Error {
+  constructor(message = "Network error") {
+    super(message);
+    this.name = "NetworkError";
+  }
+}
+
+export class TimeoutError extends Error {
+  constructor(message = "Request timed out") {
+    super(message);
+    this.name = "TimeoutError";
+  }
+}
+
+export class ApiError extends Error {
+  constructor(
+    public readonly detail: string,
+    public readonly status: number
+  ) {
+    super(detail);
+    this.name = "ApiError";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// fetchWithRetry
+// ---------------------------------------------------------------------------
+
+const RETRYABLE_STATUSES = new Set([502, 503, 504]);
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(
+  url: string,
+  opts: RequestInit = {},
+  config: { retries?: number; backoff?: number; timeout?: number } = {}
+): Promise<Response> {
+  const { retries = 3, backoff = 1000, timeout = 15000 } = config;
+
+  let lastError: Error = new NetworkError();
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const res = await fetch(url, { ...opts, signal: controller.signal });
+      clearTimeout(timer);
+
+      if (RETRYABLE_STATUSES.has(res.status) && attempt < retries) {
+        lastError = new ApiError(`Server-Fehler (${res.status})`, res.status);
+        await delay(backoff * Math.pow(2, attempt));
+        continue;
+      }
+
+      return res;
+    } catch (err) {
+      clearTimeout(timer);
+
+      if (err instanceof DOMException && err.name === "AbortError") {
+        throw new TimeoutError();
+      }
+
+      lastError = new NetworkError();
+      if (attempt < retries) {
+        await delay(backoff * Math.pow(2, attempt));
+        continue;
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+// ---------------------------------------------------------------------------
+// Health check
+// ---------------------------------------------------------------------------
+
+export async function pingHealth(): Promise<boolean> {
+  try {
+    const res = await fetchWithRetry(
+      `${API_URL}/health`,
+      {},
+      { retries: 0, timeout: 10000 }
+    );
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data?.status === "ok";
+  } catch {
+    return false;
+  }
+}
+
 export type Song = {
   id: string;
   title: string;
@@ -21,14 +120,14 @@ export type RadarFeatures = {
 };
 
 export async function getSongFeatures(songId: string): Promise<RadarFeatures> {
-  const res = await fetch(`${API_URL}/songs/${songId}/features`);
-  if (!res.ok) throw new Error(`getSongFeatures failed: ${res.status}`);
+  const res = await fetchWithRetry(`${API_URL}/songs/${songId}/features`);
+  if (!res.ok) throw new ApiError(`getSongFeatures failed`, res.status);
   return res.json();
 }
 
 export async function getSongCount(): Promise<number> {
-  const res = await fetch(`${API_URL}/songs/count/total`);
-  if (!res.ok) throw new Error(`getSongCount failed: ${res.status}`);
+  const res = await fetchWithRetry(`${API_URL}/songs/count/total`);
+  if (!res.ok) throw new ApiError(`getSongCount failed`, res.status);
   const data = await res.json();
   return data.count;
 }
@@ -36,14 +135,14 @@ export async function getSongCount(): Promise<number> {
 export async function searchSongs(q: string, limit?: number): Promise<Song[]> {
   const params = new URLSearchParams({ q });
   if (limit !== undefined) params.set("limit", String(limit));
-  const res = await fetch(`${API_URL}/songs?${params}`);
-  if (!res.ok) throw new Error(`searchSongs failed: ${res.status}`);
+  const res = await fetchWithRetry(`${API_URL}/songs?${params}`);
+  if (!res.ok) throw new ApiError(`searchSongs failed`, res.status);
   return res.json();
 }
 
 export async function getSong(id: string): Promise<Song> {
-  const res = await fetch(`${API_URL}/songs/${id}`);
-  if (!res.ok) throw new Error(`getSong failed: ${res.status}`);
+  const res = await fetchWithRetry(`${API_URL}/songs/${id}`);
+  if (!res.ok) throw new ApiError(`getSong failed`, res.status);
   return res.json();
 }
 
@@ -55,12 +154,12 @@ export async function findSimilar(
   if (opts?.limit !== undefined) body.limit = opts.limit;
   if (opts?.minBpm !== undefined) body.min_bpm = opts.minBpm;
   if (opts?.maxBpm !== undefined) body.max_bpm = opts.maxBpm;
-  const res = await fetch(`${API_URL}/similar`, {
+  const res = await fetchWithRetry(`${API_URL}/similar`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`findSimilar failed: ${res.status}`);
+  if (!res.ok) throw new ApiError(`findSimilar failed`, res.status);
   return res.json();
 }
 
@@ -69,7 +168,7 @@ export async function submitFeedback(
   resultSongId: string,
   rating: 1 | -1
 ): Promise<void> {
-  const res = await fetch(`${API_URL}/feedback`, {
+  const res = await fetchWithRetry(`${API_URL}/feedback`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -78,7 +177,7 @@ export async function submitFeedback(
       rating,
     }),
   });
-  if (!res.ok) throw new Error(`submitFeedback failed: ${res.status}`);
+  if (!res.ok) throw new ApiError(`submitFeedback failed`, res.status);
 }
 
 // ---------------------------------------------------------------------------
@@ -109,20 +208,21 @@ export type AnalysisResult = {
 export async function uploadAudio(file: File): Promise<AnalyzeResponse> {
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${API_URL}/analyze`, {
-    method: "POST",
-    body: form,
-  });
+  const res = await fetchWithRetry(
+    `${API_URL}/analyze`,
+    { method: "POST", body: form },
+    { retries: 1, timeout: 60000 }
+  );
   if (!res.ok) {
-    const detail = await res.json().catch(() => ({ detail: `Upload failed: ${res.status}` }));
-    throw new Error(detail.detail || `Upload failed: ${res.status}`);
+    const data = await res.json().catch(() => ({ detail: undefined }));
+    throw new ApiError(data?.detail || `Upload failed`, res.status);
   }
   return res.json();
 }
 
 export async function getJobResults(jobId: string): Promise<JobStatus> {
-  const res = await fetch(`${API_URL}/analyze/${jobId}/results`);
-  if (!res.ok) throw new Error(`getJobResults failed: ${res.status}`);
+  const res = await fetchWithRetry(`${API_URL}/analyze/${jobId}/results`);
+  if (!res.ok) throw new ApiError(`getJobResults failed`, res.status);
   return res.json();
 }
 
@@ -216,14 +316,14 @@ export type IdentifyResponse = {
 };
 
 export async function identifyYouTube(url: string): Promise<IdentifyResponse> {
-  const res = await fetch(`${API_URL}/identify/youtube`, {
+  const res = await fetchWithRetry(`${API_URL}/identify/youtube`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url }),
   });
   if (!res.ok) {
-    const detail = await res.json().catch(() => ({ detail: `Identify failed: ${res.status}` }));
-    throw new Error(detail.detail || `Identify failed: ${res.status}`);
+    const data = await res.json().catch(() => ({ detail: undefined }));
+    throw new ApiError(data?.detail || `Identify failed`, res.status);
   }
   return res.json();
 }
