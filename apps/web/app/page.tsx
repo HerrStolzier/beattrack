@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { findSimilar, searchSongs, type Song, type SimilarSong } from "@/lib/api";
+import { findSimilar, searchSongs, getSongCount, type Song, type SimilarSong } from "@/lib/api";
 import SearchBar from "./components/SearchBar";
 import SongCard from "./components/SongCard";
 import SimilarResults from "./components/SimilarResults";
@@ -15,10 +15,17 @@ export default function Home() {
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [similarResults, setSimilarResults] = useState<SimilarSong[]>([]);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
+  const [songCount, setSongCount] = useState<number | null>(null);
 
-  // Load initial songs on mount
+  // Filters
+  const [minBpm, setMinBpm] = useState<string>("");
+  const [maxBpm, setMaxBpm] = useState<string>("");
+  const [minSimilarity, setMinSimilarity] = useState<number>(0);
+
+  // Load initial songs + count on mount
   useEffect(() => {
     searchSongs("").then(setSongs).catch(() => {});
+    getSongCount().then(setSongCount).catch(() => {});
   }, []);
 
   const handleResults = useCallback((results: Song[]) => {
@@ -30,7 +37,10 @@ export default function Home() {
     setLoadingSimilar(true);
     setSimilarResults([]);
     try {
-      const results = await findSimilar(song.id);
+      const opts: { minBpm?: number; maxBpm?: number } = {};
+      if (minBpm) opts.minBpm = Number(minBpm);
+      if (maxBpm) opts.maxBpm = Number(maxBpm);
+      const results = await findSimilar(song.id, opts);
       setSimilarResults(results);
     } catch {
       setSimilarResults([]);
@@ -39,13 +49,23 @@ export default function Home() {
     }
   }
 
+  // Apply client-side similarity filter
+  const filteredResults = similarResults.filter((s) => s.similarity >= minSimilarity);
+
   return (
     <main className="min-h-screen bg-zinc-950 font-[var(--font-space-grotesk)] text-zinc-100">
       <div className="mx-auto max-w-6xl px-4 py-8">
         {/* Header */}
-        <header className="mb-8">
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-100">Beattrack</h1>
-          <p className="mt-1 text-sm text-zinc-500">Find sonically similar songs</p>
+        <header className="mb-8 flex items-end justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-100">Beattrack</h1>
+            <p className="mt-1 text-sm text-zinc-500">Find sonically similar songs</p>
+          </div>
+          {songCount !== null && (
+            <span className="text-xs text-zinc-600" data-testid="song-count">
+              {songCount.toLocaleString()} Songs im Katalog
+            </span>
+          )}
         </header>
 
         {/* Tabs */}
@@ -104,16 +124,69 @@ export default function Home() {
               {selectedSong && (
                 <aside className="w-full lg:w-80 lg:shrink-0">
                   <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+                    {/* Filters */}
+                    <div className="mb-4 space-y-2 border-b border-zinc-800 pb-4">
+                      <p className="text-xs font-medium text-zinc-400">Filter</p>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          placeholder="Min BPM"
+                          value={minBpm}
+                          onChange={(e) => setMinBpm(e.target.value)}
+                          className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-200 placeholder-zinc-600 outline-none focus:border-blue-500"
+                          data-testid="filter-min-bpm"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Max BPM"
+                          value={maxBpm}
+                          onChange={(e) => setMaxBpm(e.target.value)}
+                          className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-200 placeholder-zinc-600 outline-none focus:border-blue-500"
+                          data-testid="filter-max-bpm"
+                        />
+                      </div>
+                      <div>
+                        <label className="flex items-center justify-between text-xs text-zinc-500">
+                          <span>Min. Ähnlichkeit: {Math.round(minSimilarity * 100)}%</span>
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={minSimilarity}
+                          onChange={(e) => setMinSimilarity(Number(e.target.value))}
+                          className="mt-1 w-full accent-blue-500"
+                          data-testid="filter-similarity"
+                        />
+                      </div>
+                      {(minBpm || maxBpm) && (
+                        <button
+                          onClick={() => handleFindSimilar(selectedSong)}
+                          className="w-full rounded bg-zinc-700 px-2 py-1 text-xs text-zinc-200 transition hover:bg-zinc-600"
+                        >
+                          Erneut suchen
+                        </button>
+                      )}
+                    </div>
+
                     {loadingSimilar ? (
                       <p className="text-sm text-zinc-500">Loading similar songs…</p>
                     ) : (
-                      <SimilarResults
-                        results={similarResults}
-                        querySong={selectedSong}
-                        onFeedback={(qId, rId, rating) => {
-                          console.log(`Feedback: ${rating} for ${qId} → ${rId}`);
-                        }}
-                      />
+                      <>
+                        <SimilarResults
+                          results={filteredResults}
+                          querySong={selectedSong}
+                          onFeedback={(qId, rId, rating) => {
+                            console.log(`Feedback: ${rating} for ${qId} → ${rId}`);
+                          }}
+                        />
+                        {filteredResults.length < similarResults.length && (
+                          <p className="mt-2 text-[10px] text-zinc-600">
+                            {similarResults.length - filteredResults.length} Ergebnis(se) durch Filter ausgeblendet
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 </aside>

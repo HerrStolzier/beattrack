@@ -12,6 +12,27 @@ export type Song = {
 
 export type SimilarSong = Song & { similarity: number };
 
+export type RadarFeatures = {
+  timbre: number;
+  harmony: number;
+  rhythm: number;
+  brightness: number;
+  intensity: number;
+};
+
+export async function getSongFeatures(songId: string): Promise<RadarFeatures> {
+  const res = await fetch(`${API_URL}/songs/${songId}/features`);
+  if (!res.ok) throw new Error(`getSongFeatures failed: ${res.status}`);
+  return res.json();
+}
+
+export async function getSongCount(): Promise<number> {
+  const res = await fetch(`${API_URL}/songs/count/total`);
+  if (!res.ok) throw new Error(`getSongCount failed: ${res.status}`);
+  const data = await res.json();
+  return data.count;
+}
+
 export async function searchSongs(q: string, limit?: number): Promise<Song[]> {
   const params = new URLSearchParams({ q });
   if (limit !== undefined) params.set("limit", String(limit));

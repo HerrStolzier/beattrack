@@ -25,6 +25,8 @@ class SimilarSong(BaseModel):
     artist: str
     album: str | None
     bpm: float | None
+    musical_key: str | None = None
+    duration_sec: float | None = None
     similarity: float
 
 
@@ -120,6 +122,8 @@ async def find_similar(
             artist=r["artist"],
             album=r.get("album"),
             bpm=r.get("bpm"),
+            musical_key=r.get("musical_key"),
+            duration_sec=r.get("duration_sec"),
             similarity=float(r["similarity"]),
         )
         for r in results
