@@ -42,7 +42,7 @@ describe("RadarChart", () => {
 
     // Should have legend items
     expect(screen.getByText("Query")).toBeInTheDocument();
-    expect(screen.getByText("Ergebnis")).toBeInTheDocument();
+    expect(screen.getByText("Result")).toBeInTheDocument();
   });
 
   it("shows error when both fetches fail", async () => {

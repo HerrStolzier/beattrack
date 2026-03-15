@@ -19,6 +19,7 @@ export default function ProgressTracker({ jobId, onComplete, onError }: Progress
   const [sseConnected, setSseConnected] = useState(true);
   const startTime = useRef(Date.now());
   const cleanupRef = useRef<(() => void) | null>(null);
+  const pollingRef = useRef(false);
 
   useEffect(() => {
     // Cold-start timer: show message if no progress after threshold
@@ -58,6 +59,8 @@ export default function ProgressTracker({ jobId, onComplete, onError }: Progress
   }, [jobId]);
 
   async function pollResults() {
+    if (pollingRef.current) return;
+    pollingRef.current = true;
     const maxAttempts = 60;
     for (let i = 0; i < maxAttempts; i++) {
       try {

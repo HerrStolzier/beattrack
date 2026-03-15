@@ -68,7 +68,8 @@ export default function Home() {
   useEffect(() => {
     searchSongs("").then(setSongs).catch((err) => toast.error(err.message || "Anfrage fehlgeschlagen"));
     getSongCount().then(setSongCount).catch((err) => toast.error(err.message || "Anfrage fehlgeschlagen"));
-  }, [toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleResults = useCallback((results: Song[]) => {
     setSongs(results);

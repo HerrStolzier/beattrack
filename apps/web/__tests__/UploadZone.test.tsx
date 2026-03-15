@@ -77,7 +77,7 @@ describe("UploadZone", () => {
     const file = createFile("song.wav", 1024, "audio/wav");
 
     fireEvent.dragOver(zone);
-    expect(zone.className).toContain("border-blue-500");
+    expect(zone.className).toContain("border-amber/50");
 
     fireEvent.drop(zone, { dataTransfer: { files: [file] } });
     expect(onFileSelected).toHaveBeenCalledWith(file);

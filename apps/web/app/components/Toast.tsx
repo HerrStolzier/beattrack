@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -181,8 +182,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const error = useCallback((msg: string) => add(msg, "error"), [add]);
   const success = useCallback((msg: string) => add(msg, "success"), [add]);
 
+  const value = useMemo(() => ({ info, error, success }), [info, error, success]);
+
   return (
-    <ToastContext.Provider value={{ info, error, success }}>
+    <ToastContext.Provider value={value}>
       {children}
       {mounted &&
         createPortal(
