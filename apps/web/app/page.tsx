@@ -57,36 +57,36 @@ export default function Home() {
   const filteredResults = similarResults.filter((s) => s.similarity >= minSimilarity);
 
   return (
-    <main className="min-h-screen font-sans text-text-primary">
+    <main className="ambient-glow min-h-screen font-sans text-text-primary">
       <div className="mx-auto max-w-6xl px-4 py-8">
         <ApiStatus />
         {/* Header */}
-        <header className="mb-8 flex items-end justify-between animate-fade-in-up">
+        <header className="mb-10 flex items-end justify-between animate-fade-in-up">
           <div>
-            <h1 className="font-display text-4xl font-extrabold tracking-tight">
-              <span className="bg-gradient-to-r from-amber to-gold bg-clip-text text-transparent">
+            <h1 className="font-display text-5xl font-extrabold tracking-tight md:text-6xl">
+              <span className="bg-gradient-to-r from-amber via-gold to-violet bg-[length:200%_auto] bg-clip-text text-transparent animate-gradient-shift">
                 Beattrack
               </span>
             </h1>
-            <p className="mt-1 text-sm text-text-secondary">Find sonically similar songs</p>
+            <p className="mt-2 text-sm text-text-secondary tracking-wide">Find sonically similar songs</p>
           </div>
           {songCount !== null && (
-            <span className="text-xs text-text-tertiary" data-testid="song-count">
-              {songCount.toLocaleString()} Songs im Katalog
+            <span className="animate-fade-in-up stagger-2 rounded-full bg-amber-dim px-3 py-1 text-xs font-medium text-amber-light" data-testid="song-count">
+              {songCount.toLocaleString()} Songs
             </span>
           )}
         </header>
 
         {/* Tabs */}
-        <div className="mb-6 flex gap-1 rounded-lg bg-surface-raised p-1 animate-fade-in-up stagger-1" role="tablist">
+        <div className="mb-8 flex gap-1 rounded-xl glass p-1.5 animate-fade-in-up stagger-1" role="tablist">
           <button
             role="tab"
             aria-selected={tab === "catalog"}
             onClick={() => setTab("catalog")}
-            className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+            className={`relative flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all duration-300 ${
               tab === "catalog"
-                ? "bg-amber-dim text-amber-light"
-                : "text-text-secondary hover:text-text-primary"
+                ? "bg-gradient-to-r from-amber-dim to-violet-dim text-amber-light shadow-lg shadow-amber/10"
+                : "text-text-secondary hover:text-text-primary hover:bg-surface-raised"
             }`}
           >
             Katalog durchsuchen
@@ -95,10 +95,10 @@ export default function Home() {
             role="tab"
             aria-selected={tab === "analyze"}
             onClick={() => setTab("analyze")}
-            className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+            className={`relative flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all duration-300 ${
               tab === "analyze"
-                ? "bg-amber-dim text-amber-light"
-                : "text-text-secondary hover:text-text-primary"
+                ? "bg-gradient-to-r from-amber-dim to-violet-dim text-amber-light shadow-lg shadow-amber/10"
+                : "text-text-secondary hover:text-text-primary hover:bg-surface-raised"
             }`}
           >
             Song analysieren
@@ -117,14 +117,15 @@ export default function Home() {
                 {songs.length === 0 ? (
                   <p className="text-sm text-text-secondary">No songs found.</p>
                 ) : (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {songs.map((song) => (
-                      <SongCard
-                        key={song.id}
-                        song={song}
-                        onFindSimilar={handleFindSimilar}
-                        isSelected={selectedSong?.id === song.id}
-                      />
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {songs.map((song, i) => (
+                      <div key={song.id} className="animate-fade-in-scale" style={{ animationDelay: `${i * 0.05}s` }}>
+                        <SongCard
+                          song={song}
+                          onFindSimilar={handleFindSimilar}
+                          isSelected={selectedSong?.id === song.id}
+                        />
+                      </div>
                     ))}
                   </div>
                 )}

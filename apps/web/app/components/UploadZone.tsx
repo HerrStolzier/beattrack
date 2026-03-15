@@ -94,29 +94,31 @@ export default function UploadZone({ onFileSelected, disabled }: UploadZoneProps
           if ((e.key === "Enter" || e.key === " ") && !disabled) inputRef.current?.click();
         }}
         className={`
-          glass flex cursor-pointer flex-col items-center justify-center
-          rounded-xl border-2 border-dashed p-8 transition-colors
+          gradient-border glass flex cursor-pointer flex-col items-center justify-center
+          rounded-2xl border-2 border-dashed p-10 transition-all duration-300
           ${disabled ? "cursor-not-allowed border-border-subtle opacity-50" : ""}
-          ${dragOver ? "border-amber/50 bg-amber-dim glow-md" : "border-border-glass hover:border-amber/30"}
+          ${dragOver ? "border-amber/50 bg-amber-dim glow-lg scale-[1.02]" : "border-border-glass hover:border-amber/30 hover:bg-surface-raised"}
         `}
       >
-        <svg
-          className="mb-3 h-10 w-10 text-text-tertiary"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={1.5}
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-          />
-        </svg>
-        <p className="text-sm text-text-secondary">
-          Audio-Datei hierher ziehen oder <span className="text-amber-light underline">durchsuchen</span>
+        <div className={`mb-4 rounded-full bg-amber-dim p-3 transition-transform duration-300 ${dragOver ? "scale-110 animate-float" : "group-hover:scale-105"}`}>
+          <svg
+            className="h-8 w-8 text-amber-light"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+            />
+          </svg>
+        </div>
+        <p className="text-sm font-medium text-text-primary">
+          Audio-Datei hierher ziehen oder <span className="text-amber-light underline decoration-amber/50 underline-offset-2">durchsuchen</span>
         </p>
-        <p className="mt-1 text-xs text-text-tertiary">MP3, WAV, FLAC, OGG, AAC — max. {MAX_SIZE_MB} MB</p>
+        <p className="mt-2 text-xs text-text-tertiary">MP3, WAV, FLAC, OGG, AAC — max. {MAX_SIZE_MB} MB</p>
         <input
           ref={inputRef}
           type="file"

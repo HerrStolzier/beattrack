@@ -66,17 +66,34 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-40 w-40">
+      <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-48 w-48">
         <defs>
           <filter id="glow-amber" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="2" result="blur" />
-            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feFlood floodColor="#f59e0b" floodOpacity="0.3" result="color" />
+            <feComposite in="color" in2="blur" operator="in" result="glow" />
+            <feMerge>
+              <feMergeNode in="glow" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
           </filter>
           <filter id="glow-cyan" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="2" result="blur" />
-            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feFlood floodColor="#22d3ee" floodOpacity="0.3" result="color" />
+            <feComposite in="color" in2="blur" operator="in" result="glow" />
+            <feMerge>
+              <feMergeNode in="glow" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
           </filter>
+          <radialGradient id="center-glow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="rgba(245,158,11,0.08)" />
+            <stop offset="100%" stopColor="transparent" />
+          </radialGradient>
         </defs>
+
+        {/* Center ambient glow */}
+        <circle cx={CENTER} cy={CENTER} r={RADIUS} fill="url(#center-glow)" />
 
         {/* Grid levels */}
         {Array.from({ length: LEVELS }, (_, lvl) => {
@@ -118,10 +135,12 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
         {queryFeatures && (
           <polygon
             points={polygonPoints(KEYS.map((k) => queryFeatures[k]))}
-            fill="rgba(245,158,11,0.15)"
+            fill="rgba(245,158,11,0.2)"
             stroke="#f59e0b"
             strokeWidth="1.5"
             filter="url(#glow-amber)"
+            strokeDasharray="200"
+            className="animate-draw-in"
           />
         )}
 
@@ -129,10 +148,12 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
         {resultFeatures && (
           <polygon
             points={polygonPoints(KEYS.map((k) => resultFeatures[k]))}
-            fill="rgba(34,211,238,0.15)"
+            fill="rgba(34,211,238,0.2)"
             stroke="#22d3ee"
             strokeWidth="1.5"
             filter="url(#glow-cyan)"
+            strokeDasharray="200"
+            className="animate-draw-in stagger-3"
           />
         )}
 

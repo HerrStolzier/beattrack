@@ -24,9 +24,18 @@
   --color-neon-cyan: #22d3ee;
   --color-neon-cyan-dim: rgba(34, 211, 238, 0.15);
 
+  --color-violet: #a78bfa;
+  --color-violet-dim: rgba(167, 139, 250, 0.15);
+  --color-rose: #fb7185;
+  --color-rose-dim: rgba(251, 113, 133, 0.15);
+
   --animate-fade-in-up: fade-in-up 0.5s ease-out both;
+  --animate-fade-in-scale: fade-in-scale 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;
   --animate-shimmer: shimmer 2s linear infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-gradient-shift: gradient-shift 8s ease infinite;
+  --animate-draw-in: draw-in 1s ease-out both;
 }
 
 /* ── Keyframes ─────────────────────────────────── */
@@ -56,6 +65,46 @@
   }
   100% {
     background-position: 200% 0;
+  }
+}
+
+@keyframes fade-in-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes draw-in {
+  from {
+    stroke-dashoffset: 200;
+    opacity: 0;
+  }
+  to {
+    stroke-dashoffset: 0;
+    opacity: 1;
   }
 }
 
@@ -97,6 +146,21 @@ body > * {
   -webkit-backdrop-filter: blur(8px);
 }
 
+.glass-interactive {
+  background: var(--color-surface-glass);
+  border: 1px solid var(--color-border-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-interactive:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 12px var(--color-amber-dim);
+}
+
 /* ── Glow Utilities ────────────────────────────── */
 .glow-sm {
   box-shadow: 0 0 8px var(--color-amber-dim);
@@ -117,6 +181,73 @@ body > * {
 .stagger-4 { animation-delay: 0.2s; }
 .stagger-5 { animation-delay: 0.25s; }
 .stagger-6 { animation-delay: 0.3s; }
+
+/* ── Gradient Border ───────────────────────────── */
+.gradient-border {
+  position: relative;
+}
+
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--color-amber), var(--color-violet), var(--color-neon-cyan));
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.gradient-border:hover::before,
+.gradient-border:focus-within::before {
+  opacity: 1;
+}
+
+/* ── Ambient Glow Background ──────────────────── */
+.ambient-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.ambient-glow::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    ellipse at 30% 20%,
+    var(--color-amber-dim) 0%,
+    transparent 50%
+  ),
+  radial-gradient(
+    ellipse at 70% 80%,
+    var(--color-violet-dim) 0%,
+    transparent 50%
+  ),
+  radial-gradient(
+    ellipse at 50% 50%,
+    var(--color-neon-cyan-dim) 0%,
+    transparent 60%
+  );
+  opacity: 0.5;
+  z-index: 0;
+  pointer-events: none;
+  animation: float 20s ease-in-out infinite;
+}
+
+.ambient-glow > * {
+  position: relative;
+  z-index: 1;
+}
 
 /* ── Scrollbar ─────────────────────────────────── */
 ::-webkit-scrollbar {
