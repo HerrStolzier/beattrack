@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { streamProgress, getJobResults, type AnalysisResult } from "@/lib/api";
 
 type ProgressTrackerProps = {
@@ -91,22 +92,50 @@ export default function ProgressTracker({ jobId, onComplete, onError }: Progress
   }[status] || status;
 
   return (
-    <div className="glass rounded-xl p-6" data-testid="progress-tracker">
+    <motion.div
+      className="glass-premium rounded-xl p-6"
+      data-testid="progress-tracker"
+      animate={
+        status === "processing"
+          ? {
+              boxShadow: [
+                "0 0 20px rgba(245,158,11,0.1)",
+                "0 0 40px rgba(245,158,11,0.2)",
+                "0 0 20px rgba(245,158,11,0.1)",
+              ],
+            }
+          : {}
+      }
+      transition={{ duration: 2, repeat: Infinity }}
+    >
       <div className="mb-4 flex items-center justify-between">
-        <span className="text-sm font-medium text-text-secondary">{statusText}</span>
+        <motion.span
+          key={statusText}
+          className="text-sm font-medium text-text-secondary"
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          {statusText}
+        </motion.span>
         <span className="text-xs font-display text-amber-light">{pct}%</span>
       </div>
 
       {/* Progress bar */}
       <div className="h-2 overflow-hidden rounded-full bg-surface-raised">
-        <div
-          className="glow-sm h-full rounded-full bg-gradient-to-r from-amber to-gold transition-all duration-500"
-          style={{ width: `${pct}%` }}
+        <motion.div
+          className="h-full rounded-full bg-gradient-to-r from-amber via-gold to-amber-light relative overflow-hidden"
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ type: "spring", stiffness: 50, damping: 15 }}
           role="progressbar"
           aria-valuenow={pct}
           aria-valuemin={0}
           aria-valuemax={100}
-        />
+        >
+          {/* Shimmer overlay */}
+          <div className="absolute inset-0 shimmer opacity-30" />
+        </motion.div>
       </div>
 
       {/* Cold-start message */}
@@ -128,6 +157,6 @@ export default function ProgressTracker({ jobId, onComplete, onError }: Progress
       {status !== "completed" && status !== "failed" && (
         <p className="mt-2 text-xs text-text-tertiary">{elapsed}s vergangen</p>
       )}
-    </div>
+    </motion.div>
   );
 }

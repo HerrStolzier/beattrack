@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Syne, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "./components/Toast";
+import MouseGlow from "./components/MouseGlow";
+import MeshGradient from "./components/MeshGradient";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -20,16 +22,12 @@ export const metadata: Metadata = {
   description: "Find sonically similar songs through audio analysis",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body
-        className={`${syne.variable} ${dmSans.variable} font-sans antialiased`}
-      >
+    <html lang="de">
+      <body className={`${syne.variable} ${dmSans.variable} font-sans antialiased`}>
+        <MeshGradient />
+        <MouseGlow />
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>

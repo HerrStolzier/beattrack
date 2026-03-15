@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { motion } from "framer-motion";
 
 const MAX_SIZE_MB = 50;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
@@ -82,7 +83,7 @@ export default function UploadZone({ onFileSelected, disabled }: UploadZoneProps
 
   return (
     <div>
-      <div
+      <motion.div
         role="button"
         tabIndex={0}
         data-testid="upload-zone"
@@ -94,13 +95,19 @@ export default function UploadZone({ onFileSelected, disabled }: UploadZoneProps
           if ((e.key === "Enter" || e.key === " ") && !disabled) inputRef.current?.click();
         }}
         className={`
-          gradient-border glass flex cursor-pointer flex-col items-center justify-center
-          rounded-2xl border-2 border-dashed p-10 transition-all duration-300
+          gradient-border glass-premium flex cursor-pointer flex-col items-center justify-center
+          rounded-2xl border-2 border-dashed p-12 transition-all duration-300
           ${disabled ? "cursor-not-allowed border-border-subtle opacity-50" : ""}
-          ${dragOver ? "border-amber/50 bg-amber-dim glow-lg scale-[1.02]" : "border-border-glass hover:border-amber/30 hover:bg-surface-raised"}
+          ${dragOver ? "border-amber/50 glow-multi scale-[1.02]" : "border-border-glass hover:border-amber/30"}
         `}
+        whileHover={disabled ? {} : { scale: 1.01 }}
+        whileTap={disabled ? {} : { scale: 0.99 }}
       >
-        <div className={`mb-4 rounded-full bg-amber-dim p-3 transition-transform duration-300 ${dragOver ? "scale-110 animate-float" : "group-hover:scale-105"}`}>
+        <motion.div
+          className="mb-4 rounded-full bg-gradient-to-br from-amber-dim to-violet-dim p-4"
+          animate={dragOver ? { scale: 1.15, rotate: 5 } : { scale: 1, rotate: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 15 }}
+        >
           <svg
             className="h-8 w-8 text-amber-light"
             fill="none"
@@ -114,7 +121,7 @@ export default function UploadZone({ onFileSelected, disabled }: UploadZoneProps
               d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
             />
           </svg>
-        </div>
+        </motion.div>
         <p className="text-sm font-medium text-text-primary">
           Audio-Datei hierher ziehen oder <span className="text-amber-light underline decoration-amber/50 underline-offset-2">durchsuchen</span>
         </p>
@@ -128,11 +135,16 @@ export default function UploadZone({ onFileSelected, disabled }: UploadZoneProps
           disabled={disabled}
           data-testid="upload-input"
         />
-      </div>
+      </motion.div>
       {error && (
-        <p className="mt-2 text-sm text-red-400" role="alert">
+        <motion.p
+          className="mt-2 text-sm text-red-400"
+          role="alert"
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
           {error}
-        </p>
+        </motion.p>
       )}
     </div>
   );

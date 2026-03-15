@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { searchSongs, type Song } from "@/lib/api";
 
 interface SearchBarProps {
@@ -34,21 +35,51 @@ export default function SearchBar({ onResults }: SearchBarProps) {
   }, [query, onResults]);
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full group">
+      {/* Search icon */}
+      <svg
+        className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-text-tertiary transition-colors group-focus-within:text-amber-light"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth={2}
+        stroke="currentColor"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+      </svg>
       <input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search songs..."
-        className="glass w-full rounded-xl border border-border-glass px-4 py-3 text-text-primary placeholder:text-text-tertiary outline-none transition focus:border-amber/50 focus:ring-1 focus:ring-amber/30"
+        placeholder="Songs durchsuchen..."
+        className="glass-premium w-full rounded-xl border-0 pl-11 pr-12 py-3.5 text-text-primary placeholder:text-text-tertiary outline-none transition-all duration-300 focus:glow-amber focus:ring-1 focus:ring-amber/30"
       />
-      {loading && (
-        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-text-tertiary">
-          Searching…
-        </span>
-      )}
+      <AnimatePresence>
+        {loading && (
+          <motion.div
+            className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-1"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                className="h-1.5 w-1.5 rounded-full bg-amber-light"
+                animate={{ scale: [1, 1.4, 1], opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
+              />
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
       {error && (
-        <p className="mt-1 text-xs text-red-400">Search failed. Try again.</p>
+        <motion.p
+          className="mt-2 text-xs text-red-400"
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          Suche fehlgeschlagen. Erneut versuchen.
+        </motion.p>
       )}
     </div>
   );
