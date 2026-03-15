@@ -54,7 +54,12 @@ export default function SimilarResults({ results, querySong, onFeedback }: Simil
       </h2>
 
       {results.length === 0 && (
-        <p className="text-xs text-text-secondary">Keine ähnlichen Songs gefunden.</p>
+        <div className="rounded-xl bg-surface-raised p-4 text-center">
+          <p className="text-sm text-text-secondary">Keine passenden Treffer</p>
+          <p className="mt-1 text-[11px] text-text-tertiary">
+            Der Katalog enthält aktuell keine Songs, die diesem Track klanglich ähnlich genug sind.
+          </p>
+        </div>
       )}
 
       <motion.ul

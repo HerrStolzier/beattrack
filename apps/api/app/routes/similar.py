@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 FEEDBACK_BOOST_ENABLED = os.getenv("FEEDBACK_BOOST", "").lower() in ("true", "1", "yes")
 POSITIVE_BOOST = 0.05
 NEGATIVE_PENALTY = 0.03
+MIN_SIMILARITY = 0.3
 
 router = APIRouter(prefix="/similar", tags=["similar"])
 
@@ -159,4 +160,5 @@ async def find_similar(
             similarity=float(r["similarity"]),
         )
         for r in results
+        if float(r["similarity"]) >= MIN_SIMILARITY
     ]
