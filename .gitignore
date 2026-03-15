@@ -7,6 +7,9 @@ __pycache__/
 dist/
 build/
 
+# Data downloads (FMA-large etc.)
+data/
+
 # Phase 0 data (large files)
 phase0/data/
 phase0/fixtures/
@@ -34,6 +37,13 @@ Thumbs.db
 
 # Claude Code
 .claude/
+
+# Extraction outputs (generated, large)
+apps/api/scripts/seed_features.jsonl
+apps/api/scripts/seed_checkpoint.json
+apps/api/scripts/sql_batches/
+apps/api/scripts/sql_stats/
+apps/api/scripts/extract.log
 
 # Logs
 *.log

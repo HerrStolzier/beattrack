@@ -7,8 +7,24 @@ Usage:
     python apps/api/scripts/seed_fma.py \\
         --fma-dir phase0/data/fma_medium \\
         --metadata-csv phase0/data/raw_tracks.csv \\
+        --genres-csv phase0/data/fma_metadata/genres.csv \\
         --batch-size 100 \\
         --workers 4
+
+    # Only electronic music (default):
+    python apps/api/scripts/seed_fma.py ... --genres Electronic
+
+    # Multiple genres:
+    python apps/api/scripts/seed_fma.py ... --genres Electronic Metal Hip-Hop
+
+    # Disable genre filter:
+    python apps/api/scripts/seed_fma.py ... --all-genres
+
+    # Only tracks from 2000 onwards (default):
+    python apps/api/scripts/seed_fma.py ... --min-year 2000
+
+    # Extract only (no DB needed) — saves to JSONL for later import:
+    python apps/api/scripts/seed_fma.py ... --extract-only
 
     # Resume after a crash:
     python apps/api/scripts/seed_fma.py ... --resume
@@ -27,6 +43,7 @@ Extract subprocess: apps/api/app/workers/extract.py
 from __future__ import annotations
 
 import argparse
+import ast
 import csv
 import json
 import logging
@@ -78,9 +95,75 @@ def parse_duration(duration_str: str) -> float | None:
     return None
 
 
-def load_metadata(csv_path: str) -> dict[int, dict]:
-    """Load track metadata from raw_tracks.csv → dict keyed by integer track_id."""
+def load_genre_hierarchy(genres_csv: str) -> dict[str, str]:
+    """Load FMA genres.csv → dict mapping genre title to top-level genre title.
+
+    Example: {"Techno": "Electronic", "House": "Electronic", "Death-Metal": "Metal"}
+    """
+    # First pass: collect all genres
+    genres: dict[int, dict] = {}
+    with open(genres_csv, encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            gid = int(row["genre_id"])
+            genres[gid] = {
+                "title": row["title"],
+                "top_level": int(row["top_level"]),
+            }
+
+    # Build mapping: genre_title → top_level genre_title
+    title_to_top: dict[str, str] = {}
+    for gid, info in genres.items():
+        top_id = info["top_level"]
+        top_title = genres[top_id]["title"] if top_id in genres else info["title"]
+        title_to_top[info["title"]] = top_title
+    return title_to_top
+
+
+def _parse_track_genres(genres_str: str) -> list[str]:
+    """Parse track_genres JSON string → list of genre titles."""
+    if not genres_str:
+        return []
+    try:
+        genres = ast.literal_eval(genres_str)
+        return [g.get("genre_title", "") for g in genres if g.get("genre_title")]
+    except (ValueError, SyntaxError):
+        return []
+
+
+def _parse_year(date_str: str) -> int | None:
+    """Extract year from FMA date string like '11/26/2008 01:48:12 AM' or '11/26/2008'."""
+    if not date_str:
+        return None
+    # Try to find a 4-digit year
+    for part in date_str.replace("/", " ").replace("-", " ").split():
+        if len(part) == 4:
+            try:
+                year = int(part)
+                if 1900 < year < 2100:
+                    return year
+            except ValueError:
+                continue
+    return None
+
+
+def load_metadata(
+    csv_path: str,
+    genre_hierarchy: dict[str, str] | None = None,
+    allowed_genres: set[str] | None = None,
+    excluded_genres: set[str] | None = None,
+    min_year: int | None = None,
+) -> dict[int, dict]:
+    """Load track metadata from raw_tracks.csv → dict keyed by integer track_id.
+
+    allowed_genres matches against both sub-genre titles AND top-level genres.
+    excluded_genres removes specific sub-genres even if their top-level matches.
+    If min_year is set, only tracks from that year onwards are included.
+    """
     tracks: dict[int, dict] = {}
+    skipped_genre = 0
+    skipped_year = 0
+
     with open(csv_path, encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -91,12 +174,54 @@ def load_metadata(csv_path: str) -> dict[int, dict]:
                 tid = int(raw_id)
             except ValueError:
                 continue
+
+            # Parse genre info
+            track_genres = _parse_track_genres(row.get("track_genres", ""))
+            top_genre = None
+            matched_sub = None
+            if genre_hierarchy and track_genres:
+                for g in track_genres:
+                    if g in genre_hierarchy:
+                        top_genre = genre_hierarchy[g]
+                        matched_sub = g
+                        break
+
+            # Genre filter: match on top-level OR sub-genre name
+            if allowed_genres:
+                matches = top_genre in allowed_genres or (matched_sub and matched_sub in allowed_genres)
+                if not matches:
+                    skipped_genre += 1
+                    continue
+
+            # Exclude specific sub-genres
+            if excluded_genres and matched_sub in excluded_genres:
+                skipped_genre += 1
+                continue
+
+            # Year filter
+            date_str = row.get("track_date_recorded", "").strip()
+            if not date_str:
+                date_str = row.get("track_date_created", "").strip()
+            release_year = _parse_year(date_str)
+
+            if min_year and release_year and release_year < min_year:
+                skipped_year += 1
+                continue
+
             tracks[tid] = {
                 "track_title": row.get("track_title", "").strip(),
                 "artist_name": row.get("artist_name", "").strip(),
                 "album_title": row.get("album_title", "").strip(),
                 "track_duration": row.get("track_duration", "").strip(),
+                "genre": top_genre,
+                "release_year": release_year,
             }
+
+    if allowed_genres or excluded_genres:
+        logger.info("  Skipped %d tracks (genre filter)", skipped_genre)
+    if min_year:
+        logger.info("  Skipped %d tracks (year < %d)", skipped_year, min_year)
+
     return tracks
 
 
@@ -205,6 +330,8 @@ def build_row(tid: int, meta: dict, features: dict) -> dict:
         "source": "fma",
         "embedding_type": "real",
         "metadata_status": "complete" if has_title else "partial",
+        "genre": meta.get("genre"),
+        "release_year": meta.get("release_year"),
     }
 
 
@@ -237,6 +364,34 @@ def parse_args() -> argparse.Namespace:
         help="Path to raw_tracks.csv",
     )
     parser.add_argument(
+        "--genres-csv",
+        default=None,
+        help="Path to FMA genres.csv (for genre hierarchy resolution)",
+    )
+    parser.add_argument(
+        "--genres",
+        nargs="+",
+        default=["Electronic"],
+        help="Top-level or sub-genres to include (default: Electronic). Use --all-genres to disable.",
+    )
+    parser.add_argument(
+        "--exclude-genres",
+        nargs="+",
+        default=["Trip-Hop", "Skweee", "Chiptune", "Chip Music", "Breakcore - Hard", "Ambient Electronic"],
+        help="Sub-genres to exclude even if top-level matches.",
+    )
+    parser.add_argument(
+        "--all-genres",
+        action="store_true",
+        help="Disable genre filtering — include all genres",
+    )
+    parser.add_argument(
+        "--min-year",
+        type=int,
+        default=2000,
+        help="Only include tracks from this year onwards (default: 2000). Use 0 to disable.",
+    )
+    parser.add_argument(
         "--batch-size",
         type=int,
         default=100,
@@ -259,18 +414,29 @@ def parse_args() -> argparse.Namespace:
         default=1,
         help="Number of parallel extraction workers (default: 1)",
     )
+    parser.add_argument(
+        "--extract-only",
+        action="store_true",
+        help="Only extract features and save to JSONL (no DB access needed)",
+    )
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="Output JSONL file path (default: seed_features.jsonl in script dir)",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
 
-    # --- Env vars ---
-    url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-    if not url or not key:
-        logger.error("Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env vars")
-        sys.exit(1)
+    # --- Env vars (not needed for --extract-only) ---
+    if not args.extract_only:
+        url = os.environ.get("SUPABASE_URL")
+        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+        if not url or not key:
+            logger.error("Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env vars")
+            sys.exit(1)
 
     # --- Validate paths ---
     fma_dir = Path(args.fma_dir).resolve()
@@ -287,10 +453,38 @@ def main() -> None:
         logger.error("Extract script not found at '%s'", EXTRACT_SCRIPT)
         sys.exit(1)
 
+    # --- Load genre hierarchy ---
+    genre_hierarchy = None
+    if args.genres_csv:
+        genres_csv_path = Path(args.genres_csv).resolve()
+        if not genres_csv_path.is_file():
+            logger.error("--genres-csv '%s' not found", genres_csv_path)
+            sys.exit(1)
+        genre_hierarchy = load_genre_hierarchy(str(genres_csv_path))
+        logger.info("Loaded %d genre mappings from '%s'", len(genre_hierarchy), genres_csv_path)
+
+    # --- Genre + year filters ---
+    allowed_genres = None if args.all_genres else set(args.genres)
+    excluded_genres = set(args.exclude_genres) if args.exclude_genres else None
+    min_year = args.min_year if args.min_year > 0 else None
+
+    if allowed_genres:
+        logger.info("Genre filter: %s", allowed_genres)
+    if excluded_genres:
+        logger.info("Excluded sub-genres: %s", excluded_genres)
+    if min_year:
+        logger.info("Year filter: >= %d", min_year)
+
     # --- Load metadata ---
     logger.info("Loading metadata from '%s'...", metadata_csv)
-    metadata = load_metadata(str(metadata_csv))
-    logger.info("  %d tracks with metadata", len(metadata))
+    metadata = load_metadata(
+        str(metadata_csv),
+        genre_hierarchy=genre_hierarchy,
+        allowed_genres=allowed_genres,
+        excluded_genres=excluded_genres,
+        min_year=min_year,
+    )
+    logger.info("  %d tracks after filtering", len(metadata))
 
     # --- Discover audio files ---
     logger.info("Scanning '%s' for .mp3 files...", fma_dir)
@@ -304,7 +498,17 @@ def main() -> None:
             continue
         mp3_files.append((tid, mp3_path))
 
-    logger.info("  %d .mp3 files found", len(mp3_files))
+    # Filter mp3s to only those with matching metadata (genre/year already filtered)
+    if allowed_genres or min_year:
+        before_filter = len(mp3_files)
+        mp3_files = [(tid, p) for tid, p in mp3_files if tid in metadata]
+        logger.info(
+            "  %d .mp3 files found, %d match genre/year filters",
+            before_filter,
+            len(mp3_files),
+        )
+    else:
+        logger.info("  %d .mp3 files found", len(mp3_files))
 
     # --- Checkpoint ---
     checkpoint = load_checkpoint() if args.resume else {"processed": [], "failed": [], "last_batch": None}
@@ -330,8 +534,16 @@ def main() -> None:
         logger.info("Nothing to process. Exiting.")
         return
 
-    # --- Supabase client ---
-    supabase = create_client(url, key)
+    # --- Extract-only mode: save to JSONL ---
+    output_jsonl = None
+    if args.extract_only:
+        output_jsonl = Path(args.output) if args.output else SCRIPT_DIR / "seed_features.jsonl"
+        logger.info("Extract-only mode — results will be saved to '%s'", output_jsonl)
+
+    # --- Supabase client (only when not extract-only) ---
+    supabase = None
+    if not args.extract_only:
+        supabase = create_client(url, key)
 
     # --- Processing loop ---
     success_count = 0
@@ -347,92 +559,114 @@ def main() -> None:
 
     work_items = [(tid, str(mp3_path)) for tid, mp3_path in mp3_files]
 
-    with ProcessPoolExecutor(max_workers=args.workers) as executor:
-        future_to_tid = {
-            executor.submit(_worker_extract, item): item[0] for item in work_items
-        }
+    # Open JSONL file for extract-only mode (append to support resume)
+    jsonl_file = None
+    if output_jsonl:
+        jsonl_file = open(output_jsonl, "a", encoding="utf-8")
 
-        completed = 0
-        for future in as_completed(future_to_tid):
-            tid = future_to_tid[future]
-            completed += 1
+    try:
+        with ProcessPoolExecutor(max_workers=args.workers) as executor:
+            future_to_tid = {
+                executor.submit(_worker_extract, item): item[0] for item in work_items
+            }
 
-            try:
-                result_tid, features, error = future.result()
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("Worker raised unexpected exception for track %d: %s", tid, exc)
-                already_failed.add(tid)
-                fail_count += 1
-                continue
+            completed = 0
+            for future in as_completed(future_to_tid):
+                tid = future_to_tid[future]
+                completed += 1
 
-            if features is None:
-                logger.warning("Extraction failed for track %d: %s", tid, error)
-                already_failed.add(tid)
-                fail_count += 1
+                try:
+                    result_tid, features, error = future.result()
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("Worker raised unexpected exception for track %d: %s", tid, exc)
+                    already_failed.add(tid)
+                    fail_count += 1
+                    continue
+
+                if features is None:
+                    logger.warning("Extraction failed for track %d: %s", tid, error)
+                    already_failed.add(tid)
+                    fail_count += 1
+                else:
+                    meta = metadata.get(tid, {})
+                    row = build_row(tid, meta, features)
+                    pending_rows.append(row)
+                    already_processed.add(tid)
+                    success_count += 1
+
+                # Log progress every 100 tracks
+                if completed % 100 == 0 or completed == total_tracks:
+                    logger.info(
+                        "Progress: %d/%d tracks processed (success=%d, fail=%d)",
+                        completed,
+                        total_tracks,
+                        success_count,
+                        fail_count,
+                    )
+
+                # Flush batch when full
+                if len(pending_rows) >= args.batch_size:
+                    batch_number += 1
+                    if jsonl_file:
+                        # Extract-only: write to JSONL
+                        for r in pending_rows:
+                            jsonl_file.write(json.dumps(r, ensure_ascii=False) + "\n")
+                        jsonl_file.flush()
+                        logger.info("  Wrote batch %d (%d rows) to JSONL", batch_number, len(pending_rows))
+                    else:
+                        # Normal mode: insert to DB
+                        logger.info(
+                            "Inserting batch %d (%d rows)...", batch_number, len(pending_rows)
+                        )
+                        try:
+                            insert_batch(supabase, pending_rows)
+                        except Exception as exc:  # noqa: BLE001
+                            failed_tids = [r["_tid"] for r in pending_rows]
+                            logger.error(
+                                "DB insert failed for batch %d: %s — %d rows lost",
+                                batch_number,
+                                exc,
+                                len(pending_rows),
+                            )
+                            already_failed.update(failed_tids)
+                            already_processed -= set(failed_tids)
+                        else:
+                            logger.info("  Batch %d inserted OK", batch_number)
+
+                    pending_rows.clear()
+                    checkpoint["processed"] = sorted(already_processed)
+                    checkpoint["failed"] = sorted(already_failed)
+                    checkpoint["last_batch"] = batch_number
+                    save_checkpoint(checkpoint)
+
+        # Flush any remaining rows
+        if pending_rows:
+            batch_number += 1
+            if jsonl_file:
+                for r in pending_rows:
+                    jsonl_file.write(json.dumps(r, ensure_ascii=False) + "\n")
+                jsonl_file.flush()
+                logger.info("  Wrote final batch %d (%d rows) to JSONL", batch_number, len(pending_rows))
             else:
-                meta = metadata.get(tid, {})
-                row = build_row(tid, meta, features)
-                pending_rows.append(row)
-                already_processed.add(tid)
-                success_count += 1
-
-            # Log progress every 100 tracks
-            if completed % 100 == 0 or completed == total_tracks:
                 logger.info(
-                    "Progress: %d/%d tracks processed (success=%d, fail=%d)",
-                    completed,
-                    total_tracks,
-                    success_count,
-                    fail_count,
-                )
-
-            # Flush batch when full
-            if len(pending_rows) >= args.batch_size:
-                batch_number += 1
-                logger.info(
-                    "Inserting batch %d (%d rows)...", batch_number, len(pending_rows)
+                    "Inserting final batch %d (%d rows)...", batch_number, len(pending_rows)
                 )
                 try:
                     insert_batch(supabase, pending_rows)
                 except Exception as exc:  # noqa: BLE001
-                    failed_tids = [r["_tid"] for r in pending_rows]
                     logger.error(
-                        "DB insert failed for batch %d: %s — %d rows lost",
+                        "DB insert failed for final batch %d: %s — %d rows lost",
                         batch_number,
                         exc,
                         len(pending_rows),
                     )
-                    already_failed.update(failed_tids)
-                    # Remove from processed since they didn't make it to DB
-                    already_processed -= set(failed_tids)
                 else:
-                    logger.info("  Batch %d inserted OK", batch_number)
+                    logger.info("  Final batch %d inserted OK", batch_number)
 
-                pending_rows.clear()
-                checkpoint["processed"] = sorted(already_processed)
-                checkpoint["failed"] = sorted(already_failed)
-                checkpoint["last_batch"] = batch_number
-                save_checkpoint(checkpoint)
-
-    # Flush any remaining rows
-    if pending_rows:
-        batch_number += 1
-        logger.info(
-            "Inserting final batch %d (%d rows)...", batch_number, len(pending_rows)
-        )
-        try:
-            insert_batch(supabase, pending_rows)
-        except Exception as exc:  # noqa: BLE001
-            logger.error(
-                "DB insert failed for final batch %d: %s — %d rows lost",
-                batch_number,
-                exc,
-                len(pending_rows),
-            )
-        else:
-            logger.info("  Final batch %d inserted OK", batch_number)
-
-        pending_rows.clear()
+            pending_rows.clear()
+    finally:
+        if jsonl_file:
+            jsonl_file.close()
 
     # Final checkpoint save
     checkpoint["processed"] = sorted(already_processed)
@@ -446,6 +680,8 @@ def main() -> None:
         fail_count,
         CHECKPOINT_FILE,
     )
+    if output_jsonl:
+        logger.info("Features saved to '%s'", output_jsonl)
 
 
 if __name__ == "__main__":
