@@ -98,9 +98,9 @@ export default function SearchBar({ onResults, genre, resultCount }: SearchBarPr
         </AnimatePresence>
         {!loading && resultCount != null && (
           <motion.span
-            className="text-[11px] font-mono text-text-tertiary"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            className="rounded-full bg-surface-raised px-2 py-0.5 text-[11px] font-mono text-text-tertiary"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
             key={resultCount}
           >
             {resultCount}
@@ -110,7 +110,7 @@ export default function SearchBar({ onResults, genre, resultCount }: SearchBarPr
 
       {error && (
         <motion.p
-          className="mt-2 text-xs text-red-400"
+          className="mt-2 text-xs text-error"
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
         >

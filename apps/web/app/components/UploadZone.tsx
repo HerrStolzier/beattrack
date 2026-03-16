@@ -138,7 +138,7 @@ export default function UploadZone({ onFileSelected, disabled }: UploadZoneProps
       </motion.div>
       {error && (
         <motion.p
-          className="mt-2 text-sm text-red-400"
+          className="mt-2 text-sm text-error"
           role="alert"
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}

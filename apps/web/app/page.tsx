@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { findSimilar, searchSongs, getSongCount, getGenres, type Song, type SimilarSong } from "@/lib/api";
+import { findSimilar, searchSongs, getGenres, type Song, type SimilarSong } from "@/lib/api";
 import SearchBar from "./components/SearchBar";
 import GenreFilter from "./components/GenreFilter";
 import SongCard from "./components/SongCard";
@@ -59,7 +59,6 @@ export default function Home() {
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [similarResults, setSimilarResults] = useState<SimilarSong[]>([]);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
-  const [songCount, setSongCount] = useState<number | null>(null);
   const [genres, setGenres] = useState<string[]>([]);
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -72,7 +71,6 @@ export default function Home() {
   // Load initial data on mount
   useEffect(() => {
     searchSongs("").then(setSongs).catch((err) => toast.error(err.message || "Anfrage fehlgeschlagen")).finally(() => setInitialLoading(false));
-    getSongCount().then(setSongCount).catch((err) => toast.error(err.message || "Anfrage fehlgeschlagen"));
     getGenres().then(setGenres).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -138,22 +136,6 @@ export default function Home() {
             </div>
             <AudioWaveform className="hidden sm:flex" />
           </div>
-          {songCount !== null && (
-            <motion.div
-              className="glass-premium rounded-xl px-4 py-2.5 text-center"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.6, type: "spring", stiffness: 300 }}
-              data-testid="song-count"
-            >
-              <span className="text-lg font-display font-bold text-amber-light">
-                {songCount.toLocaleString()}
-              </span>
-              <p className="text-[10px] text-text-tertiary mt-0.5">
-                Electronic Tracks
-              </p>
-            </motion.div>
-          )}
         </motion.header>
 
         {/* Gradient divider */}

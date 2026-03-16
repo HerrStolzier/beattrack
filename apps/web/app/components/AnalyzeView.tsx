@@ -170,9 +170,9 @@ export default function AnalyzeView() {
             animate="animate"
             exit="exit"
             transition={{ duration: 0.3 }}
-            className="rounded-xl border border-red-900/50 bg-red-950/30 p-6"
+            className="rounded-xl border border-error/30 bg-error-dim p-6"
           >
-            <p className="text-sm text-red-400">{error}</p>
+            <p className="text-sm text-error">{error}</p>
             <Button
               variant="secondary"
               size="sm"
@@ -197,20 +197,40 @@ export default function AnalyzeView() {
             animate="animate"
             exit="exit"
             transition={{ duration: 0.3 }}
-            className="glass-premium rounded-xl p-6"
+            className="space-y-6"
           >
-            <p className="text-sm text-text-primary">
-              <span className="font-medium">{ytResult.parsed_artist}</span>
-              {" — "}
-              <span className="font-medium">{ytResult.parsed_title}</span>
-            </p>
-            <p className="mt-2 text-sm text-text-tertiary">{ytResult.message}</p>
-            <button
-              onClick={handleReset}
-              className="mt-3 text-xs text-amber-light underline hover:text-amber"
-            >
-              Audio-Datei hochladen
-            </button>
+            {/* Identified song info */}
+            <div className="glass-premium rounded-xl p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-text-primary">
+                    {ytResult.parsed_artist} — {ytResult.parsed_title}
+                  </p>
+                  <p className="mt-1 text-xs text-text-tertiary">
+                    Nicht im Katalog — lade die Audio-Datei hoch oder probier eine andere URL.
+                  </p>
+                </div>
+                <button
+                  onClick={handleReset}
+                  className="shrink-0 rounded-lg border border-border-glass p-1.5 text-text-tertiary transition-colors hover:bg-surface-elevated hover:text-text-primary"
+                  title="Schließen"
+                  aria-label="Schließen"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Show inputs again so user can try another URL or upload */}
+            <UrlInput onMatch={handleYouTubeMatch} />
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent to-border-subtle" />
+              <span className="text-xs text-text-tertiary font-medium">oder</span>
+              <div className="h-px flex-1 bg-gradient-to-l from-transparent to-border-subtle" />
+            </div>
+            <UploadZone onFileSelected={handleFileSelected} />
           </motion.div>
         )}
 

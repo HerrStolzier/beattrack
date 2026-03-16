@@ -43,7 +43,7 @@ export default function GenreFilter({ genres, selected, onSelect }: GenreFilterP
       >
         {selected === null && (
           <motion.div
-            layoutId="genre-pill"
+            layoutId="genre-pill-active"
             className="absolute inset-0 rounded-full bg-amber"
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
             style={{ zIndex: -1 }}
@@ -70,7 +70,7 @@ export default function GenreFilter({ genres, selected, onSelect }: GenreFilterP
           >
             {isActive && (
               <motion.div
-                layoutId="genre-pill"
+                layoutId="genre-pill-active"
                 className="absolute inset-0 rounded-full"
                 style={{ background: color, zIndex: -1 }}
                 transition={{ type: "spring", stiffness: 400, damping: 30 }}

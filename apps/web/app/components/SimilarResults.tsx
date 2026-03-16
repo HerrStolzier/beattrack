@@ -143,7 +143,14 @@ export default function SimilarResults({ results, querySong, onFeedback }: Simil
               </div>
 
               {/* Animated similarity bar */}
-              <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-surface-raised">
+              <div
+                className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-surface-raised"
+                role="progressbar"
+                aria-valuenow={pct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`${pct}% ähnlich`}
+              >
                 <motion.div
                   className={`h-full rounded-full bg-gradient-to-r ${similarityColor(song.similarity)}`}
                   initial={{ width: 0 }}

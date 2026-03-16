@@ -36,6 +36,9 @@
   --color-sky: #38bdf8;
   --color-sky-dim: rgba(56, 189, 248, 0.15);
 
+  --color-error: #f87171;
+  --color-error-dim: rgba(248, 113, 113, 0.15);
+
   /* ── Genre Colors ────────────────────────── */
   --color-genre-techno: #f59e0b;
   --color-genre-house: #fb7185;
@@ -273,7 +276,7 @@ body > * {
   mask-composite: exclude;
   -webkit-mask-composite: xor;
   pointer-events: none;
-  opacity: 0;
+  opacity: 0.25;
   transition: opacity 0.3s;
 }
 
