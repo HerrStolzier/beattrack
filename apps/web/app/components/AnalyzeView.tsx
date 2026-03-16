@@ -99,6 +99,7 @@ export default function AnalyzeView() {
         bpm: result.bpm,
         musical_key: result.key,
         duration_sec: result.duration,
+        genre: null,
       }
     : ytResult?.song || null;
 

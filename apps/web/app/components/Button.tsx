@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { type ButtonHTMLAttributes, type ReactNode } from "react";
 
 type Variant = "primary" | "secondary" | "ghost";
@@ -70,15 +69,13 @@ export default function Button({
   const isDisabled = disabled || loading;
 
   return (
-    <motion.button
-      className={`inline-flex items-center justify-center font-medium transition-all duration-200 ${variantStyles[variant]} ${sizeStyles[size]} ${isDisabled ? "opacity-50 pointer-events-none" : "cursor-pointer"} ${className}`}
-      whileHover={isDisabled ? undefined : { scale: 1.02 }}
-      whileTap={isDisabled ? undefined : { scale: 0.97 }}
+    <button
+      className={`inline-flex items-center justify-center font-medium transition-all duration-200 ${variantStyles[variant]} ${sizeStyles[size]} ${isDisabled ? "opacity-50 pointer-events-none" : "cursor-pointer hover:scale-[1.02] active:scale-[0.97]"} ${className}`}
       disabled={isDisabled}
       {...props}
     >
       {loading ? <Spinner /> : icon}
       <span>{children}</span>
-    </motion.button>
+    </button>
   );
 }
