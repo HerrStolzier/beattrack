@@ -38,11 +38,12 @@ def generate_compute_and_upsert_sql() -> str:
     AVG and STDDEV across all songs, then packs it into a JSON object.
     """
     # Build dimension extraction expressions
+    # pgvector doesn't support subscripting — must cast to float8[] first
     dim_avgs = ", ".join(
-        f"AVG(handcrafted_raw[{i + 1}])::float8 AS avg_{i}" for i in range(DIMS)
+        f"AVG(arr[{i + 1}])::float8 AS avg_{i}" for i in range(DIMS)
     )
     dim_stds = ", ".join(
-        f"GREATEST(STDDEV_POP(handcrafted_raw[{i + 1}])::float8, 1e-10) AS std_{i}"
+        f"GREATEST(STDDEV_POP(arr[{i + 1}])::float8, 1e-10) AS std_{i}"
         for i in range(DIMS)
     )
 
@@ -51,13 +52,17 @@ def generate_compute_and_upsert_sql() -> str:
     std_json = " || ',' || ".join(f"s.std_{i}::text" for i in range(DIMS))
 
     return f"""-- Step 1+2: Compute normalization stats and upsert into config
-WITH stats AS (
+WITH raw_arrays AS (
+  SELECT replace(replace(handcrafted_raw::text, '[', '{{'), ']', '}}')::float8[] AS arr
+  FROM public.songs
+  WHERE handcrafted_raw IS NOT NULL
+),
+stats AS (
   SELECT
     {dim_avgs},
     {dim_stds},
     COUNT(*)::int AS n_songs
-  FROM public.songs
-  WHERE handcrafted_raw IS NOT NULL
+  FROM raw_arrays
 )
 INSERT INTO public.config (key, value)
 SELECT
@@ -67,7 +72,7 @@ SELECT
     'std', ('[' || {std_json} || ']')::json,
     'dim', {DIMS},
     'n_songs', s.n_songs
-  )::text
+  )::jsonb
 FROM stats s
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;"""
 
@@ -118,10 +123,8 @@ BEGIN
     FROM public.songs
     WHERE handcrafted_raw IS NOT NULL
   LOOP
-    -- Extract raw vector to array
-    v_raw := ARRAY(
-      SELECT unnest(rec.handcrafted_raw::float8[])
-    );
+    -- Extract raw vector to array (pgvector doesn't support direct ::float8[] cast)
+    v_raw := replace(replace(rec.handcrafted_raw::text, '[', '{{'), ']', '}}')::float8[];
 
     -- Z-score normalize
     v_norm := ARRAY(

@@ -31,10 +31,10 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 
 ## Data Scope
 - **Genre**: Electronic (Sub-Genres: Techno, House, IDM, Minimal Electronic, Dance, Downtempo, Chill-out, Dubstep, Drum & Bass, Trance, Breakbeat, Ambient, Electronic)
-- **Quellen**: FMA-large (~21.5K Songs), MTG-Jamendo (~27K electronic tracks)
-- **Ziel Phase 2**: ~49K Songs total
-- **FMA Excluded**: Trip-Hop, Skweee, Chiptune, Chip Music, Breakcore-Hard, Ambient Electronic
-- **Jahr**: >= 2000 (nur FMA, Jamendo ohne Jahresfilter)
+- **Quelle**: Deezer API — kommerzielle Electronic-Tracks (30s Previews → Essentia-Extraktion)
+- **Seed-Strategie**: 55 kuratierte Electronic Artists → Top-Tracks + Related Artists (1 Level deep)
+- **Ziel**: ~15-20K kommerzielle Tracks
+- **Alte Quellen (gelöscht)**: FMA-large, MTG-Jamendo — CC-Musik, zu weit weg von kommerzieller Musiksuche
 
 ## Deployment
 - Railway: Root Directory `/apps/api`, Config `/apps/api/railway.toml`, Healthcheck `/health` (30s timeout), Restart ON_FAILURE (max 3)
@@ -58,11 +58,11 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 
 ## Seeding & Maintenance Scripts
 Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
-- **seed_fma.py** — Feature-Extraktion aus FMA-Audio (`--extract-only` für JSONL ohne DB, `--resume` für Checkpoint)
+- **seed_deezer.py** — Crawlt Deezer API für Electronic-Tracks, extrahiert Features (`--workers 4`, `--resume`, `--limit`)
 - **import_features.py** — JSONL → Supabase via REST RPC (braucht `--url` + `--key`, kein service_role_key nötig)
 - **compute_stats.py** — Z-Score Stats berechnen + normalisieren (generiert SQL, `--format sql` für stdout)
-- **cleanup_genres.py** — Songs nach Genre/Jahr filtern und nicht-matchende löschen (`--execute` für echtes Löschen)
-- **seed_jamendo.py** — Feature-Extraktion aus MTG-Jamendo Audio (`--resume`, `--limit`, `--workers`)
+- **seed_fma.py** — (Legacy) FMA Feature-Extraktion
+- **seed_jamendo.py** — (Legacy) MTG-Jamendo Feature-Extraktion
 
 ## Konventionen
 - Essentia läuft in isoliertem Subprocess (Crash-Schutz)
