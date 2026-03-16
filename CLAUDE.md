@@ -14,8 +14,6 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 - `apps/api/` — FastAPI Backend
 - `apps/api/scripts/` — Seeding, Import, Normalisierung
 - `supabase/migrations/` — SQL Migrations (001–011)
-- `data/mtg-jamendo-dataset/` — MTG-Jamendo Metadaten (geclontes Repo)
-- `data/mtg-jamendo-audio/` — MTG-Jamendo Audio (30s low-quality MP3, ~6 GB)
 - `docs/scaling-plan.md` — Skalierungsstrategie + Kosten
 
 ## API Routes
@@ -32,9 +30,9 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 ## Data Scope
 - **Genre**: Electronic (Sub-Genres: Techno, House, IDM, Minimal Electronic, Dance, Downtempo, Chill-out, Dubstep, Drum & Bass, Trance, Breakbeat, Ambient, Electronic)
 - **Quelle**: Deezer API — kommerzielle Electronic-Tracks (30s Previews → Essentia-Extraktion)
-- **Seed-Strategie**: 55 kuratierte Electronic Artists → Top-Tracks + Related Artists (1 Level deep)
-- **Ziel**: ~15-20K kommerzielle Tracks
-- **Alte Quellen (gelöscht)**: FMA-large, MTG-Jamendo — CC-Musik, zu weit weg von kommerzieller Musiksuche
+- **Crawl-Strategie**: 53 Seed-Artists → Top-Tracks + Related Artists (2 Ebenen) mit Album-Genre-Filter
+- **Aktuell**: ~19.9K kommerzielle Tracks, 440+ Artists
+- **Legacy (gelöscht)**: FMA-large, MTG-Jamendo — CC-Musik, ersetzt durch Deezer
 
 ## Deployment
 - Railway: Root Directory `/apps/api`, Config `/apps/api/railway.toml`, Healthcheck `/health` (30s timeout), Restart ON_FAILURE (max 3)
@@ -58,11 +56,11 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 
 ## Seeding & Maintenance Scripts
 Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
-- **seed_deezer.py** — Crawlt Deezer API für Electronic-Tracks, extrahiert Features (`--workers 4`, `--resume`, `--limit`)
+- **seed_deezer.py** — Deezer Electronic-Crawl + Essentia-Extraktion (`--crawl-only`, `--tracks-json`, `--resume`, `--workers`)
 - **import_features.py** — JSONL → Supabase via REST RPC (braucht `--url` + `--key`, kein service_role_key nötig)
 - **compute_stats.py** — Z-Score Stats berechnen + normalisieren (generiert SQL, `--format sql` für stdout)
-- **seed_fma.py** — (Legacy) FMA Feature-Extraktion
-- **seed_jamendo.py** — (Legacy) MTG-Jamendo Feature-Extraktion
+- **cleanup_genres.py** — Songs nach Genre/Jahr filtern und löschen (`--execute`)
+- **seed_fma.py** / **seed_jamendo.py** — Legacy-Seeder (nicht mehr aktiv)
 
 ## Konventionen
 - Essentia läuft in isoliertem Subprocess (Crash-Schutz)
@@ -81,4 +79,5 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - **framer-motion**: Im Root `node_modules` gehoisted (Monorepo) — nicht in `apps/web/node_modules`
 - **Procrastinate**: `listen_notify=False` (Polling-Mode, spart 1 DB-Connection)
 - **pgvector Subscripting**: `vector`-Typ unterstützt kein `[]` — erst `::text` dann `replace([→{, ]→})::float8[]`
+- **Deezer Preview URLs**: HMAC-signiert, ~10min TTL — vor jedem Download frische URL via `/track/{id}` holen
 - **Dockerfile**: Runtime braucht `ffmpeg` + `libmagic1`

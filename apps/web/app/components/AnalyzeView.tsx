@@ -117,13 +117,13 @@ export default function AnalyzeView() {
             exit="exit"
             transition={{ duration: 0.3 }}
           >
-            <UploadZone onFileSelected={handleFileSelected} />
+            <UrlInput onMatch={handleYouTubeMatch} />
             <div className="flex items-center gap-3 my-6">
               <div className="h-px flex-1 bg-gradient-to-r from-transparent to-border-subtle" />
               <span className="text-xs text-text-tertiary font-medium">oder</span>
               <div className="h-px flex-1 bg-gradient-to-l from-transparent to-border-subtle" />
             </div>
-            <UrlInput onMatch={handleYouTubeMatch} />
+            <UploadZone onFileSelected={handleFileSelected} />
           </motion.div>
         )}
 
@@ -229,15 +229,26 @@ export default function AnalyzeView() {
             >
               {/* Song info header */}
               <div className="glass-premium rounded-xl p-4">
-                <h3 className="font-display text-sm font-medium text-text-primary">
-                  {querySong.artist} — {querySong.title}
-                </h3>
-                <div className="mt-1 flex gap-3 text-xs text-text-tertiary">
-                  {result.bpm > 0 && <span>{Math.round(result.bpm)} BPM</span>}
-                  {result.key && <span>{result.key}</span>}
-                  {result.duration > 0 && (
-                    <span>{Math.floor(result.duration / 60)}:{String(Math.floor(result.duration % 60)).padStart(2, "0")}</span>
-                  )}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-display text-sm font-medium text-text-primary">
+                      {querySong.artist} — {querySong.title}
+                    </h3>
+                    <div className="mt-1 flex gap-3 text-xs text-text-tertiary">
+                      {result.bpm > 0 && <span>{Math.round(result.bpm)} BPM</span>}
+                      {result.key && <span>{result.key}</span>}
+                      {result.duration > 0 && (
+                        <span>{Math.floor(result.duration / 60)}:{String(Math.floor(result.duration % 60)).padStart(2, "0")}</span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleReset}
+                    className="shrink-0 rounded-lg border border-border-glass px-3 py-1.5 text-xs font-medium text-amber-light transition-colors hover:bg-amber-dim hover:text-amber"
+                    title="Neue Analyse starten"
+                  >
+                    Neue Suche
+                  </button>
                 </div>
               </div>
 
@@ -254,9 +265,6 @@ export default function AnalyzeView() {
                 <p className="text-sm text-text-tertiary">Keine ähnlichen Songs gefunden.</p>
               )}
 
-              <Button variant="ghost" size="sm" onClick={handleReset}>
-                Neue Analyse starten
-              </Button>
             </motion.div>
           )}
       </AnimatePresence>
