@@ -62,6 +62,7 @@ export default function Home() {
   const [songCount, setSongCount] = useState<number | null>(null);
   const [genres, setGenres] = useState<string[]>([]);
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   // Filters
   const [minBpm, setMinBpm] = useState<string>("");
@@ -70,7 +71,7 @@ export default function Home() {
 
   // Load initial data on mount
   useEffect(() => {
-    searchSongs("").then(setSongs).catch((err) => toast.error(err.message || "Anfrage fehlgeschlagen"));
+    searchSongs("").then(setSongs).catch((err) => toast.error(err.message || "Anfrage fehlgeschlagen")).finally(() => setInitialLoading(false));
     getSongCount().then(setSongCount).catch((err) => toast.error(err.message || "Anfrage fehlgeschlagen"));
     getGenres().then(setGenres).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -102,8 +103,8 @@ export default function Home() {
   const filteredResults = similarResults.filter((s) => s.similarity >= minSimilarity);
 
   return (
-    <main className="ambient-glow min-h-screen font-sans text-text-primary">
-      <div className="mx-auto max-w-6xl px-4 py-8">
+    <main className="ambient-glow flex min-h-screen flex-col font-sans text-text-primary">
+      <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         <ApiStatus />
 
         {/* Header */}
@@ -135,7 +136,7 @@ export default function Home() {
                 Finde deinen nächsten Track
               </motion.p>
             </div>
-            <AudioWaveform className="hidden md:flex" />
+            <AudioWaveform className="hidden sm:flex" />
           </div>
           {songCount !== null && (
             <motion.div
@@ -173,19 +174,18 @@ export default function Home() {
               role="tab"
               aria-selected={tab === t}
               onClick={() => setTab(t)}
-              className={`relative flex-1 rounded-lg px-4 py-3 text-sm font-semibold transition-colors duration-200 ${
+              className={`relative flex-1 cursor-pointer rounded-lg px-4 py-3 text-sm font-semibold transition-colors duration-200 ${
                 tab === t ? "text-amber-light" : "text-text-secondary hover:text-text-primary"
               }`}
             >
               {tab === t && (
                 <motion.div
                   layoutId="active-tab"
-                  className="absolute inset-0 rounded-lg bg-gradient-to-r from-amber-dim to-violet-dim"
-                  style={{ zIndex: -1 }}
+                  className="absolute inset-0 z-0 rounded-lg bg-gradient-to-r from-amber-dim to-violet-dim"
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
-              {t === "catalog" ? "Katalog durchsuchen" : "Song analysieren"}
+              <span className="relative z-10">{t === "catalog" ? "Katalog durchsuchen" : "Song analysieren"}</span>
             </button>
           ))}
         </motion.div>
@@ -222,9 +222,18 @@ export default function Home() {
 
               <div className="flex flex-col gap-6 lg:flex-row">
                 <section className="flex-1">
-                  {songs.length === 0 ? (
-                    <div className="rounded-xl bg-surface-raised p-8 text-center">
-                      <p className="text-sm text-text-secondary">Keine Songs gefunden</p>
+                  {songs.length === 0 && initialLoading ? (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                      {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <div key={i} className="shimmer h-40 rounded-xl" />
+                      ))}
+                    </div>
+                  ) : songs.length === 0 ? (
+                    <div className="rounded-xl bg-surface-raised p-12 text-center">
+                      <svg className="mx-auto mb-4 h-12 w-12 text-text-tertiary opacity-40" fill="none" viewBox="0 0 24 24" strokeWidth={1.2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z" />
+                      </svg>
+                      <p className="text-sm font-medium text-text-secondary">Keine Songs gefunden</p>
                       <p className="mt-1 text-xs text-text-tertiary">Versuch einen anderen Suchbegriff oder Genre-Filter.</p>
                     </div>
                   ) : (
@@ -347,7 +356,7 @@ export default function Home() {
         </AnimatePresence>
       </div>
 
-      <footer className="mx-auto max-w-6xl px-4 py-8">
+      <footer className="mx-auto mt-auto w-full max-w-6xl px-4 py-8">
         <div className="h-px bg-gradient-to-r from-transparent via-border-glass to-transparent" />
         <div className="flex items-center justify-between pt-6">
           <p className="text-xs text-text-tertiary">Beattrack — Finde deinen nächsten Track</p>

@@ -7,6 +7,7 @@ import UploadZone from "./UploadZone";
 import ProgressTracker from "./ProgressTracker";
 import UrlInput from "./UrlInput";
 import SimilarResults from "./SimilarResults";
+import Button from "./Button";
 
 type AnalyzePhase = "idle" | "uploading" | "processing" | "results" | "error" | "youtube-result";
 
@@ -172,18 +173,18 @@ export default function AnalyzeView() {
             className="rounded-xl border border-red-900/50 bg-red-950/30 p-6"
           >
             <p className="text-sm text-red-400">{error}</p>
-            <motion.button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => {
                 setPhase("idle");
                 setError(null);
                 setUploadedFileName("");
               }}
-              className="mt-4 rounded-lg bg-amber/20 px-4 py-2 text-xs text-amber-light transition-colors hover:bg-amber/30"
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
+              className="mt-4"
             >
               Nochmal versuchen
-            </motion.button>
+            </Button>
           </motion.div>
         )}
 
@@ -253,12 +254,9 @@ export default function AnalyzeView() {
                 <p className="text-sm text-text-tertiary">Keine ähnlichen Songs gefunden.</p>
               )}
 
-              <button
-                onClick={handleReset}
-                className="text-xs text-text-secondary underline hover:text-text-primary"
-              >
+              <Button variant="ghost" size="sm" onClick={handleReset}>
                 Neue Analyse starten
-              </button>
+              </Button>
             </motion.div>
           )}
       </AnimatePresence>

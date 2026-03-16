@@ -72,7 +72,7 @@ export default function SearchBar({ onResults, genre, resultCount }: SearchBarPr
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Songs durchsuchen..."
         autoFocus
-        className="glass-premium w-full rounded-xl border-0 pl-11 pr-12 py-3.5 text-text-primary placeholder:text-text-tertiary outline-none transition-all duration-300 focus:glow-amber focus:ring-1 focus:ring-amber/30"
+        className="glass-premium w-full rounded-xl border-0 pl-11 pr-12 py-3.5 text-text-primary placeholder:text-text-tertiary outline-none transition-all duration-300 focus:glow-amber"
       />
 
       {/* Loading dots + result count */}

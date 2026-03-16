@@ -19,7 +19,7 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   title: "Beattrack",
-  description: "Find sonically similar songs through audio analysis",
+  description: "Finde klanglich ähnliche Songs durch Audio-Analyse",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

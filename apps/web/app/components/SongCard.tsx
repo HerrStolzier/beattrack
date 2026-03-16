@@ -21,18 +21,17 @@ function formatDuration(sec: number | null): string {
 export default function SongCard({ song, onFindSimilar, isSelected }: SongCardProps) {
   return (
     <motion.div
-      className={`group flex flex-col gap-2 rounded-xl p-5 transition-all duration-300
+      className={`group flex flex-col gap-2 rounded-xl p-5 transition-colors duration-200
         ${isSelected
           ? "border border-amber/50 bg-amber-dim/30 shadow-[0_0_24px_var(--color-amber-dim)]"
-          : "glass-interactive"
+          : "glass border border-border-glass hover:border-amber/20 hover:bg-surface-elevated"
         }`}
-      whileHover={{ y: -4 }}
-      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      whileHover={{ y: -4, transition: { type: "spring", stiffness: 400, damping: 30 } }}
     >
       {/* Title row + Genre badge */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-text-primary group-hover:text-amber-light transition-colors">
+          <p className="truncate text-sm font-semibold text-text-primary">
             {song.title}
           </p>
           <p className="truncate text-xs text-text-secondary mt-0.5">{song.artist}</p>

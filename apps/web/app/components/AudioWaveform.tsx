@@ -25,14 +25,14 @@ export default function AudioWaveform({ className = "" }: { className?: string }
       {BARS.map((bar, i) => (
         <div
           key={i}
-          className="w-[3px] rounded-full bg-gradient-to-t from-amber/60 via-violet/40 to-neon-cyan/30"
+          className="w-[3px] origin-bottom rounded-full bg-gradient-to-t from-amber/60 via-violet/40 to-neon-cyan/30 will-change-transform"
           style={{
             animationName: "waveform",
             animationDuration: `${bar.duration}s`,
             animationTimingFunction: "ease-in-out",
             animationIterationCount: "infinite",
             animationDelay: `${bar.delay}s`,
-            height: `${bar.height}%`,
+            height: "100%",
           }}
         />
       ))}

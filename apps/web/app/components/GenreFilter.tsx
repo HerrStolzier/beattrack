@@ -31,11 +31,11 @@ export function getGenreColor(genre: string | null | undefined): string {
 
 export default function GenreFilter({ genres, selected, onSelect }: GenreFilterProps) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none sm:flex-wrap sm:overflow-visible sm:pb-0">
       {/* "Alle" chip */}
       <button
         onClick={() => onSelect(null)}
-        className="relative rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
+        className="relative cursor-pointer rounded-full px-3.5 py-2 text-xs font-medium transition-colors min-h-[44px] inline-flex items-center"
         style={{
           color: selected === null ? "var(--color-surface)" : "var(--color-text-secondary)",
           background: selected === null ? "var(--color-amber)" : "var(--color-surface-glass)",
@@ -60,7 +60,7 @@ export default function GenreFilter({ genres, selected, onSelect }: GenreFilterP
           <button
             key={genre}
             onClick={() => onSelect(isActive ? null : genre)}
-            className="relative rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200"
+            className="relative cursor-pointer rounded-full px-3.5 py-2 text-xs font-medium transition-all duration-200 min-h-[44px] inline-flex items-center"
             style={{
               color: isActive ? "var(--color-surface)" : color,
               background: isActive ? color : "var(--color-surface-glass)",
