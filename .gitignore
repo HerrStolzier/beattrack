@@ -56,3 +56,9 @@ supabase/.temp/
 # Logs
 *.log
 .vercel
+
+# Deezer seed data (large, regeneratable)
+apps/api/scripts/deezer_features.jsonl
+apps/api/scripts/deezer_tracks.json
+apps/api/scripts/deezer_test*.jsonl
+apps/api/scripts/seed_deezer_checkpoint.json
