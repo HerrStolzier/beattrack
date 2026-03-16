@@ -13,7 +13,9 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 - `apps/web/` — Next.js Frontend
 - `apps/api/` — FastAPI Backend
 - `apps/api/scripts/` — Seeding, Import, Normalisierung
-- `supabase/migrations/` — SQL Migrations (001–010)
+- `supabase/migrations/` — SQL Migrations (001–011)
+- `data/mtg-jamendo-dataset/` — MTG-Jamendo Metadaten (geclontes Repo)
+- `data/mtg-jamendo-audio/` — MTG-Jamendo Audio (30s low-quality MP3, ~6 GB)
 - `docs/scaling-plan.md` — Skalierungsstrategie + Kosten
 
 ## API Routes
@@ -25,12 +27,14 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 - **feedback**: Rating (-1/+1), nur Analytics — nicht in Similarity eingebaut
 - **Indexes**: HNSW auf `learned_embedding` + `handcrafted_norm` (cosine_ops, m=16, ef=64), Trigram (gin) auf title+artist, B-tree auf genre
 - **RLS**: Enabled auf allen Tabellen (anon=SELECT, service_role=ALL)
+- **RPC**: `bulk_import_songs(jsonb)` — SECURITY DEFINER, callable mit anon key (Migration 011)
 
-## Data Scope (Iteration 1)
-- **Genre**: Nur Electronic (13 Sub-Genres: Techno, House, IDM, Glitch, Minimal Electronic, Dance, Downtempo, Chill-out, Dubstep, Drum & Bass, Jungle, Bigbeat, Electronic)
-- **Excluded**: Trip-Hop, Skweee, Chiptune, Chip Music, Breakcore-Hard, Ambient Electronic
-- **Jahr**: >= 2000
-- **Aktuell**: ~21.586 Songs (FMA-large)
+## Data Scope
+- **Genre**: Electronic (Sub-Genres: Techno, House, IDM, Minimal Electronic, Dance, Downtempo, Chill-out, Dubstep, Drum & Bass, Trance, Breakbeat, Ambient, Electronic)
+- **Quellen**: FMA-large (~21.5K Songs), MTG-Jamendo (~27K electronic tracks)
+- **Ziel Phase 2**: ~49K Songs total
+- **FMA Excluded**: Trip-Hop, Skweee, Chiptune, Chip Music, Breakcore-Hard, Ambient Electronic
+- **Jahr**: >= 2000 (nur FMA, Jamendo ohne Jahresfilter)
 
 ## Deployment
 - Railway: Root Directory `/apps/api`, Config `/apps/api/railway.toml`, Healthcheck `/health` (30s timeout), Restart ON_FAILURE (max 3)
@@ -58,6 +62,7 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - **import_features.py** — JSONL → Supabase via REST RPC (braucht `--url` + `--key`, kein service_role_key nötig)
 - **compute_stats.py** — Z-Score Stats berechnen + normalisieren (generiert SQL, `--format sql` für stdout)
 - **cleanup_genres.py** — Songs nach Genre/Jahr filtern und nicht-matchende löschen (`--execute` für echtes Löschen)
+- **seed_jamendo.py** — Feature-Extraktion aus MTG-Jamendo Audio (`--resume`, `--limit`, `--workers`)
 
 ## Konventionen
 - Essentia läuft in isoliertem Subprocess (Crash-Schutz)

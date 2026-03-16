@@ -1,8 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useRef } from "react";
 import { type Song } from "@/lib/api";
+import { getGenreColor } from "./GenreFilter";
+import Button from "./Button";
 
 interface SongCardProps {
   song: Song;
@@ -18,40 +19,43 @@ function formatDuration(sec: number | null): string {
 }
 
 export default function SongCard({ song, onFindSimilar, isSelected }: SongCardProps) {
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  function handleMouseMove(e: React.MouseEvent) {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width - 0.5;
-    const y = (e.clientY - rect.top) / rect.height - 0.5;
-    cardRef.current.style.transform = `perspective(800px) rotateY(${x * 6}deg) rotateX(${-y * 6}deg)`;
-  }
-
-  function handleMouseLeave() {
-    if (cardRef.current) {
-      cardRef.current.style.transform = "perspective(800px) rotateY(0deg) rotateX(0deg)";
-    }
-  }
-
   return (
-    <div
-      ref={cardRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      style={{ transition: "transform 0.4s cubic-bezier(0.03, 0.98, 0.52, 0.99)" }}
-      className={`glass-interactive group flex flex-col gap-1 rounded-xl p-4 will-change-transform ${
-        isSelected ? "border-amber/50 glow-amber !bg-amber-dim/30" : ""
-      }`}
+    <motion.div
+      className={`group flex flex-col gap-2 rounded-xl p-5 transition-all duration-300
+        ${isSelected
+          ? "border border-amber/50 bg-amber-dim/30 shadow-[0_0_24px_var(--color-amber-dim)]"
+          : "glass-interactive"
+        }`}
+      whileHover={{ y: -4 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
     >
-      <p className="truncate text-sm font-semibold text-text-primary group-hover:text-amber-light transition-colors">
-        {song.title}
-      </p>
-      <p className="truncate text-xs text-text-secondary">{song.artist}</p>
+      {/* Title row + Genre badge */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-text-primary group-hover:text-amber-light transition-colors">
+            {song.title}
+          </p>
+          <p className="truncate text-xs text-text-secondary mt-0.5">{song.artist}</p>
+        </div>
+        {song.genre && (
+          <span
+            className="genre-badge shrink-0"
+            style={{
+              color: getGenreColor(song.genre),
+              background: `color-mix(in srgb, ${getGenreColor(song.genre)} 15%, transparent)`,
+            }}
+          >
+            {song.genre}
+          </span>
+        )}
+      </div>
+
       {song.album && (
         <p className="truncate text-xs text-text-tertiary">{song.album}</p>
       )}
-      <div className="mt-2 flex items-center gap-2 text-xs text-text-tertiary">
+
+      {/* Metadata tags */}
+      <div className="flex items-center gap-2 text-xs text-text-tertiary">
         {song.bpm !== null && (
           <span className="rounded-full bg-amber-dim px-2.5 py-0.5 font-mono text-[10px] text-amber-light">
             {Math.round(song.bpm)} BPM
@@ -64,14 +68,15 @@ export default function SongCard({ song, onFindSimilar, isSelected }: SongCardPr
         )}
         <span className="ml-auto font-mono text-[10px]">{formatDuration(song.duration_sec)}</span>
       </div>
-      <motion.button
+
+      <Button
+        variant="primary"
+        size="sm"
         onClick={() => onFindSimilar(song)}
-        className="gradient-border mt-3 rounded-lg bg-surface-raised px-3 py-1.5 text-xs font-medium text-text-primary transition-all hover:text-amber-light hover:bg-amber-dim"
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.97 }}
+        className="mt-1 w-full"
       >
-        Find Similar
-      </motion.button>
-    </div>
+        Ähnliche finden
+      </Button>
+    </motion.div>
   );
 }

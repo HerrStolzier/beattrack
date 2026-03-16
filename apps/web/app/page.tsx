@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { findSimilar, searchSongs, getSongCount, type Song, type SimilarSong } from "@/lib/api";
+import { findSimilar, searchSongs, getSongCount, getGenres, type Song, type SimilarSong } from "@/lib/api";
 import SearchBar from "./components/SearchBar";
+import GenreFilter from "./components/GenreFilter";
 import SongCard from "./components/SongCard";
 import SimilarResults from "./components/SimilarResults";
 import AnalyzeView from "./components/AnalyzeView";
 import ApiStatus from "./components/ApiStatus";
+import Button from "./components/Button";
 import { useToast } from "./components/Toast";
 import AudioWaveform from "./components/AudioWaveform";
 
@@ -58,16 +60,19 @@ export default function Home() {
   const [similarResults, setSimilarResults] = useState<SimilarSong[]>([]);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
   const [songCount, setSongCount] = useState<number | null>(null);
+  const [genres, setGenres] = useState<string[]>([]);
+  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
 
   // Filters
   const [minBpm, setMinBpm] = useState<string>("");
   const [maxBpm, setMaxBpm] = useState<string>("");
   const [minSimilarity, setMinSimilarity] = useState<number>(0);
 
-  // Load initial songs + count on mount
+  // Load initial data on mount
   useEffect(() => {
     searchSongs("").then(setSongs).catch((err) => toast.error(err.message || "Anfrage fehlgeschlagen"));
     getSongCount().then(setSongCount).catch((err) => toast.error(err.message || "Anfrage fehlgeschlagen"));
+    getGenres().then(setGenres).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -103,7 +108,7 @@ export default function Home() {
 
         {/* Header */}
         <motion.header
-          className="mb-12 flex items-end justify-between"
+          className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
           initial="hidden"
           animate="visible"
           variants={fadeInUp}
@@ -122,26 +127,31 @@ export default function Home() {
                 </span>
               </motion.h1>
               <motion.p
-                className="mt-2 text-sm text-text-secondary tracking-widest uppercase"
+                className="mt-2 text-base text-text-secondary"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
               >
-                Find sonically similar songs
+                Finde deinen nächsten Track
               </motion.p>
             </div>
             <AudioWaveform className="hidden md:flex" />
           </div>
           {songCount !== null && (
-            <motion.span
-              className="glass-premium rounded-full px-4 py-1.5 text-xs font-medium text-amber-light"
+            <motion.div
+              className="glass-premium rounded-xl px-4 py-2.5 text-center"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.6, type: "spring", stiffness: 300 }}
               data-testid="song-count"
             >
-              {songCount.toLocaleString()} Songs
-            </motion.span>
+              <span className="text-lg font-display font-bold text-amber-light">
+                {songCount.toLocaleString()}
+              </span>
+              <p className="text-[10px] text-text-tertiary mt-0.5">
+                Electronic Tracks
+              </p>
+            </motion.div>
           )}
         </motion.header>
 
@@ -191,14 +201,32 @@ export default function Home() {
               variants={staggerContainer}
             >
               {/* Search bar */}
-              <motion.div className="mb-6" variants={fadeInUp} custom={2}>
-                <SearchBar onResults={handleResults} />
+              <motion.div className="mb-4" variants={fadeInUp} custom={2}>
+                <SearchBar
+                  onResults={handleResults}
+                  genre={selectedGenre}
+                  resultCount={songs.length}
+                />
               </motion.div>
+
+              {/* Genre filter chips */}
+              {genres.length > 0 && (
+                <motion.div className="mb-6" variants={fadeInUp} custom={3}>
+                  <GenreFilter
+                    genres={genres}
+                    selected={selectedGenre}
+                    onSelect={setSelectedGenre}
+                  />
+                </motion.div>
+              )}
 
               <div className="flex flex-col gap-6 lg:flex-row">
                 <section className="flex-1">
                   {songs.length === 0 ? (
-                    <p className="text-sm text-text-secondary">No songs found.</p>
+                    <div className="rounded-xl bg-surface-raised p-8 text-center">
+                      <p className="text-sm text-text-secondary">Keine Songs gefunden</p>
+                      <p className="mt-1 text-xs text-text-tertiary">Versuch einen anderen Suchbegriff oder Genre-Filter.</p>
+                    </div>
                   ) : (
                     <motion.div
                       className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
@@ -228,15 +256,15 @@ export default function Home() {
                     >
                       <div className="glass-premium rounded-xl p-4">
                         {/* Filters */}
-                        <div className="mb-4 space-y-2 border-b border-border-subtle pb-4">
-                          <p className="text-xs font-medium text-text-secondary">Filter</p>
+                        <div className="mb-4 space-y-3 border-b border-border-subtle pb-4">
+                          <p className="text-xs font-semibold text-text-secondary">Filter</p>
                           <div className="flex gap-2">
                             <input
                               type="number"
                               placeholder="Min BPM"
                               value={minBpm}
                               onChange={(e) => setMinBpm(e.target.value)}
-                              className="w-full rounded border border-border-glass bg-surface-raised px-2 py-1 text-xs text-text-primary placeholder:text-text-tertiary outline-none focus:border-amber/50 focus:ring-1 focus:ring-amber/30"
+                              className="w-full rounded-lg border border-border-glass bg-surface-raised px-3 py-2 text-xs text-text-primary placeholder:text-text-tertiary outline-none focus:border-amber/50 focus:ring-1 focus:ring-amber/30"
                               data-testid="filter-min-bpm"
                             />
                             <input
@@ -244,7 +272,7 @@ export default function Home() {
                               placeholder="Max BPM"
                               value={maxBpm}
                               onChange={(e) => setMaxBpm(e.target.value)}
-                              className="w-full rounded border border-border-glass bg-surface-raised px-2 py-1 text-xs text-text-primary placeholder:text-text-tertiary outline-none focus:border-amber/50 focus:ring-1 focus:ring-amber/30"
+                              className="w-full rounded-lg border border-border-glass bg-surface-raised px-3 py-2 text-xs text-text-primary placeholder:text-text-tertiary outline-none focus:border-amber/50 focus:ring-1 focus:ring-amber/30"
                               data-testid="filter-max-bpm"
                             />
                           </div>
@@ -264,17 +292,23 @@ export default function Home() {
                             />
                           </div>
                           {(minBpm || maxBpm) && (
-                            <button
+                            <Button
+                              variant="secondary"
+                              size="sm"
                               onClick={() => handleFindSimilar(selectedSong)}
-                              className="w-full rounded bg-amber-dim px-2 py-1 text-xs text-amber-light transition hover:bg-amber/30"
+                              className="w-full"
                             >
                               Erneut suchen
-                            </button>
+                            </Button>
                           )}
                         </div>
 
                         {loadingSimilar ? (
-                          <p className="text-sm text-text-secondary">Loading similar songs…</p>
+                          <div className="space-y-3">
+                            {[1, 2, 3].map((i) => (
+                              <div key={i} className="shimmer h-20 rounded-xl" />
+                            ))}
+                          </div>
                         ) : (
                           <>
                             <SimilarResults
@@ -316,7 +350,7 @@ export default function Home() {
       <footer className="mx-auto max-w-6xl px-4 py-8">
         <div className="h-px bg-gradient-to-r from-transparent via-border-glass to-transparent" />
         <div className="flex items-center justify-between pt-6">
-          <p className="text-xs text-text-tertiary">Beattrack — Find sonically similar songs</p>
+          <p className="text-xs text-text-tertiary">Beattrack — Finde deinen nächsten Track</p>
           <a href="/privacy" className="text-xs text-text-tertiary transition-colors hover:text-amber-light">
             Datenschutz
           </a>

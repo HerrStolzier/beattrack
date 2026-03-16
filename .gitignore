@@ -41,9 +41,17 @@ Thumbs.db
 # Extraction outputs (generated, large)
 apps/api/scripts/seed_features.jsonl
 apps/api/scripts/seed_checkpoint.json
+apps/api/scripts/jamendo_features.jsonl
+apps/api/scripts/seed_jamendo_checkpoint.json
 apps/api/scripts/sql_batches/
 apps/api/scripts/sql_stats/
 apps/api/scripts/extract.log
+
+# Build artifacts
+apps/web/tsconfig.tsbuildinfo
+
+# Supabase temp
+supabase/.temp/
 
 # Logs
 *.log

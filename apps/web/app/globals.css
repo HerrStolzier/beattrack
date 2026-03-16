@@ -20,8 +20,8 @@
   --color-amber-glow: rgba(245, 158, 11, 0.4);
 
   --color-text-primary: #f0f0f0;
-  --color-text-secondary: #a1a1aa;
-  --color-text-tertiary: #71717a;
+  --color-text-secondary: #b4b4bc;
+  --color-text-tertiary: #9ca3af;
 
   --color-neon-cyan: #22d3ee;
   --color-neon-cyan-dim: rgba(34, 211, 238, 0.15);
@@ -35,6 +35,21 @@
   --color-emerald-dim: rgba(52, 211, 153, 0.15);
   --color-sky: #38bdf8;
   --color-sky-dim: rgba(56, 189, 248, 0.15);
+
+  /* ── Genre Colors ────────────────────────── */
+  --color-genre-techno: #f59e0b;
+  --color-genre-house: #fb7185;
+  --color-genre-ambient: #22d3ee;
+  --color-genre-drum-n-bass: #a78bfa;
+  --color-genre-trance: #38bdf8;
+  --color-genre-idm: #34d399;
+  --color-genre-dubstep: #c084fc;
+  --color-genre-minimal: #94a3b8;
+  --color-genre-downtempo: #f472b6;
+  --color-genre-chill-out: #67e8f9;
+  --color-genre-dance: #fbbf24;
+  --color-genre-breakbeat: #fb923c;
+  --color-genre-electronic: #f0a500;
 
   --animate-fade-in-up: fade-in-up 0.5s ease-out both;
   --animate-fade-in-scale: fade-in-scale 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
@@ -373,4 +388,34 @@ body > * {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-tertiary);
+}
+
+/* ── Focus States (Accessibility) ─────────── */
+:focus-visible {
+  outline: 2px solid var(--color-amber);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Genre Badge Utility ──────────────────── */
+.genre-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ── Reduced Motion ───────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { type Song, type SimilarSong } from "@/lib/api";
+import { getGenreColor } from "./GenreFilter";
 import FeedbackButtons from "./FeedbackButtons";
 import RadarChart from "./RadarChart";
+import Button from "./Button";
 
 interface SimilarResultsProps {
   results: SimilarSong[];
@@ -16,6 +18,12 @@ function similarityColor(score: number): string {
   if (score >= 0.7) return "from-amber to-gold";
   if (score >= 0.4) return "from-amber-light to-amber";
   return "from-red-500 to-red-400";
+}
+
+function similarityLabel(score: number): string {
+  if (score >= 0.7) return "Sehr ähnlich";
+  if (score >= 0.4) return "Ähnlich";
+  return "Entfernt";
 }
 
 function formatDuration(sec: number | null | undefined): string {
@@ -51,10 +59,13 @@ export default function SimilarResults({ results, querySong, onFeedback }: Simil
       <h2 className="text-sm font-semibold text-text-secondary">
         Ähnlich wie{" "}
         <span className="text-text-primary">{querySong.title}</span>
+        <span className="ml-2 text-xs font-normal text-text-tertiary">
+          {results.length} {results.length === 1 ? "Treffer" : "Treffer"}
+        </span>
       </h2>
 
       {results.length === 0 && (
-        <div className="rounded-xl bg-surface-raised p-4 text-center">
+        <div className="rounded-xl bg-surface-raised p-6 text-center">
           <p className="text-sm text-text-secondary">Keine passenden Treffer</p>
           <p className="mt-1 text-[11px] text-text-tertiary">
             Der Katalog enthält aktuell keine Songs, die diesem Track klanglich ähnlich genug sind.
@@ -68,50 +79,72 @@ export default function SimilarResults({ results, querySong, onFeedback }: Simil
         initial="hidden"
         animate="visible"
       >
-        {results.map((song) => {
+        {results.map((song, index) => {
           const pct = Math.round(song.similarity * 100);
           const isExpanded = expandedId === song.id;
+          const genreColor = getGenreColor(song.genre);
 
           return (
             <motion.li
               key={song.id}
               variants={itemVariants}
-              className="glass-interactive rounded-xl p-3"
+              className="glass-interactive rounded-xl p-4"
               whileHover={{ scale: 1.01 }}
             >
-              <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start justify-between gap-3">
+                {/* Rank number */}
+                <span className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-surface-raised text-[10px] font-mono font-bold text-text-tertiary">
+                  {index + 1}
+                </span>
+
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-text-primary">
                     {song.title}
                   </p>
-                  <p className="truncate text-xs text-text-secondary">{song.artist}</p>
+                  <p className="truncate text-xs text-text-secondary mt-0.5">{song.artist}</p>
                 </div>
-                <span className={`shrink-0 text-xs font-semibold ${song.similarity >= 0.4 ? "text-amber-light" : "text-text-secondary"}`}>
-                  {pct}%
-                </span>
+
+                {/* Similarity score + label */}
+                <div className="shrink-0 text-right">
+                  <span className={`text-sm font-bold ${song.similarity >= 0.4 ? "text-amber-light" : "text-text-secondary"}`}>
+                    {pct}%
+                  </span>
+                  <p className="text-[10px] text-text-tertiary">{similarityLabel(song.similarity)}</p>
+                </div>
               </div>
 
-              {/* Metadata tags */}
-              <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px]">
+              {/* Metadata row: genre + tags */}
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
+                {song.genre && (
+                  <span
+                    className="genre-badge"
+                    style={{
+                      color: genreColor,
+                      background: `color-mix(in srgb, ${genreColor} 15%, transparent)`,
+                    }}
+                  >
+                    {song.genre}
+                  </span>
+                )}
                 {song.bpm != null && (
-                  <span className="rounded bg-amber-dim px-1.5 py-0.5 font-mono text-amber-light">
+                  <span className="rounded-full bg-amber-dim px-2 py-0.5 font-mono text-amber-light">
                     {Math.round(song.bpm)} BPM
                   </span>
                 )}
                 {song.musical_key && (
-                  <span className="rounded bg-amber-dim px-1.5 py-0.5 font-mono text-amber-light">
+                  <span className="rounded-full bg-violet-dim px-2 py-0.5 font-mono text-violet">
                     {song.musical_key}
                   </span>
                 )}
                 {song.duration_sec != null && song.duration_sec > 0 && (
-                  <span className="rounded bg-amber-dim px-1.5 py-0.5 font-mono text-amber-light">
+                  <span className="rounded-full bg-surface-raised px-2 py-0.5 font-mono text-text-tertiary">
                     {formatDuration(song.duration_sec)}
                   </span>
                 )}
               </div>
 
               {/* Animated similarity bar */}
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-raised">
+              <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-surface-raised">
                 <motion.div
                   className={`h-full rounded-full bg-gradient-to-r ${similarityColor(song.similarity)}`}
                   initial={{ width: 0 }}
@@ -128,34 +161,32 @@ export default function SimilarResults({ results, querySong, onFeedback }: Simil
               )}
 
               {/* Actions row */}
-              <div className="mt-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {/* Search links */}
-                  <a
-                    href={searchUrl("spotify", song.artist, song.title)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded px-1.5 py-0.5 text-[10px] text-emerald-400 transition hover:bg-emerald-400/10"
-                    title="Auf Spotify suchen"
+              <div className="mt-3 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => window.open(searchUrl("spotify", song.artist, song.title), "_blank")}
+                    className="!text-emerald !px-2"
                   >
                     Spotify
-                  </a>
-                  <a
-                    href={searchUrl("youtube", song.artist, song.title)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded px-1.5 py-0.5 text-[10px] text-red-400 transition hover:bg-red-400/10"
-                    title="Auf YouTube suchen"
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => window.open(searchUrl("youtube", song.artist, song.title), "_blank")}
+                    className="!text-rose !px-2"
                   >
                     YouTube
-                  </a>
-                  {/* Radar toggle */}
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setExpandedId(isExpanded ? null : song.id)}
-                    className="rounded px-1.5 py-0.5 text-[10px] text-text-tertiary transition hover:text-text-secondary"
+                    className="!px-2"
                   >
-                    {isExpanded ? "Radar -" : "Radar +"}
-                  </button>
+                    {isExpanded ? "Radar ▾" : "Radar ▸"}
+                  </Button>
                 </div>
                 <FeedbackButtons
                   querySongId={querySong.id}

@@ -107,6 +107,7 @@ export type Song = {
   bpm: number | null;
   musical_key: string | null;
   duration_sec: number | null;
+  genre: string | null;
 };
 
 export type SimilarSong = Song & { similarity: number };
@@ -132,11 +133,23 @@ export async function getSongCount(): Promise<number> {
   return data.count;
 }
 
-export async function searchSongs(q: string, limit?: number): Promise<Song[]> {
+export async function searchSongs(
+  q: string,
+  opts?: { limit?: number; genre?: string; signal?: AbortSignal },
+): Promise<Song[]> {
   const params = new URLSearchParams({ q });
-  if (limit !== undefined) params.set("limit", String(limit));
-  const res = await fetchWithRetry(`${API_URL}/songs?${params}`);
+  if (opts?.limit !== undefined) params.set("limit", String(opts.limit));
+  if (opts?.genre) params.set("genre", opts.genre);
+  const res = await fetchWithRetry(`${API_URL}/songs?${params}`, {
+    signal: opts?.signal,
+  });
   if (!res.ok) throw new ApiError(`searchSongs failed`, res.status);
+  return res.json();
+}
+
+export async function getGenres(): Promise<string[]> {
+  const res = await fetchWithRetry(`${API_URL}/songs/genres`);
+  if (!res.ok) throw new ApiError(`getGenres failed`, res.status);
   return res.json();
 }
 

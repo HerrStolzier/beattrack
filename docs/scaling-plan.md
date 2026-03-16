@@ -1,6 +1,6 @@
 # Beattrack Scaling Plan
 
-> Stand: 2026-03-15 | Aktuell: ~33K Songs | Ziel: 500K–1M Songs
+> Stand: 2026-03-16 | Aktuell: ~21.5K FMA + ~27K Jamendo (in Arbeit) | Ziel: 500K–1M Songs
 
 ## Scope
 
@@ -134,11 +134,16 @@ CREATE INDEX idx_songs_learned_embedding
 - [ ] `compute_stats.py` nach Seeding ausführen (Normalisierung)
 - [ ] Ziel: ~35K Electronic Songs aus FMA
 
-### Phase 2: Jamendo Integration
-- [ ] Jamendo API-Key beantragen
-- [ ] Genre-Endpoint nutzen: Electronic, Metal, Hip-Hop
-- [ ] Batch-Download + Essentia-Analyse
-- [ ] Ziel: +150–200K Songs
+### Phase 2: MTG-Jamendo Dataset (in Arbeit)
+- [x] MTG-Jamendo Dataset evaluiert (Jamendo API verworfen: 35K calls/Mo Limit, ToS-Risiko)
+- [x] MTG-Jamendo Metadaten geclont (55K Tracks, CC-lizenziert)
+- [x] Audio heruntergeladen: 55.7K MP3s, 156 GB (30s low-quality von Zenodo)
+- [x] `seed_jamendo.py` geschrieben + getestet (Genre-Mapping, Checkpoint/Resume)
+- [x] Migration 011: `bulk_import_songs` RPC (SECURITY DEFINER, anon key)
+- [ ] Feature-Extraktion läuft: ~27K electronic Tracks, 4 Workers (~13h)
+- [ ] Import via `import_features.py` → Supabase
+- [ ] `compute_stats.py` → Z-Score Normalisierung neu berechnen (~49K Songs)
+- [ ] Ziel: +27K Electronic Songs → ~49K total
 
 ### Phase 3: Bandcamp Free Tracks
 - [ ] Crawler für Free-Download-Seiten (nach Genre-Tags)
@@ -157,7 +162,7 @@ CREATE INDEX idx_songs_learned_embedding
 
 ## Offene Fragen
 
-- [ ] Jamendo API-Limits und Bulk-Download-Möglichkeiten?
+- [x] ~~Jamendo API-Limits und Bulk-Download-Möglichkeiten?~~ → API verworfen, MTG-Jamendo Dataset (Zenodo) stattdessen
 - [ ] Bandcamp: Gibt es eine API oder muss man scrapen?
 - [ ] Genre-Klassifikation: Was wenn FMA/Jamendo-Tags ungenau sind?
 - [ ] User-Uploads: Gehen direkt in pgvector (kein Pipeline-Problem)

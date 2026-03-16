@@ -17,6 +17,7 @@ class SongResponse(BaseModel):
     bpm: float | None
     musical_key: str | None
     duration_sec: float | None
+    genre: str | None = None
 
 
 class SongCount(BaseModel):
@@ -32,18 +33,32 @@ async def get_song_count(
     return SongCount(count=result.count or 0)
 
 
+@router.get("/genres", response_model=list[str])
+async def list_genres(
+    sb: Client = Depends(get_supabase),
+) -> list[str]:
+    """Return distinct genre values from the catalog."""
+    result = sb.rpc(
+        "get_distinct_genres", {}
+    ).execute()
+    return [row["genre"] for row in (result.data or []) if row.get("genre")]
+
+
 @router.get("", response_model=list[SongResponse])
 async def list_songs(
     q: str | None = Query(default=None),
+    genre: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     sb: Client = Depends(get_supabase),
 ) -> list[SongResponse]:
     query = sb.table("songs").select(
-        "id, title, artist, album, bpm, musical_key, duration_sec"
+        "id, title, artist, album, bpm, musical_key, duration_sec, genre"
     )
     if q:
         query = query.ilike("title", f"%{q}%")
+    if genre:
+        query = query.eq("genre", genre)
     result = query.range(offset, offset + limit - 1).execute()
     return [SongResponse(**row) for row in result.data]
 
@@ -55,7 +70,7 @@ async def get_song(
 ) -> SongResponse:
     result = (
         sb.table("songs")
-        .select("id, title, artist, album, bpm, musical_key, duration_sec")
+        .select("id, title, artist, album, bpm, musical_key, duration_sec, genre")
         .eq("id", song_id)
         .single()
         .execute()
