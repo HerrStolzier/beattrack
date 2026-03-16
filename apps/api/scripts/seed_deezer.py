@@ -114,9 +114,18 @@ SEED_ARTIST_NAMES: list[str] = [
     "Kygo", "Swedish House Mafia", "Alan Walker", "Disclosure", "Deadmau5",
     # Trance
     "Armin van Buuren", "Above & Beyond", "Paul van Dyk", "ATB", "Dash Berlin",
-    # Techno
+    # Techno — Peak-Time / Berlin
     "Richie Hawtin", "Carl Cox", "Jeff Mills", "Adam Beyer", "Amelie Lens",
-    "Charlotte de Witte", "Nina Kraviz",
+    "Charlotte de Witte", "Nina Kraviz", "Ben Klock", "Marcel Dettmann",
+    "Pan-Pot", "Chris Liebing", "Sam Paganini", "Len Faki", "Sven Väth",
+    # Techno — Melodic / Progressive
+    "Tale of Us", "Boris Brejcha", "Anyma", "Laurent Garnier",
+    "Maceo Plex", "Enrico Sangiuliano",
+    # Techno — Hard / Industrial
+    "Sara Landry", "I Hate Models", "Nico Moreno", "Perc", "Rebekah",
+    # Techno — Weitere
+    "Nicole Moudaber", "Ellen Allien", "ANNA", "Indira Paganotto",
+    "Green Velvet", "Speedy J", "Joseph Capriati",
     # House / Deep House
     "Bob Sinclar", "Robin Schulz", "Duke Dumont", "Oliver Heldens",
     "Fisher", "MK", "Faithless",
@@ -127,6 +136,16 @@ SEED_ARTIST_NAMES: list[str] = [
     "The Prodigy", "Moby", "Daft Punk", "Kraftwerk", "Rüfüs Du Sol",
     # Ambient / Downtempo
     "Bonobo", "Massive Attack", "Aphex Twin", "Boards of Canada", "Air",
+    # Dubstep — UK Pioneers
+    "Skream", "Benga", "Burial", "Mala", "Kode9",
+    # Dubstep — Modern / Heavy
+    "Excision", "Subtronics", "Zomboy", "Virtual Riot",
+    # Dubstep — Melodic / Bass
+    "Nero", "Seven Lions", "Flux Pavilion", "Zeds Dead", "SLANDER", "Wooli",
+    # Hardstyle
+    "Headhunterz", "Brennan Heart", "Sub Zero Project", "Ran-D",
+    "Phuture Noize", "D-Block & S-te-Fan", "Atmozfears", "Wildstylez",
+    "Angerfist", "B-Front", "Showtek", "Da Tweekaz",
 ]
 
 
@@ -167,17 +186,14 @@ def resolve_seed_artists(names: list[str]) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 DEEZER_GENRE_MAP: dict[int, str] = {
-    106: "Electronic",
-    113: "Dance",
-    129: "House",
-    153: "Techno",
-    85: "Electro",
-    169: "Soul & Funk",  # borderline, include
-    197: "Chill",
+    # Deezer uses broad top-level genres — no sub-genre IDs for Techno/Dubstep/Hardstyle
+    106: "Electronic",  # "Electro" — covers Techno, Dubstep, Hardstyle, IDM, etc.
+    113: "Electronic",  # "Dance" — covers EDM, House, Trance, etc.
+    85: "Electronic",   # "Alternative" — some electronic crossover
 }
 
 # Genre IDs considered "Electronic-adjacent" for filtering related artists
-ELECTRONIC_GENRE_IDS: set[int] = {106, 113, 129, 153, 85, 169, 197}
+ELECTRONIC_GENRE_IDS: set[int] = {106, 113, 85}
 
 
 def map_deezer_genre(genre_id: int | None) -> str:
