@@ -104,8 +104,8 @@ describe("SimilarResults", () => {
 
   it("renders Spotify and YouTube buttons", () => {
     render(<SimilarResults results={results} querySong={querySong} />);
-    const spotifyButtons = screen.getAllByText("Spotify");
-    const youtubeButtons = screen.getAllByText("YouTube");
+    const spotifyButtons = screen.getAllByTitle("Auf Spotify suchen");
+    const youtubeButtons = screen.getAllByTitle("Auf YouTube suchen");
     expect(spotifyButtons).toHaveLength(2);
     expect(youtubeButtons).toHaveLength(2);
   });
@@ -113,11 +113,11 @@ describe("SimilarResults", () => {
   it("toggles radar chart on button click", async () => {
     render(<SimilarResults results={results} querySong={querySong} />);
 
-    const radarButtons = screen.getAllByText("Radar ▸");
+    const radarButtons = screen.getAllByText("▸");
     await userEvent.click(radarButtons[0]);
 
     expect(screen.getByTestId("radar-chart")).toBeInTheDocument();
-    expect(screen.getByText("Radar ▾")).toBeInTheDocument();
+    expect(screen.getByText("▾")).toBeInTheDocument();
   });
 
   it("formats duration correctly", () => {

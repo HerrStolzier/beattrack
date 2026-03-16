@@ -74,20 +74,18 @@ export default function FeedbackButtons({
       <button
         onClick={() => handleClick(1)}
         disabled={loading}
-        className="inline-flex items-center gap-1 rounded-full border border-border-subtle px-2 py-1 text-[10px] text-text-tertiary transition hover:border-emerald/30 hover:bg-emerald-dim hover:text-emerald disabled:opacity-40"
-        title="Passender Treffer"
+        className="inline-flex cursor-pointer items-center justify-center rounded-full border border-border-subtle p-1.5 text-text-tertiary transition hover:border-emerald/30 hover:bg-emerald-dim hover:text-emerald disabled:opacity-40"
+        title="Passend"
       >
         <CheckIcon />
-        <span>Passend</span>
       </button>
       <button
         onClick={() => handleClick(-1)}
         disabled={loading}
-        className="inline-flex items-center gap-1 rounded-full border border-border-subtle px-2 py-1 text-[10px] text-text-tertiary transition hover:border-rose/30 hover:bg-rose-dim hover:text-rose disabled:opacity-40"
-        title="Unpassender Treffer"
+        className="inline-flex cursor-pointer items-center justify-center rounded-full border border-border-subtle p-1.5 text-text-tertiary transition hover:border-rose/30 hover:bg-rose-dim hover:text-rose disabled:opacity-40"
+        title="Unpassend"
       >
         <XIcon />
-        <span>Unpassend</span>
       </button>
     </div>
   );
