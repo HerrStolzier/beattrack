@@ -127,6 +127,18 @@ export async function getSongFeatures(songId: string): Promise<RadarFeatures> {
   return res.json();
 }
 
+export type BatchFeaturesItem = { song_id: string; features: RadarFeatures };
+
+export async function getBatchFeatures(songIds: string[]): Promise<BatchFeaturesItem[]> {
+  const res = await fetchWithRetry(`${API_URL}/songs/features/batch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ song_ids: songIds }),
+  });
+  if (!res.ok) throw new ApiError(`getBatchFeatures failed`, res.status);
+  return res.json();
+}
+
 export async function getSongCount(): Promise<number> {
   const res = await fetchWithRetry(`${API_URL}/songs/count/total`);
   if (!res.ok) throw new ApiError(`getSongCount failed`, res.status);

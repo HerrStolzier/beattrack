@@ -155,3 +155,36 @@ async def get_song_features(
         raise HTTPException(status_code=422, detail="Song has no features")
 
     return _compute_radar(hc)
+
+
+class BatchFeaturesRequest(BaseModel):
+    song_ids: list[str]
+
+
+class BatchFeaturesItem(BaseModel):
+    song_id: str
+    features: RadarFeatures
+
+
+@router.post("/features/batch", response_model=list[BatchFeaturesItem])
+async def get_batch_features(
+    body: BatchFeaturesRequest,
+    sb: Client = Depends(get_supabase),
+) -> list[BatchFeaturesItem]:
+    """Return radar features for multiple songs in one call (max 30)."""
+    ids = body.song_ids[:30]
+    result = (
+        sb.table("songs")
+        .select("id, handcrafted_norm")
+        .in_("id", ids)
+        .execute()
+    )
+    items = []
+    for row in result.data or []:
+        hc = row.get("handcrafted_norm")
+        if hc:
+            items.append(BatchFeaturesItem(
+                song_id=str(row["id"]),
+                features=_compute_radar(hc),
+            ))
+    return items

@@ -9,6 +9,7 @@ import UrlInput from "./UrlInput";
 import SimilarResults from "./SimilarResults";
 import JourneyView from "./JourneyView";
 import MultiSongSearch from "./MultiSongSearch";
+import PlaylistBuilder from "./PlaylistBuilder";
 import Button from "./Button";
 
 type AnalyzePhase = "idle" | "uploading" | "processing" | "results" | "error" | "youtube-result" | "journey" | "blend" | "vibe";
@@ -33,6 +34,20 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
   const [focus, setFocus] = useState<FocusCategory | null>(null);
   const [focusLoading, setFocusLoading] = useState(false);
   const [multiLabel, setMultiLabel] = useState<string>("");
+  const [playlist, setPlaylist] = useState<Song[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = localStorage.getItem("beattrack-playlist");
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [playlistOpen, setPlaylistOpen] = useState(false);
+
+  // Persist playlist to localStorage
+  useEffect(() => {
+    try { localStorage.setItem("beattrack-playlist", JSON.stringify(playlist)); }
+    catch { /* ignore */ }
+  }, [playlist]);
 
   // Auto-trigger identify when initialUrl is provided (deep-link)
   const deepLinkTriggered = useRef(false);
@@ -139,6 +154,13 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
       setFocusLoading(false);
     }
   }, [result]);
+
+  const handleAddToPlaylist = useCallback((song: Song) => {
+    setPlaylist((prev) => {
+      if (prev.some((s) => s.id === song.id)) return prev;
+      return [...prev, song];
+    });
+  }, []);
 
   const handleMultiResults = useCallback((results: SimilarSong[], label: string) => {
     setMultiLabel(label);
@@ -378,6 +400,7 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
                   focus={focus}
                   onFocusChange={handleFocusChange}
                   focusLoading={focusLoading}
+                  onAddToPlaylist={handleAddToPlaylist}
                 />
               ) : (
                 <p className="text-sm text-text-tertiary">Keine ähnlichen Songs gefunden.</p>
@@ -427,6 +450,56 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Playlist FAB + Panel */}
+      {playlist.length > 0 && (
+        <>
+          {/* Floating action button */}
+          {!playlistOpen && (
+            <button
+              onClick={() => setPlaylistOpen(true)}
+              className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-amber/90 text-bg-primary shadow-lg transition-transform hover:scale-105"
+              title="Playlist öffnen"
+            >
+              <span className="text-lg">♫</span>
+              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-cyan text-[10px] font-bold text-bg-primary">
+                {playlist.length}
+              </span>
+            </button>
+          )}
+
+          {/* Slide-in panel */}
+          <AnimatePresence>
+            {playlistOpen && (
+              <motion.div
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="fixed right-0 top-0 z-50 h-full w-80 overflow-y-auto border-l border-border-glass bg-bg-primary p-4 shadow-2xl"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-display text-sm font-semibold text-text-primary">Playlist</h2>
+                  <button
+                    onClick={() => setPlaylistOpen(false)}
+                    className="rounded-lg border border-border-glass p-1.5 text-text-tertiary transition-colors hover:bg-surface-elevated hover:text-text-primary"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <PlaylistBuilder
+                  songs={playlist}
+                  onRemove={(id) => setPlaylist((prev) => prev.filter((s) => s.id !== id))}
+                  onReorder={setPlaylist}
+                  onClear={() => setPlaylist([])}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
+      )}
     </div>
   );
 }
