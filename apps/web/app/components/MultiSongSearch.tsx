@@ -2,7 +2,15 @@
 
 import { useCallback, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { searchSongs, findBlend, findVibe, type Song, type SimilarSong } from "@/lib/api";
+import {
+  searchSongs,
+  findBlend,
+  findVibe,
+  identifyUrl,
+  detectPlatform,
+  type Song,
+  type SimilarSong,
+} from "@/lib/api";
 
 type Mode = "blend" | "vibe";
 
@@ -29,25 +37,87 @@ const MODE_CONFIG = {
   },
 } as const;
 
+function looksLikeUrl(input: string): boolean {
+  const trimmed = input.trim();
+  return /^https?:\/\//.test(trimmed) || /^(www\.)?[\w-]+\.\w{2,}\//.test(trimmed);
+}
+
+const Spinner = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" fill="none">
+    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+    <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" />
+  </svg>
+);
+
 export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSongSearchProps) {
   const config = MODE_CONFIG[mode];
   const [selectedSongs, setSelectedSongs] = useState<Song[]>([]);
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Song[]>([]);
   const [searching, setSearching] = useState(false);
+  const [identifying, setIdentifying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [slotError, setSlotError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const handleSearch = useCallback((q: string) => {
+  const addSong = useCallback((song: Song) => {
+    setSelectedSongs((prev) => {
+      if (prev.length >= config.max) return prev;
+      if (prev.some((s) => s.id === song.id)) return prev;
+      return [...prev, song];
+    });
+    setQuery("");
+    setSearchResults([]);
+    setSlotError(null);
+  }, [config.max]);
+
+  const handleInput = useCallback((q: string) => {
     setQuery(q);
+    setSlotError(null);
     setError(null);
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (abortRef.current) abortRef.current.abort();
 
-    if (q.trim().length < 2) {
+    const trimmed = q.trim();
+
+    // URL detected → identify flow
+    if (looksLikeUrl(trimmed) && trimmed.length > 10) {
+      setSearchResults([]);
+
+      // Auto-trigger on paste (detected via length jump)
+      debounceRef.current = setTimeout(async () => {
+        const platform = detectPlatform(trimmed);
+        if (!platform) {
+          setSlotError("URL nicht erkannt. Unterstützt: YouTube, SoundCloud, Spotify, Apple Music.");
+          return;
+        }
+
+        setIdentifying(true);
+        try {
+          const result = await identifyUrl(trimmed);
+          if (result.matched && result.song) {
+            addSong(result.song);
+          } else {
+            setSlotError(
+              result.parsed_title
+                ? `„${result.parsed_artist} – ${result.parsed_title}" nicht in der Datenbank gefunden.`
+                : "Song konnte nicht identifiziert werden."
+            );
+          }
+        } catch (err) {
+          setSlotError(err instanceof Error ? err.message : "Identifikation fehlgeschlagen.");
+        } finally {
+          setIdentifying(false);
+        }
+      }, 200);
+      return;
+    }
+
+    // Title search flow
+    if (trimmed.length < 2) {
       setSearchResults([]);
       return;
     }
@@ -57,8 +127,7 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
       abortRef.current = controller;
       setSearching(true);
       try {
-        const results = await searchSongs(q.trim(), { limit: 8, signal: controller.signal });
-        // Filter out already selected songs
+        const results = await searchSongs(trimmed, { limit: 8, signal: controller.signal });
         const selectedIds = new Set(selectedSongs.map((s) => s.id));
         setSearchResults(results.filter((s) => !selectedIds.has(s.id)));
       } catch {
@@ -67,14 +136,7 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
         setSearching(false);
       }
     }, 300);
-  }, [selectedSongs]);
-
-  const handleAddSong = useCallback((song: Song) => {
-    if (selectedSongs.length >= config.max) return;
-    setSelectedSongs((prev) => [...prev, song]);
-    setQuery("");
-    setSearchResults([]);
-  }, [selectedSongs, config.max]);
+  }, [selectedSongs, addSong]);
 
   const handleRemoveSong = useCallback((songId: string) => {
     setSelectedSongs((prev) => prev.filter((s) => s.id !== songId));
@@ -91,7 +153,7 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
 
       if (mode === "blend") {
         results = await findBlend(selectedSongs[0].id, selectedSongs[1].id);
-        label = `Blend: ${selectedSongs[0].artist} × ${selectedSongs[1].artist}`;
+        label = `Blend: ${selectedSongs[0].artist} \u00d7 ${selectedSongs[1].artist}`;
       } else {
         results = await findVibe(selectedSongs.map((s) => s.id));
         label = `Vibe: ${selectedSongs.map((s) => s.title).join(" + ")}`;
@@ -112,7 +174,6 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
     : ["Song 1", "Song 2", "Song 3", "Song 4", "Song 5"];
 
   const nextSlotIndex = selectedSongs.length;
-  const nextSlotLabel = nextSlotIndex < slotLabels.length ? slotLabels[nextSlotIndex] : "";
 
   return (
     <div className="space-y-4">
@@ -130,7 +191,7 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
         </button>
       </div>
 
-      {/* Song slots — visual stepper */}
+      {/* Song slots */}
       <div className="flex flex-col gap-2">
         {Array.from({ length: config.max }).map((_, i) => {
           const song = selectedSongs[i];
@@ -139,7 +200,6 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
           const isOptional = i >= config.min;
 
           if (song) {
-            // Filled slot
             return (
               <motion.div
                 key={song.id}
@@ -166,29 +226,61 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
           }
 
           if (isNext) {
-            // Active search slot
             return (
               <div key={`slot-${i}`} className="relative">
-                <div className="flex items-center gap-3 rounded-xl border border-border-glass border-dashed bg-surface-raised/50 px-4 py-2.5">
-                  <span className="shrink-0 flex h-6 w-6 items-center justify-center rounded-full border border-border-glass text-[10px] font-bold text-text-tertiary">
+                <div className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 ${
+                  identifying
+                    ? "border-amber/40 bg-amber/5"
+                    : "border-border-glass border-dashed bg-surface-raised/50"
+                }`}>
+                  <span className={`shrink-0 flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold ${
+                    identifying
+                      ? "bg-amber/20 text-amber-light"
+                      : "border border-border-glass text-text-tertiary"
+                  }`}>
                     {slotLabels[i].slice(-1)}
                   </span>
                   <input
                     type="text"
                     value={query}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    placeholder={`${slotLabels[i]} suchen — Titel oder Artist eingeben`}
-                    className="flex-1 bg-transparent text-sm text-text-primary placeholder-text-tertiary outline-none"
+                    onChange={(e) => handleInput(e.target.value)}
+                    onPaste={(e) => {
+                      // Trigger immediately on paste
+                      const pasted = e.clipboardData.getData("text");
+                      if (looksLikeUrl(pasted)) {
+                        e.preventDefault();
+                        handleInput(pasted);
+                      }
+                    }}
+                    placeholder="URL einfügen oder Titel suchen..."
+                    disabled={identifying}
+                    className="flex-1 bg-transparent text-sm text-text-primary placeholder-text-tertiary outline-none disabled:opacity-50"
                     // eslint-disable-next-line jsx-a11y/no-autofocus
                     autoFocus
                   />
-                  {searching && (
-                    <svg className="h-4 w-4 animate-spin text-text-tertiary shrink-0" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
-                      <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" />
-                    </svg>
+                  {(searching || identifying) && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Spinner className="h-4 w-4 text-text-tertiary" />
+                      {identifying && (
+                        <span className="text-[11px] text-amber-light">Identifiziere...</span>
+                      )}
+                    </div>
                   )}
                 </div>
+
+                {/* Slot-level error */}
+                <AnimatePresence>
+                  {slotError && (
+                    <motion.p
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mt-1.5 text-xs text-error px-4"
+                    >
+                      {slotError}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
 
                 {/* Search results dropdown */}
                 <AnimatePresence>
@@ -202,7 +294,7 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
                       {searchResults.map((s) => (
                         <li key={s.id}>
                           <button
-                            onClick={() => handleAddSong(s)}
+                            onClick={() => addSong(s)}
                             className="w-full px-4 py-2 text-left text-sm hover:bg-surface-raised transition-colors cursor-pointer"
                           >
                             <span className="font-medium text-text-primary">{s.title}</span>
@@ -218,7 +310,6 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
           }
 
           if (isFuture) {
-            // Empty future slot
             return (
               <div
                 key={`slot-${i}`}
@@ -238,6 +329,11 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
         })}
       </div>
 
+      {/* Hint */}
+      <p className="text-[10px] text-text-tertiary text-center">
+        YouTube, SoundCloud, Spotify oder Apple Music URLs einfügen — oder nach Titel/Artist suchen.
+      </p>
+
       {/* Error */}
       {error && (
         <p className="text-xs text-error">{error}</p>
@@ -251,10 +347,7 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
       >
         {loading ? (
           <span className="flex items-center justify-center gap-2">
-            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
-              <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" />
-            </svg>
+            <Spinner />
             Suche...
           </span>
         ) : (
@@ -262,10 +355,10 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
         )}
       </button>
 
-      {/* Hint for blend */}
+      {/* Hint for blend results */}
       {mode === "blend" && selectedSongs.length === 2 && (
         <p className="text-[10px] text-text-tertiary text-center">
-          Findet Songs in der Nähe beider Tracks — nicht unbedingt eine klangliche Mischung.
+          Findet Songs in der N\u00e4he beider Tracks — nicht unbedingt eine klangliche Mischung.
         </p>
       )}
     </div>
