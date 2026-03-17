@@ -18,12 +18,29 @@ MIN_SIMILARITY = 0.3
 router = APIRouter(prefix="/similar", tags=["similar"])
 
 
+VALID_FOCUS_CATEGORIES = {"timbre", "harmony", "rhythm", "brightness", "intensity"}
+
+# Mapping of focus categories to handcrafted_norm dimension indices
+# Based on the 44-dim handcrafted vector layout:
+#   [0:13]  MFCC mean, [13:26] MFCC stdev, [26:38] HPCP 12-bin,
+#   [38] Spectral Centroid, [39] Spectral Rolloff, [40] BPM,
+#   [41] ZCR, [42] Avg Loudness, [43] Danceability
+FOCUS_DIMENSIONS: dict[str, list[int]] = {
+    "timbre": list(range(0, 26)),       # MFCC mean + stdev (26 dims)
+    "harmony": list(range(26, 38)),     # HPCP 12-bin (12 dims)
+    "rhythm": [40, 43],                 # BPM + Danceability
+    "brightness": [38, 39],             # Spectral Centroid + Rolloff
+    "intensity": [41, 42],              # ZCR + Avg Loudness
+}
+
+
 class SimilarRequest(BaseModel):
     song_id: str
     limit: int = 20
     min_bpm: float | None = None
     max_bpm: float | None = None
     exclude_ids: list[str] = []
+    focus: str | None = None
 
 
 class SimilarSong(BaseModel):
@@ -48,12 +65,22 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
     return float(np.dot(a_arr, b_arr) / (norm_a * norm_b))
 
 
+def _extract_dims(vec: list[float], dims: list[int]) -> list[float]:
+    """Extract specific dimension indices from a vector."""
+    return [vec[i] for i in dims if i < len(vec)]
+
+
 def _apply_late_fusion(
     results: list[dict],
     query_handcrafted: list[float],
     sb: Client,
+    focus: str | None = None,
 ) -> list[dict]:
-    """Blend learned_similarity with handcrafted cosine similarity (80/20 fusion)."""
+    """Blend learned_similarity with handcrafted cosine similarity.
+
+    Default: 80/20 fusion.
+    With focus: 60/40 fusion using only the focused feature dimensions.
+    """
     result_ids = [str(r["id"]) for r in results]
     hc_result = (
         sb.table("songs")
@@ -67,13 +94,24 @@ def _apply_late_fusion(
         if row.get("handcrafted_norm")
     }
 
+    # Determine fusion weights and dimensions
+    if focus and focus in FOCUS_DIMENSIONS:
+        learned_weight, hc_weight = 0.6, 0.4
+        focus_dims = FOCUS_DIMENSIONS[focus]
+        query_vec = _extract_dims(query_handcrafted, focus_dims)
+    else:
+        learned_weight, hc_weight = 0.8, 0.2
+        query_vec = query_handcrafted
+        focus_dims = None
+
     fused: list[dict] = []
     for row in results:
         learned_sim: float = row.get("similarity", 0.0)
         hc_vec = hc_map.get(str(row["id"]))
         if hc_vec:
-            hc_sim = _cosine_similarity(query_handcrafted, hc_vec)
-            fused_score = 0.8 * learned_sim + 0.2 * hc_sim
+            result_vec = _extract_dims(hc_vec, focus_dims) if focus_dims else hc_vec
+            hc_sim = _cosine_similarity(query_vec, result_vec)
+            fused_score = learned_weight * learned_sim + hc_weight * hc_sim
         else:
             fused_score = learned_sim
         fused.append({**row, "similarity": fused_score})
@@ -159,11 +197,16 @@ async def find_similar(
         results = [r for r in results if str(r["id"]) not in exclude_set]
     results = results[: body.limit]
 
+    # Validate focus parameter
+    focus = body.focus
+    if focus and focus not in VALID_FOCUS_CATEGORIES:
+        raise HTTPException(status_code=422, detail=f"Invalid focus: {focus}. Valid: {', '.join(sorted(VALID_FOCUS_CATEGORIES))}")
+
     # 3. Late fusion with handcrafted features
     query_handcrafted: list[float] | None = query_song.get("handcrafted_norm")
     if query_handcrafted and results:
         try:
-            results = _apply_late_fusion(results, query_handcrafted, sb)
+            results = _apply_late_fusion(results, query_handcrafted, sb, focus=focus)
         except Exception as exc:
             logger.warning("Late fusion failed, returning learned-only results: %s", exc)
 
