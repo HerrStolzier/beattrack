@@ -41,15 +41,6 @@ const cardVariant = {
   },
 };
 
-const slideIn = {
-  hidden: { opacity: 0, x: 30 },
-  visible: {
-    opacity: 1,
-    x: 0,
-    transition: { type: "spring" as const, stiffness: 200, damping: 20 },
-  },
-  exit: { opacity: 0, x: -30, transition: { duration: 0.2 } },
-};
 
 export default function Home() {
   const toast = useToast();
@@ -79,6 +70,8 @@ export default function Home() {
     setSelectedSong(song);
     setLoadingSimilar(true);
     setSimilarResults([]);
+    // Scroll to top so results are visible
+    window.scrollTo({ top: 0, behavior: "smooth" });
     try {
       const opts: { minBpm?: number; maxBpm?: number } = {};
       if (minBpm) opts.minBpm = Number(minBpm);
@@ -91,6 +84,14 @@ export default function Home() {
     } finally {
       setLoadingSimilar(false);
     }
+  }
+
+  function handleBackToCatalog() {
+    setSelectedSong(null);
+    setSimilarResults([]);
+    setMinBpm("");
+    setMaxBpm("");
+    setMinSimilarity(0);
   }
 
   // Apply client-side similarity filter
@@ -186,125 +187,153 @@ export default function Home() {
                 />
               </motion.div>
 
-              <div className="space-y-6">
-                <section>
-                  {songs.length === 0 && initialLoading ? (
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                      {[1, 2, 3, 4, 5, 6].map((i) => (
-                        <div key={i} className="shimmer h-40 rounded-xl" />
-                      ))}
-                    </div>
-                  ) : songs.length === 0 ? (
-                    <div className="rounded-xl bg-surface-raised p-12 text-center">
-                      <svg className="mx-auto mb-4 h-12 w-12 text-text-tertiary opacity-40" fill="none" viewBox="0 0 24 24" strokeWidth={1.2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z" />
-                      </svg>
-                      <p className="text-sm font-medium text-text-secondary">Keine Songs gefunden</p>
-                      <p className="mt-1 text-xs text-text-tertiary">Versuch einen anderen Suchbegriff oder Genre-Filter.</p>
-                    </div>
-                  ) : (
-                    <motion.div
-                      className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
-                      variants={staggerContainer}
-                    >
-                      {songs.map((song) => (
-                        <motion.div key={song.id} variants={cardVariant}>
-                          <SongCard
-                            song={song}
-                            onFindSimilar={handleFindSimilar}
-                            isSelected={selectedSong?.id === song.id}
-                          />
-                        </motion.div>
-                      ))}
-                    </motion.div>
-                  )}
-                </section>
-
-                <AnimatePresence>
-                  {selectedSong && (
-                    <motion.div
-                      className="w-full"
-                      variants={slideIn}
-                      initial="hidden"
-                      animate="visible"
-                      exit="exit"
-                    >
-                      <div className="glass-premium rounded-xl p-4">
-                        {/* Filters */}
-                        <div className="mb-4 space-y-3 border-b border-border-subtle pb-4">
-                          <p className="text-xs font-semibold text-text-secondary">Filter</p>
-                          <div className="flex gap-2">
-                            <input
-                              type="number"
-                              placeholder="Min BPM"
-                              value={minBpm}
-                              onChange={(e) => setMinBpm(e.target.value)}
-                              className="w-full rounded-lg border border-border-glass bg-surface-raised px-3 py-2 text-xs text-text-primary placeholder:text-text-tertiary outline-none focus:border-amber/50 focus:ring-1 focus:ring-amber/30"
-                              data-testid="filter-min-bpm"
-                            />
-                            <input
-                              type="number"
-                              placeholder="Max BPM"
-                              value={maxBpm}
-                              onChange={(e) => setMaxBpm(e.target.value)}
-                              className="w-full rounded-lg border border-border-glass bg-surface-raised px-3 py-2 text-xs text-text-primary placeholder:text-text-tertiary outline-none focus:border-amber/50 focus:ring-1 focus:ring-amber/30"
-                              data-testid="filter-max-bpm"
-                            />
-                          </div>
-                          <div>
-                            <label className="flex items-center justify-between text-xs text-text-tertiary">
-                              <span>Min. Ähnlichkeit: {Math.round(minSimilarity * 100)}%</span>
-                            </label>
-                            <input
-                              type="range"
-                              min="0"
-                              max="1"
-                              step="0.05"
-                              value={minSimilarity}
-                              onChange={(e) => setMinSimilarity(Number(e.target.value))}
-                              className="mt-1 w-full accent-amber"
-                              data-testid="filter-similarity"
-                            />
-                          </div>
-                          {(minBpm || maxBpm) && (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => handleFindSimilar(selectedSong)}
-                              className="w-full"
-                            >
-                              Erneut suchen
-                            </Button>
+              <AnimatePresence mode="wait">
+                {/* Similar results view — replaces catalog when a song is selected */}
+                {selectedSong ? (
+                  <motion.div
+                    key="results"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-4"
+                  >
+                    {/* Selected song header */}
+                    <div className="glass-premium rounded-xl p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-display text-sm font-semibold text-text-primary">
+                            {selectedSong.artist} — {selectedSong.title}
+                          </h3>
+                          {selectedSong.bpm && (
+                            <span className="mt-1 inline-block rounded-md bg-surface-raised px-2 py-0.5 font-mono text-[10px] font-medium text-amber-light ring-1 ring-inset ring-amber/10">
+                              {Math.round(selectedSong.bpm)} BPM
+                            </span>
                           )}
                         </div>
+                        <button
+                          onClick={handleBackToCatalog}
+                          className="shrink-0 rounded-lg border border-border-glass px-3 py-1.5 text-xs font-medium text-amber-light transition-colors hover:bg-amber-dim hover:text-amber"
+                        >
+                          Zurück
+                        </button>
+                      </div>
+                    </div>
 
-                        {loadingSimilar ? (
-                          <div className="space-y-3">
-                            {[1, 2, 3].map((i) => (
-                              <div key={i} className="shimmer h-20 rounded-xl" />
-                            ))}
-                          </div>
-                        ) : (
-                          <>
-                            <SimilarResults
-                              results={filteredResults}
-                              querySong={selectedSong}
-                              onFeedback={(qId, rId, rating) => {
-                                console.log(`Feedback: ${rating} for ${qId} → ${rId}`);
-                              }}
-                            />
-                            {filteredResults.length < similarResults.length && (
-                              <p className="mt-2 text-[10px] text-text-tertiary">
-                                {similarResults.length - filteredResults.length} Ergebnis(se) durch Filter ausgeblendet
-                              </p>
-                            )}
-                          </>
+                    {/* Filters */}
+                    <div className="glass rounded-xl p-4">
+                      <div className="flex flex-wrap items-end gap-3">
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            placeholder="Min BPM"
+                            value={minBpm}
+                            onChange={(e) => setMinBpm(e.target.value)}
+                            className="w-28 rounded-lg border border-border-glass bg-surface-raised px-3 py-2 text-xs text-text-primary placeholder:text-text-tertiary outline-none focus:border-amber/50 focus:ring-1 focus:ring-amber/30"
+                            data-testid="filter-min-bpm"
+                          />
+                          <input
+                            type="number"
+                            placeholder="Max BPM"
+                            value={maxBpm}
+                            onChange={(e) => setMaxBpm(e.target.value)}
+                            className="w-28 rounded-lg border border-border-glass bg-surface-raised px-3 py-2 text-xs text-text-primary placeholder:text-text-tertiary outline-none focus:border-amber/50 focus:ring-1 focus:ring-amber/30"
+                            data-testid="filter-max-bpm"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-[160px]">
+                          <label className="flex items-center justify-between text-[11px] text-text-tertiary">
+                            <span>Min. Ähnlichkeit: {Math.round(minSimilarity * 100)}%</span>
+                          </label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            value={minSimilarity}
+                            onChange={(e) => setMinSimilarity(Number(e.target.value))}
+                            className="mt-1 w-full accent-amber"
+                            data-testid="filter-similarity"
+                          />
+                        </div>
+                        {(minBpm || maxBpm) && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleFindSimilar(selectedSong)}
+                          >
+                            Erneut suchen
+                          </Button>
                         )}
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                    </div>
+
+                    {/* Results */}
+                    {loadingSimilar ? (
+                      <div className="space-y-3">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <div key={i} className="shimmer h-20 rounded-xl" />
+                        ))}
+                      </div>
+                    ) : (
+                      <>
+                        <SimilarResults
+                          results={filteredResults}
+                          querySong={selectedSong}
+                          onFeedback={(qId, rId, rating) => {
+                            console.log(`Feedback: ${rating} for ${qId} → ${rId}`);
+                          }}
+                        />
+                        {filteredResults.length < similarResults.length && (
+                          <p className="text-[10px] text-text-tertiary">
+                            {similarResults.length - filteredResults.length} Ergebnis(se) durch Filter ausgeblendet
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </motion.div>
+                ) : (
+                  /* Catalog grid */
+                  <motion.div
+                    key="catalog-grid"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    {songs.length === 0 && initialLoading ? (
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                          <div key={i} className="shimmer h-24 rounded-xl" />
+                        ))}
+                      </div>
+                    ) : songs.length === 0 ? (
+                      <div className="rounded-xl bg-surface-raised p-12 text-center">
+                        <svg className="mx-auto mb-4 h-12 w-12 text-text-tertiary opacity-40" fill="none" viewBox="0 0 24 24" strokeWidth={1.2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z" />
+                        </svg>
+                        <p className="text-sm font-medium text-text-secondary">Keine Songs gefunden</p>
+                        <p className="mt-1 text-xs text-text-tertiary">Versuch einen anderen Suchbegriff.</p>
+                      </div>
+                    ) : (
+                      <motion.div
+                        className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+                        variants={staggerContainer}
+                      >
+                        {songs.map((song) => (
+                          <motion.div key={song.id} variants={cardVariant}>
+                            <SongCard
+                              song={song}
+                              onFindSimilar={handleFindSimilar}
+                              isSelected={false}
+                            />
+                          </motion.div>
+                        ))}
+                      </motion.div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
 
