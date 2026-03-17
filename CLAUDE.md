@@ -13,14 +13,18 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 - `apps/web/` — Next.js Frontend
 - `apps/api/` — FastAPI Backend
 - `apps/api/scripts/` — Seeding, Import, Normalisierung
-- `supabase/migrations/` — SQL Migrations (001–011)
+- `supabase/migrations/` — SQL Migrations (001–014)
 - `docs/scaling-plan.md` — Skalierungsstrategie + Kosten
 
 ## API Routes
 `songs`, `similar`, `feedback`, `analyze`, `identify` — Health-Check: `GET /health`
+- `POST /similar` — Single-Song Similarity (mit optionalem `focus` + `exclude_ids`)
+- `POST /similar/blend` — Centroid-Search zwischen 2 Songs
+- `POST /similar/vibe` — Intersection-Search über 2–5 Seeds
+- `POST /songs/features/batch` — Radar-Features für bis zu 30 Songs
 
 ## Database Schema
-- **songs**: `id`, `title`, `artist`, `album`, `duration_sec`, `bpm`, `musical_key`, `learned_embedding` (vector 200d), `handcrafted_raw` (vector 44d), `handcrafted_norm` (vector 44d), `source`, `genre`, `release_year`
+- **songs**: `id`, `title`, `artist`, `album`, `duration_sec`, `bpm`, `musical_key`, `learned_embedding` (vector 200d), `handcrafted_raw` (vector 44d), `handcrafted_norm` (vector 44d), `source`, `genre`, `release_year`, `deezer_id`
 - **config**: Key-Value-Store (`normalization_stats` JSON mit mean/std/dim/n_songs)
 - **feedback**: Rating (-1/+1), nur Analytics — nicht in Similarity eingebaut
 - **Indexes**: HNSW auf `learned_embedding` + `handcrafted_norm` (cosine_ops, m=16, ef=64), Trigram (gin) auf title+artist, B-tree auf genre
@@ -31,8 +35,8 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 - **Genre**: Electronic (Sub-Genres: Techno, House, IDM, Minimal Electronic, Dance, Downtempo, Chill-out, Dubstep, Drum & Bass, Trance, Breakbeat, Ambient, Electronic)
 - **Quelle**: Deezer API — kommerzielle Electronic-Tracks (30s Previews → Essentia-Extraktion)
 - **Crawl-Strategie**: 105 Seed-Artists → Top-Tracks + Related Artists (2 Ebenen) mit Album-Genre-Filter
-- **Aktuell**: ~57.8K kommerzielle Tracks, 1.434 Artists
-- **Legacy (gelöscht)**: FMA-large, MTG-Jamendo — CC-Musik, ersetzt durch Deezer
+- **Aktuell**: ~175K kommerzielle Tracks
+- **Legacy (inaktiv)**: FMA-large, MTG-Jamendo — Seeder-Scripts existieren noch in `scripts/`, werden nicht mehr verwendet
 
 ## Deployment
 - Railway: Root Directory `/apps/api`, Config `/apps/api/railway.toml`, Healthcheck `/health` (30s timeout), Restart ON_FAILURE (max 3)
@@ -62,9 +66,26 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - **cleanup_genres.py** — Songs nach Genre/Jahr filtern und löschen (`--execute`)
 - **seed_fma.py** / **seed_jamendo.py** — Legacy-Seeder (nicht mehr aktiv)
 
+## Similarity Engine
+- **Dual Embeddings**: MusiCNN 200d (learned) + 44d handcrafted, Late Fusion (80/20 Default)
+- **Handcrafted 44-dim Layout**: MFCC mean [0:13], MFCC stdev [13:26], HPCP [26:38], Spectral Centroid [38], Spectral Rolloff [39], BPM [40], ZCR [41], Avg Loudness [42], Danceability [43]
+- **5 Radar-Kategorien**: Timbre (dims 0–25), Harmony (dims 26–37), Rhythm (dims 40,43), Brightness (dims 38,39), Intensity (dims 41,42)
+- **Focus-Mode**: Gewichtung verschiebt sich auf 60/40 (learned/handcrafted) für gewählte Kategorie
+- **Blend**: Embedding-Centroid zwischen 2 Songs → Nearest Neighbors
+- **Vibe**: Intersection-Search über 2–5 Seeds (min. 2 Treffer-Overlap, Fallback auf Centroid)
+
+## Frontend Features
+- **Sonic Journey**: Chain Discovery mit Visited-Filter, Gamification (Distance, Genres)
+- **Focus Selector**: Feature-gewichtete Ähnlichkeit (5 Kategorien als Chips)
+- **Sonic Blend / Vibe**: Multi-Song Query UI (2 Songs für Blend, 2–5 für Vibe)
+- **Playlist Builder**: Drag & Drop, Sonic Flow Chart (BPM + Intensity), Copy-to-Clipboard
+- **DJ Mode**: Camelot-Wheel Harmonic Compatibility + BPM-Differenz als optionaler Layer
+- **A/B Radar Toggle**: Vergleich / Query / Result Ansichten im RadarChart
+- **Deep-Link**: `?url=YOUTUBE_URL` + Bookmarklet (YouTube, SoundCloud, Spotify, Apple Music)
+- **Deezer Embed**: Inline-Player für Songs mit `deezer_id`
+
 ## Konventionen
 - Essentia läuft in isoliertem Subprocess (Crash-Schutz)
-- Dual Embeddings: MusiCNN 200d (learned) + 44d handcrafted
 - Normalisierung via Z-Score aus `config`-Tabelle
 - URL-Identify: YouTube oEmbed, SoundCloud oEmbed, Spotify oEmbed+OG-Scraping, Apple Music iTunes API
 - Commit-Messages auf Englisch, UI-Texte auf Deutsch
