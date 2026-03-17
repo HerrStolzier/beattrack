@@ -107,6 +107,13 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
 
   const canSubmit = selectedSongs.length >= config.min && !loading;
 
+  const slotLabels = mode === "blend"
+    ? ["Song A", "Song B"]
+    : ["Song 1", "Song 2", "Song 3", "Song 4", "Song 5"];
+
+  const nextSlotIndex = selectedSongs.length;
+  const nextSlotLabel = nextSlotIndex < slotLabels.length ? slotLabels[nextSlotIndex] : "";
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -123,74 +130,113 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
         </button>
       </div>
 
-      {/* Selected songs as chips */}
-      {selectedSongs.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {selectedSongs.map((song) => (
-            <span
-              key={song.id}
-              className="flex items-center gap-1.5 rounded-full bg-amber/15 border border-amber/30 px-3 py-1 text-xs text-amber-light"
-            >
-              <span className="max-w-[150px] truncate">{song.artist} — {song.title}</span>
-              <button
-                onClick={() => handleRemoveSong(song.id)}
-                className="text-amber-light/60 hover:text-amber-light transition-colors"
-                aria-label={`${song.title} entfernen`}
-              >
-                ×
-              </button>
-            </span>
-          ))}
-          <span className="self-center text-[10px] text-text-tertiary">
-            {selectedSongs.length}/{config.max}
-          </span>
-        </div>
-      )}
+      {/* Song slots — visual stepper */}
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: config.max }).map((_, i) => {
+          const song = selectedSongs[i];
+          const isNext = i === nextSlotIndex && nextSlotIndex < config.max;
+          const isFuture = i > nextSlotIndex;
+          const isOptional = i >= config.min;
 
-      {/* Search input */}
-      {selectedSongs.length < config.max && (
-        <div className="relative">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Song suchen..."
-            className="glass w-full rounded-xl border border-border-glass px-4 py-2.5 text-sm text-text-primary placeholder-text-tertiary outline-none transition focus:border-amber/50 focus:ring-1 focus:ring-amber/30"
-          />
-          {searching && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <svg className="h-4 w-4 animate-spin text-text-tertiary" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
-                <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" />
-              </svg>
-            </div>
-          )}
-
-          {/* Search results dropdown */}
-          <AnimatePresence>
-            {searchResults.length > 0 && (
-              <motion.ul
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                className="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-xl border border-border-glass bg-surface-elevated shadow-lg"
+          if (song) {
+            // Filled slot
+            return (
+              <motion.div
+                key={song.id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center gap-3 rounded-xl border border-amber/30 bg-amber/10 px-4 py-2.5"
               >
-                {searchResults.map((song) => (
-                  <li key={song.id}>
-                    <button
-                      onClick={() => handleAddSong(song)}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-surface-raised transition-colors cursor-pointer"
+                <span className="shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-amber/20 text-[10px] font-bold text-amber-light">
+                  {slotLabels[i].slice(-1)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-text-primary">{song.title}</p>
+                  <p className="truncate text-[11px] text-text-secondary">{song.artist}</p>
+                </div>
+                <button
+                  onClick={() => handleRemoveSong(song.id)}
+                  className="shrink-0 text-text-tertiary hover:text-error transition-colors"
+                  aria-label={`${song.title} entfernen`}
+                >
+                  ×
+                </button>
+              </motion.div>
+            );
+          }
+
+          if (isNext) {
+            // Active search slot
+            return (
+              <div key={`slot-${i}`} className="relative">
+                <div className="flex items-center gap-3 rounded-xl border border-border-glass border-dashed bg-surface-raised/50 px-4 py-2.5">
+                  <span className="shrink-0 flex h-6 w-6 items-center justify-center rounded-full border border-border-glass text-[10px] font-bold text-text-tertiary">
+                    {slotLabels[i].slice(-1)}
+                  </span>
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    placeholder={`${slotLabels[i]} suchen — Titel oder Artist eingeben`}
+                    className="flex-1 bg-transparent text-sm text-text-primary placeholder-text-tertiary outline-none"
+                    // eslint-disable-next-line jsx-a11y/no-autofocus
+                    autoFocus
+                  />
+                  {searching && (
+                    <svg className="h-4 w-4 animate-spin text-text-tertiary shrink-0" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+                      <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" />
+                    </svg>
+                  )}
+                </div>
+
+                {/* Search results dropdown */}
+                <AnimatePresence>
+                  {searchResults.length > 0 && (
+                    <motion.ul
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      className="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-xl border border-border-glass bg-surface-elevated shadow-lg"
                     >
-                      <span className="font-medium text-text-primary">{song.title}</span>
-                      <span className="ml-2 text-xs text-text-secondary">{song.artist}</span>
-                    </button>
-                  </li>
-                ))}
-              </motion.ul>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
+                      {searchResults.map((s) => (
+                        <li key={s.id}>
+                          <button
+                            onClick={() => handleAddSong(s)}
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-surface-raised transition-colors cursor-pointer"
+                          >
+                            <span className="font-medium text-text-primary">{s.title}</span>
+                            <span className="ml-2 text-xs text-text-secondary">{s.artist}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </motion.ul>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          }
+
+          if (isFuture) {
+            // Empty future slot
+            return (
+              <div
+                key={`slot-${i}`}
+                className="flex items-center gap-3 rounded-xl border border-border-glass/30 border-dashed px-4 py-2.5 opacity-40"
+              >
+                <span className="shrink-0 flex h-6 w-6 items-center justify-center rounded-full border border-border-glass/50 text-[10px] font-bold text-text-tertiary">
+                  {slotLabels[i].slice(-1)}
+                </span>
+                <span className="text-sm text-text-tertiary">
+                  {isOptional ? `${slotLabels[i]} (optional)` : slotLabels[i]}
+                </span>
+              </div>
+            );
+          }
+
+          return null;
+        })}
+      </div>
 
       {/* Error */}
       {error && (
