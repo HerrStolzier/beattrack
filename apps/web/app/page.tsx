@@ -1,9 +1,17 @@
 "use client";
 
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import AnalyzeView from "./components/AnalyzeView";
 import ApiStatus from "./components/ApiStatus";
 import AudioWaveform from "./components/AudioWaveform";
+
+function AnalyzeViewWithDeepLink() {
+  const searchParams = useSearchParams();
+  const initialUrl = searchParams.get("url");
+  return <AnalyzeView initialUrl={initialUrl} />;
+}
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -65,7 +73,9 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.5 }}
         >
-          <AnalyzeView />
+          <Suspense>
+            <AnalyzeViewWithDeepLink />
+          </Suspense>
         </motion.div>
       </div>
 
@@ -73,7 +83,16 @@ export default function Home() {
         <div className="h-px bg-gradient-to-r from-transparent via-border-glass to-transparent" />
         <div className="flex items-center justify-between pt-6">
           <p className="text-xs text-text-tertiary">Beattrack — Finde deinen nächsten Track</p>
-          <div className="flex gap-4">
+          <div className="flex items-center gap-4">
+            <a
+              href="javascript:void(window.open('https://beattrack.vercel.app/?url='+encodeURIComponent(location.href)))"
+              onClick={(e) => e.preventDefault()}
+              draggable
+              className="rounded-md border border-amber/30 bg-amber/10 px-2 py-0.5 text-xs text-amber-light transition-colors hover:bg-amber/20 cursor-grab"
+              title="Ziehe diesen Button in deine Lesezeichenleiste"
+            >
+              🔍 Ähnliche finden
+            </a>
             <a href="/impressum" className="text-xs text-text-tertiary transition-colors hover:text-amber-light">
               Impressum
             </a>

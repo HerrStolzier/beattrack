@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { uploadAudio, findSimilar, NetworkError, TimeoutError, ApiError, type AnalysisResult, type IdentifyResponse, type SimilarSong, type Song } from "@/lib/api";
+import { uploadAudio, findSimilar, identifyUrl, detectPlatform, NetworkError, TimeoutError, ApiError, type AnalysisResult, type IdentifyResponse, type SimilarSong, type Song } from "@/lib/api";
 import UploadZone from "./UploadZone";
 import ProgressTracker from "./ProgressTracker";
 import UrlInput from "./UrlInput";
@@ -17,13 +17,41 @@ const phaseVariants = {
   exit: { opacity: 0, y: -20 },
 };
 
-export default function AnalyzeView() {
+type AnalyzeViewProps = {
+  initialUrl?: string | null;
+};
+
+export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
   const [phase, setPhase] = useState<AnalyzePhase>("idle");
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [ytResult, setYtResult] = useState<IdentifyResponse | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string>("");
+
+  // Auto-trigger identify when initialUrl is provided (deep-link)
+  const deepLinkTriggered = useRef(false);
+  useEffect(() => {
+    if (!initialUrl || deepLinkTriggered.current) return;
+    const platform = detectPlatform(initialUrl);
+    if (!platform) {
+      setError("Diese URL wird nicht unterstützt. Unterstützt: YouTube, SoundCloud, Spotify, Apple Music.");
+      setPhase("error");
+      return;
+    }
+    deepLinkTriggered.current = true;
+    setPhase("uploading"); // reuse uploading phase for loading state
+    identifyUrl(initialUrl)
+      .then((result) => {
+        handleYouTubeMatch(result);
+        // Clean up URL bar
+        window.history.replaceState({}, "", "/");
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "URL-Identifikation fehlgeschlagen.");
+        setPhase("error");
+      });
+  }, [initialUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileSelected = useCallback(async (file: File) => {
     setPhase("uploading");
