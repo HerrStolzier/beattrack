@@ -102,9 +102,11 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
             addSong(result.song);
           } else {
             setSlotError(
-              result.parsed_title
-                ? `„${result.parsed_artist} – ${result.parsed_title}" nicht in der Datenbank gefunden.`
-                : "Song konnte nicht identifiziert werden."
+              result.ingesting
+                ? `„${result.parsed_artist} – ${result.parsed_title}" wird gerade zur Datenbank hinzugefügt. Bitte in ~30s erneut versuchen.`
+                : result.parsed_title
+                  ? `„${result.parsed_artist} – ${result.parsed_title}" nicht in der Datenbank gefunden.`
+                  : "Song konnte nicht identifiziert werden."
             );
           }
         } catch (err) {

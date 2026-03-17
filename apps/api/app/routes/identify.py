@@ -111,6 +111,7 @@ class IdentifyResponse(BaseModel):
     parsed_artist: str | None = None
     parsed_title: str | None = None
     message: str
+    ingesting: bool = False
 
 
 async def _identify_platform(
@@ -134,17 +135,86 @@ async def _identify_platform(
     artist, title = title_parser(meta.get("title", ""), meta.get("author_name", ""))
     match = _match_in_db(artist, title, sb)
 
+    if match:
+        return IdentifyResponse(
+            matched=True,
+            song=match,
+            parsed_artist=artist,
+            parsed_title=title,
+            message=f"Match: {match['artist']} — {match['title']}",
+        )
+
+    # No match — try auto-ingest via Deezer
+    ingesting = _try_auto_ingest(artist, title)
+
     return IdentifyResponse(
-        matched=match is not None,
-        song=match,
+        matched=False,
+        song=None,
         parsed_artist=artist,
         parsed_title=title,
+        ingesting=ingesting,
         message=(
-            f"Match: {match['artist']} — {match['title']}"
-            if match
-            else "Kein Match im Katalog gefunden."
+            f'\u201E{artist} \u2014 {title}\u201C wird gerade analysiert und hinzugef\u00FCgt. Bitte in ca. 30 Sekunden erneut versuchen.'
+            if ingesting
+            else f'\u201E{artist} \u2014 {title}\u201C nicht in der Datenbank gefunden.'
         ),
     )
+
+
+def _try_auto_ingest(artist: str, title: str) -> bool:
+    """Search Deezer for artist+title, queue ingest if found. Returns True if queued."""
+    import json as _json
+    import logging as _logging
+
+    _logger = _logging.getLogger(__name__)
+
+    if not artist or not title:
+        return False
+
+    # Clean artist name for search (strip YouTube "- Topic" etc.)
+    search_artist = _clean_artist(artist)
+
+    try:
+        from app.services.ingest import search_deezer_track
+
+        deezer_track = search_deezer_track(search_artist, title)
+        if not deezer_track:
+            _logger.info("Auto-ingest: no Deezer match for '%s — %s'", search_artist, title)
+            return False
+
+        if not deezer_track.get("preview"):
+            _logger.info("Auto-ingest: no preview available for deezer_id=%d", deezer_track.get("id", 0))
+            return False
+
+        # Check if already in DB by deezer_id (race condition prevention)
+        from app.db import get_supabase
+
+        sb = get_supabase()
+        existing = (
+            sb.table("songs")
+            .select("id")
+            .eq("deezer_id", deezer_track["id"])
+            .limit(1)
+            .execute()
+        )
+        if existing.data:
+            _logger.info("Auto-ingest: deezer_id=%d already in DB", deezer_track["id"])
+            return False
+
+        # Queue async ingest
+        from app.workers import ingest_from_deezer
+
+        ingest_from_deezer.defer(deezer_track_json=_json.dumps(deezer_track))
+        _logger.info(
+            "Auto-ingest queued: %s — %s (deezer_id=%d)",
+            deezer_track.get("artist", {}).get("name", "?"),
+            deezer_track.get("title", "?"),
+            deezer_track.get("id", 0),
+        )
+        return True
+    except Exception as exc:
+        _logger.warning("Auto-ingest failed to queue: %s", exc)
+        return False
 
 
 @router.post("/youtube", response_model=IdentifyResponse)

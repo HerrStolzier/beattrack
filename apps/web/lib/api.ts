@@ -369,6 +369,7 @@ export type IdentifyResponse = {
   parsed_artist: string | null;
   parsed_title: string | null;
   message: string;
+  ingesting?: boolean;
 };
 
 type Platform = "youtube" | "soundcloud" | "spotify" | "apple_music" | null;

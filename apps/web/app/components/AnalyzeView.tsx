@@ -108,12 +108,16 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
     setPhase("error");
   }, []);
 
+  const ingestRetryRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const ingestRetryCount = useRef(0);
+
   const handleYouTubeMatch = useCallback(async (identifyResult: IdentifyResponse) => {
     setYtResult(identifyResult);
     setPhase("youtube-result");
 
     // If we got a match, find similar songs for it
     if (identifyResult.matched && identifyResult.song) {
+      ingestRetryCount.current = 0;
       try {
         const similar = await findSimilar(identifyResult.song.id);
         setResult({
@@ -126,10 +130,62 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
       } catch {
         // Similar search failed, but YouTube match still valid
       }
+      return;
+    }
+
+    // Auto-retry if ingesting (backend is adding the song)
+    if (identifyResult.ingesting && identifyResult.parsed_artist && identifyResult.parsed_title) {
+      ingestRetryCount.current += 1;
+      if (ingestRetryCount.current <= 4) {
+        // Clear any existing retry
+        if (ingestRetryRef.current) clearTimeout(ingestRetryRef.current);
+        ingestRetryRef.current = setTimeout(async () => {
+          try {
+            // Re-search by artist+title via the songs endpoint
+            const q = `${identifyResult.parsed_artist} ${identifyResult.parsed_title}`;
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/songs?q=${encodeURIComponent(q)}&limit=5`);
+            if (res.ok) {
+              const songs = await res.json();
+              if (songs.length > 0) {
+                // Found it! Treat as a match
+                const song = songs[0];
+                const matchResult: IdentifyResponse = {
+                  matched: true,
+                  song,
+                  parsed_artist: identifyResult.parsed_artist,
+                  parsed_title: identifyResult.parsed_title,
+                  message: `Match: ${song.artist} — ${song.title}`,
+                };
+                handleYouTubeMatch(matchResult);
+                return;
+              }
+            }
+            // Not yet — retry again
+            if (ingestRetryCount.current < 4) {
+              handleYouTubeMatch(identifyResult);
+            } else {
+              // Give up auto-retry, show manual option
+              setYtResult({ ...identifyResult, ingesting: false });
+            }
+          } catch {
+            // Retry failed, show manual option
+            setYtResult({ ...identifyResult, ingesting: false });
+          }
+        }, 15_000); // 15s between retries
+      }
     }
   }, []);
 
+  // Cleanup ingest retry on unmount
+  useEffect(() => {
+    return () => {
+      if (ingestRetryRef.current) clearTimeout(ingestRetryRef.current);
+    };
+  }, []);
+
   const handleReset = useCallback(() => {
+    if (ingestRetryRef.current) clearTimeout(ingestRetryRef.current);
+    ingestRetryCount.current = 0;
     setPhase("idle");
     setJobId(null);
     setError(null);
@@ -296,7 +352,7 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
           </motion.div>
         )}
 
-        {/* YouTube result — no match */}
+        {/* YouTube result — no match (with auto-ingest support) */}
         {phase === "youtube-result" && ytResult && !ytResult.matched && (
           <motion.div
             key="youtube-no-match"
@@ -314,9 +370,21 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
                   <p className="text-sm font-medium text-text-primary">
                     {ytResult.parsed_artist} — {ytResult.parsed_title}
                   </p>
-                  <p className="mt-1 text-xs text-text-tertiary">
-                    Nicht im Katalog — lade die Audio-Datei hoch oder probier eine andere URL.
-                  </p>
+                  {ytResult.ingesting ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <svg className="h-4 w-4 animate-spin text-amber" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+                        <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" />
+                      </svg>
+                      <p className="text-xs text-amber-light">
+                        Wird gerade analysiert und zur Datenbank hinzugefügt...
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-xs text-text-tertiary">
+                      Nicht im Katalog und nicht auf Deezer gefunden — lade die Audio-Datei hoch oder probier eine andere URL.
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={handleReset}
@@ -332,13 +400,17 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
             </div>
 
             {/* Show inputs again so user can try another URL or upload */}
-            <UrlInput onMatch={handleYouTubeMatch} />
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent to-border-subtle" />
-              <span className="text-xs text-text-tertiary font-medium">oder</span>
-              <div className="h-px flex-1 bg-gradient-to-l from-transparent to-border-subtle" />
-            </div>
-            <UploadZone onFileSelected={handleFileSelected} />
+            {!ytResult.ingesting && (
+              <>
+                <UrlInput onMatch={handleYouTubeMatch} />
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent to-border-subtle" />
+                  <span className="text-xs text-text-tertiary font-medium">oder</span>
+                  <div className="h-px flex-1 bg-gradient-to-l from-transparent to-border-subtle" />
+                </div>
+                <UploadZone onFileSelected={handleFileSelected} />
+              </>
+            )}
           </motion.div>
         )}
 

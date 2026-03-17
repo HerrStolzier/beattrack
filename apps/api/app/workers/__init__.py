@@ -185,3 +185,43 @@ def analyze_audio(context, *, audio_path: str, job_id: str):
 
     update_job_status(job_id, "completed", progress=1.0, result=result)
     return result
+
+
+@app.task(name="ingest_from_deezer", retry=1, pass_context=True)
+def ingest_from_deezer(context, *, deezer_track_json: str):
+    """Auto-ingest a single song from Deezer: download preview → extract → store.
+
+    Triggered when identify can't find a song in the DB but finds it on Deezer.
+    """
+    import json as _json
+
+    deezer_track = _json.loads(deezer_track_json)
+    logger.info(
+        "Ingest task: %s — %s (deezer_id=%d)",
+        deezer_track.get("artist", {}).get("name", "?"),
+        deezer_track.get("title", "?"),
+        deezer_track.get("id", 0),
+    )
+
+    from app.services.ingest import extract_and_store
+
+    result = extract_and_store(deezer_track, expand_neighbors=True)
+    if result:
+        logger.info("Ingest complete: %s (id=%s)", result.get("title"), result.get("id"))
+    else:
+        logger.warning("Ingest failed for deezer_id=%d", deezer_track.get("id", 0))
+    return result
+
+
+@app.task(name="ingest_neighbors", retry=0, pass_context=True)
+def ingest_neighbors(context, *, artist_id: int, max_tracks: int = 10):
+    """Background task: ingest top tracks from an artist to expand the neighborhood.
+
+    Low priority — runs after the main ingest completes.
+    """
+    logger.info("Neighbor expansion: artist_id=%d, max_tracks=%d", artist_id, max_tracks)
+    from app.services.ingest import ingest_artist_top_tracks
+
+    count = ingest_artist_top_tracks(artist_id, max_tracks)
+    logger.info("Neighbor expansion complete: %d new tracks for artist_id=%d", count, artist_id)
+    return {"artist_id": artist_id, "ingested": count}
