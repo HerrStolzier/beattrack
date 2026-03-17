@@ -33,11 +33,14 @@ function polygonPoints(values: number[]): string {
     .join(" ");
 }
 
+type ViewMode = "compare" | "query" | "result";
+
 export default function RadarChart({ querySongId, resultSongId }: RadarChartProps) {
   const [queryFeatures, setQueryFeatures] = useState<RadarFeatures | null>(null);
   const [resultFeatures, setResultFeatures] = useState<RadarFeatures | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("compare");
 
   useEffect(() => {
     setLoading(true);
@@ -132,7 +135,7 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
         })}
 
         {/* Query song polygon */}
-        {queryFeatures && (
+        {queryFeatures && (viewMode === "compare" || viewMode === "query") && (
           <polygon
             points={polygonPoints(KEYS.map((k) => queryFeatures[k]))}
             fill="rgba(245,158,11,0.2)"
@@ -141,11 +144,12 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
             filter="url(#glow-amber)"
             strokeDasharray="200"
             className="animate-draw-in"
+            style={{ transition: "opacity 0.3s" }}
           />
         )}
 
         {/* Result song polygon */}
-        {resultFeatures && (
+        {resultFeatures && (viewMode === "compare" || viewMode === "result") && (
           <polygon
             points={polygonPoints(KEYS.map((k) => resultFeatures[k]))}
             fill="rgba(34,211,238,0.2)"
@@ -154,6 +158,7 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
             filter="url(#glow-cyan)"
             strokeDasharray="200"
             className="animate-draw-in stagger-3"
+            style={{ transition: "opacity 0.3s" }}
           />
         )}
 
@@ -177,19 +182,37 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
         })}
       </svg>
 
-      {/* Legend */}
-      <div className="flex items-center gap-3 text-[10px]">
+      {/* A/B Toggle */}
+      <div className="flex items-center gap-1 rounded-lg bg-surface-raised p-0.5 text-[10px]">
+        <button
+          onClick={() => setViewMode("compare")}
+          className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
+            viewMode === "compare" ? "bg-surface-elevated text-text-primary" : "text-text-tertiary hover:text-text-secondary"
+          }`}
+        >
+          Vergleich
+        </button>
         {queryFeatures && (
-          <span className="flex items-center gap-1 text-amber">
-            <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+          <button
+            onClick={() => setViewMode("query")}
+            className={`flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-colors ${
+              viewMode === "query" ? "bg-amber/15 text-amber-light" : "text-text-tertiary hover:text-text-secondary"
+            }`}
+          >
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
             Query
-          </span>
+          </button>
         )}
         {resultFeatures && (
-          <span className="flex items-center gap-1 text-neon-cyan">
-            <span className="inline-block h-2 w-2 rounded-full bg-cyan-400" />
+          <button
+            onClick={() => setViewMode("result")}
+            className={`flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-colors ${
+              viewMode === "result" ? "bg-cyan/15 text-cyan" : "text-text-tertiary hover:text-text-secondary"
+            }`}
+          >
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400" />
             Result
-          </span>
+          </button>
         )}
       </div>
     </div>
