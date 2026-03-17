@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 _VIDEO_ID_RE = re.compile(r'(?:v=|youtu\.be/|shorts/)([a-zA-Z0-9_-]{11})')
 
 # Allowed YouTube hostnames (exact match prevents SSRF via youtube.com.evil.com)
-_ALLOWED_HOSTS = {"www.youtube.com", "youtube.com", "m.youtube.com", "youtu.be"}
+_ALLOWED_HOSTS = {"www.youtube.com", "youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"}
 
 # Suffixes to strip from titles (case-insensitive)
 _STRIP_SUFFIXES = re.compile(
