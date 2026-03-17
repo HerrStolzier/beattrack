@@ -24,6 +24,7 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: https:",
               "font-src 'self' https://fonts.gstatic.com",
               "connect-src 'self' https://beattrack-production.up.railway.app https://*.supabase.co",
+              "frame-src https://widget.deezer.com",
               "frame-ancestors 'none'",
             ].join("; "),
           },

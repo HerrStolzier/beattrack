@@ -6,6 +6,7 @@ import { type Song, type SimilarSong } from "@/lib/api";
 import { getGenreColor } from "./GenreFilter";
 import FeedbackButtons from "./FeedbackButtons";
 import RadarChart from "./RadarChart";
+import DeezerEmbed from "./DeezerEmbed";
 
 
 interface SimilarResultsProps {
@@ -183,6 +184,15 @@ export default function SimilarResults({ results, querySong, onFeedback }: Simil
                   >
                     <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
                   </button>
+                  {song.deezer_id && (
+                    <button
+                      onClick={() => window.open(`https://www.deezer.com/track/${song.deezer_id}`, "_blank")}
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-lg px-1.5 py-1 text-[10px] font-medium text-purple-400 transition-colors hover:bg-purple-400/10"
+                      title="Auf Deezer anhören"
+                    >
+                      <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M18.81 4.16v3.03H24V4.16h-5.19zM6.27 8.38v3.027h5.19V8.38H6.27zm6.27 0v3.027h5.19V8.38h-5.19zm6.27 0v3.027H24V8.38h-5.19zM6.27 12.566v3.027h5.19v-3.027H6.27zm6.27 0v3.027h5.19v-3.027h-5.19zm6.27 0v3.027H24v-3.027h-5.19zM0 16.752v3.027h5.19v-3.027H0zm6.27 0v3.027h5.19v-3.027H6.27zm6.27 0v3.027h5.19v-3.027h-5.19zm6.27 0v3.027H24v-3.027h-5.19z"/></svg>
+                    </button>
+                  )}
                   <button
                     onClick={() => setExpandedId(isExpanded ? null : song.id)}
                     className="inline-flex cursor-pointer items-center rounded-lg px-1.5 py-1 text-[10px] font-medium text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
@@ -201,12 +211,15 @@ export default function SimilarResults({ results, querySong, onFeedback }: Simil
               <AnimatePresence>
                 {isExpanded && (
                   <motion.div
-                    className="mt-3 border-t border-border-subtle pt-3"
+                    className="mt-3 border-t border-border-subtle pt-3 space-y-3"
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.3 }}
                   >
+                    {song.deezer_id && (
+                      <DeezerEmbed deezerId={song.deezer_id} compact={false} />
+                    )}
                     <RadarChart querySongId={querySong.id} resultSongId={song.id} />
                   </motion.div>
                 )}

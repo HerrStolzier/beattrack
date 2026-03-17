@@ -108,6 +108,7 @@ export type Song = {
   musical_key: string | null;
   duration_sec: number | null;
   genre: string | null;
+  deezer_id: number | null;
 };
 
 export type SimilarSong = Song & { similarity: number };

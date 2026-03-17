@@ -34,6 +34,7 @@ class SimilarSong(BaseModel):
     musical_key: str | None = None
     duration_sec: float | None = None
     genre: str | None = None
+    deezer_id: int | None = None
     similarity: float
 
 
@@ -174,6 +175,7 @@ async def find_similar(
             musical_key=r.get("musical_key"),
             duration_sec=r.get("duration_sec"),
             genre=r.get("genre"),
+            deezer_id=r.get("deezer_id"),
             similarity=float(r["similarity"]),
         )
         for r in results

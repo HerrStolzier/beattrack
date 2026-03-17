@@ -101,6 +101,7 @@ export default function AnalyzeView() {
         musical_key: result.key,
         duration_sec: result.duration,
         genre: null,
+        deezer_id: null,
       }
     : ytResult?.song || null;
 

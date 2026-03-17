@@ -89,7 +89,10 @@ def main() -> None:
                 continue
             try:
                 row = json.loads(line)
-                row.pop("_tid", None)
+                # Rename _tid to deezer_id for bulk_import_songs RPC
+                tid = row.pop("_tid", None)
+                if tid is not None:
+                    row["deezer_id"] = str(tid)
                 rows.append(row)
             except json.JSONDecodeError as exc:
                 logger.warning("Skipping invalid JSON on line %d: %s", line_num, exc)

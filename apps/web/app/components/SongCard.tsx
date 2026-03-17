@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { type Song } from "@/lib/api";
+import DeezerEmbed from "./DeezerEmbed";
 
 interface SongCardProps {
   song: Song;
@@ -85,6 +86,13 @@ export default function SongCard({ song, onFindSimilar, isSelected }: SongCardPr
             </span>
           )}
         </div>
+
+        {/* Deezer preview widget */}
+        {song.deezer_id && (
+          <div className="relative mt-2" onClick={(e) => e.stopPropagation()}>
+            <DeezerEmbed deezerId={song.deezer_id} compact />
+          </div>
+        )}
 
         {/* Action indicator */}
         <motion.div

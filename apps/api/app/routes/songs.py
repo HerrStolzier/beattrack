@@ -23,6 +23,7 @@ class SongResponse(BaseModel):
     musical_key: str | None
     duration_sec: float | None
     genre: str | None = None
+    deezer_id: int | None = None
 
 
 class SongCount(BaseModel):
@@ -58,7 +59,7 @@ async def list_songs(
     sb: Client = Depends(get_supabase),
 ) -> list[SongResponse]:
     query = sb.table("songs").select(
-        "id, title, artist, album, bpm, musical_key, duration_sec, genre"
+        "id, title, artist, album, bpm, musical_key, duration_sec, genre, deezer_id"
     )
     if q:
         query = query.ilike("title", f"%{_escape_like(q)}%")
@@ -75,7 +76,7 @@ async def get_song(
 ) -> SongResponse:
     result = (
         sb.table("songs")
-        .select("id, title, artist, album, bpm, musical_key, duration_sec, genre")
+        .select("id, title, artist, album, bpm, musical_key, duration_sec, genre, deezer_id")
         .eq("id", song_id)
         .single()
         .execute()
