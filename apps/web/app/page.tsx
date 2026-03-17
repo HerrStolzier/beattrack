@@ -355,9 +355,14 @@ export default function Home() {
         <div className="h-px bg-gradient-to-r from-transparent via-border-glass to-transparent" />
         <div className="flex items-center justify-between pt-6">
           <p className="text-xs text-text-tertiary">Beattrack — Finde deinen nächsten Track</p>
-          <a href="/privacy" className="text-xs text-text-tertiary transition-colors hover:text-amber-light">
-            Datenschutz
-          </a>
+          <div className="flex gap-4">
+            <a href="/impressum" className="text-xs text-text-tertiary transition-colors hover:text-amber-light">
+              Impressum
+            </a>
+            <a href="/privacy" className="text-xs text-text-tertiary transition-colors hover:text-amber-light">
+              Datenschutz
+            </a>
+          </div>
         </div>
       </footer>
     </main>
