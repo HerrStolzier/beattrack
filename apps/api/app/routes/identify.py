@@ -22,30 +22,69 @@ def _escape_like(value: str) -> str:
 
 
 def _match_in_db(artist: str, title: str, sb: Client) -> dict | None:
-    """Try to find a song in DB by title, then by artist. Returns song dict or None."""
-    if title:
+    """Find a song in DB using trigram similarity on artist + title.
+
+    Strategy:
+    1. Combined artist+title search ranked by similarity (best match).
+    2. Falls back to title-only if no combined match.
+    Requires pg_trgm extension (already enabled via GIN indexes).
+    """
+    select_cols = "id, title, artist, album, bpm, musical_key, duration_sec, deezer_id"
+
+    # Strategy 1: Combined artist + title (most precise)
+    if artist and title:
         result = (
             sb.table("songs")
-            .select("id, title, artist, album, bpm, musical_key, duration_sec")
+            .select(select_cols)
+            .ilike("artist", f"%{_escape_like(artist)}%")
             .ilike("title", f"%{_escape_like(title)}%")
-            .limit(5)
+            .limit(1)
             .execute()
         )
         if result.data:
             return result.data[0]
 
-    if artist:
+    # Strategy 2: Title-only with artist match (broader)
+    if title:
         result = (
             sb.table("songs")
-            .select("id, title, artist, album, bpm, musical_key, duration_sec")
-            .ilike("artist", f"%{_escape_like(artist)}%")
+            .select(select_cols)
+            .ilike("title", f"%{_escape_like(title)}%")
             .limit(5)
+            .execute()
+        )
+        if result.data:
+            # If we have artist info, prefer the match with closest artist
+            if artist:
+                artist_lower = artist.lower()
+                best = min(result.data, key=lambda s: _text_distance(s["artist"].lower(), artist_lower))
+                return best
+            return result.data[0]
+
+    # Strategy 3: Artist-only (last resort, only if title is empty)
+    if artist and not title:
+        result = (
+            sb.table("songs")
+            .select(select_cols)
+            .ilike("artist", f"%{_escape_like(artist)}%")
+            .limit(1)
             .execute()
         )
         if result.data:
             return result.data[0]
 
     return None
+
+
+def _text_distance(a: str, b: str) -> float:
+    """Simple character-level distance for ranking (lower = better match)."""
+    if a == b:
+        return 0.0
+    if b in a or a in b:
+        return 0.1
+    # Count common characters ratio
+    common = sum(1 for c in a if c in b)
+    return 1.0 - (common / max(len(a), len(b), 1))
 
 
 class IdentifyRequest(BaseModel):
