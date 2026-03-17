@@ -1,3 +1,4 @@
+import re
 from collections.abc import Callable, Coroutine
 from typing import Any
 
@@ -44,21 +45,24 @@ def _match_in_db(artist: str, title: str, sb: Client) -> dict | None:
         if result.data:
             return result.data[0]
 
-    # Strategy 2: Title-only with artist match (broader)
+    # Strategy 2: Title-only, but validate artist similarity before accepting
     if title:
         result = (
             sb.table("songs")
             .select(select_cols)
             .ilike("title", f"%{_escape_like(title)}%")
-            .limit(5)
+            .limit(10)
             .execute()
         )
         if result.data:
-            # If we have artist info, prefer the match with closest artist
             if artist:
-                artist_lower = artist.lower()
-                best = min(result.data, key=lambda s: _text_distance(s["artist"].lower(), artist_lower))
-                return best
+                # Only accept if at least one result has a similar artist
+                artist_clean = _clean_artist(artist)
+                for song in result.data:
+                    if _artists_match(artist_clean, _clean_artist(song["artist"])):
+                        return song
+                # No artist match — don't return a wrong song
+                return None
             return result.data[0]
 
     # Strategy 3: Artist-only (last resort, only if title is empty)
@@ -76,15 +80,25 @@ def _match_in_db(artist: str, title: str, sb: Client) -> dict | None:
     return None
 
 
-def _text_distance(a: str, b: str) -> float:
-    """Simple character-level distance for ranking (lower = better match)."""
+def _clean_artist(name: str) -> str:
+    """Normalize artist name for comparison. Strips ' - Topic' suffix from YouTube Music."""
+    name = re.sub(r'\s*-\s*Topic$', '', name, flags=re.IGNORECASE)
+    return name.strip().lower()
+
+
+def _artists_match(a: str, b: str) -> bool:
+    """Check if two artist names plausibly refer to the same artist."""
+    if not a or not b:
+        return False
     if a == b:
-        return 0.0
-    if b in a or a in b:
-        return 0.1
-    # Count common characters ratio
-    common = sum(1 for c in a if c in b)
-    return 1.0 - (common / max(len(a), len(b), 1))
+        return True
+    # Substring match (handles "Prok & Fitch" vs "Prok")
+    if a in b or b in a:
+        return True
+    # Check if any word (3+ chars) from one appears in the other
+    words_a = {w for w in a.split() if len(w) >= 3}
+    words_b = {w for w in b.split() if len(w) >= 3}
+    return bool(words_a & words_b)
 
 
 class IdentifyRequest(BaseModel):
