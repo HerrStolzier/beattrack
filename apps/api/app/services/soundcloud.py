@@ -1,4 +1,4 @@
-"""SoundCloud metadata via oEmbed."""
+"""SoundCloud metadata via oEmbed (supports shortened URLs)."""
 
 import logging
 import re
@@ -13,6 +13,9 @@ _SC_URL_RE = re.compile(
     r"https?://(?:www\.)?soundcloud\.com/([\w-]+)/([\w-]+)"
 )
 
+# Matches shortened on.soundcloud.com URLs
+_SC_SHORT_RE = re.compile(r"https?://on\.soundcloud\.com/\w+")
+
 # Suffixes to strip from titles (case-insensitive)
 _NOISE_RE = re.compile(
     r"\s*[\(\[](Official|Audio|Lyric|Music|HD|4K|Visualizer|Live|Remix|Explicit)"
@@ -22,15 +25,43 @@ _NOISE_RE = re.compile(
 
 
 def parse_soundcloud_url(url: str) -> bool:
-    """Check if URL is a valid SoundCloud track URL."""
-    return bool(_SC_URL_RE.match(url.strip()))
+    """Check if URL is a valid SoundCloud track URL (including shortened)."""
+    stripped = url.strip()
+    return bool(_SC_URL_RE.match(stripped) or _SC_SHORT_RE.match(stripped))
+
+
+async def _resolve_shortened_url(url: str, client: httpx.AsyncClient) -> str | None:
+    """Resolve on.soundcloud.com shortened URL to full soundcloud.com URL."""
+    try:
+        resp = await client.head(url, follow_redirects=True)
+        resolved = str(resp.url)
+        if _SC_URL_RE.match(resolved):
+            return resolved
+        # HEAD might not redirect — try GET
+        resp = await client.get(url, follow_redirects=True)
+        resolved = str(resp.url)
+        if _SC_URL_RE.match(resolved):
+            return resolved
+    except Exception as exc:
+        logger.debug("SoundCloud URL resolution failed for %s: %s", url, exc)
+    return None
 
 
 async def fetch_oembed(url: str) -> dict | None:
     """Fetch track metadata via SoundCloud oEmbed API."""
-    oembed_url = f"https://soundcloud.com/oembed?url={quote(url, safe='')}&format=json"
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
+    async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+        # Resolve shortened URLs first
+        resolved_url = url
+        if _SC_SHORT_RE.match(url.strip()):
+            resolved = await _resolve_shortened_url(url, client)
+            if resolved:
+                resolved_url = resolved
+            else:
+                logger.warning("Could not resolve SoundCloud shortened URL: %s", url)
+                return None
+
+        oembed_url = f"https://soundcloud.com/oembed?url={quote(resolved_url, safe='')}&format=json"
+        try:
             resp = await client.get(oembed_url)
             resp.raise_for_status()
             data = resp.json()
@@ -38,9 +69,9 @@ async def fetch_oembed(url: str) -> dict | None:
                 "title": data.get("title", ""),
                 "author_name": data.get("author_name", ""),
             }
-    except Exception as exc:
-        logger.warning("SoundCloud oEmbed failed for %s: %s", url, exc)
-        return None
+        except Exception as exc:
+            logger.warning("SoundCloud oEmbed failed for %s: %s", resolved_url, exc)
+            return None
 
 
 def parse_title(title: str, author_name: str = "") -> tuple[str, str]:

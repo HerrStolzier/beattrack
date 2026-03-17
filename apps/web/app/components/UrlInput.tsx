@@ -12,6 +12,7 @@ const platformLabels: Record<string, { name: string; color: string; bg: string }
   youtube: { name: "YouTube", color: "text-red-400", bg: "bg-red-500/20" },
   soundcloud: { name: "SoundCloud", color: "text-orange-400", bg: "bg-orange-500/20" },
   spotify: { name: "Spotify", color: "text-emerald-400", bg: "bg-emerald-500/20" },
+  apple_music: { name: "Apple Music", color: "text-pink-400", bg: "bg-pink-500/20" },
 };
 
 export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
@@ -27,7 +28,7 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
     if (!trimmed) return;
 
     if (!detected) {
-      setError("Ungültige URL. Unterstützt: YouTube, SoundCloud, Spotify.");
+      setError("Ungültige URL. Unterstützt: YouTube, SoundCloud, Spotify, Apple Music.");
       return;
     }
 
@@ -55,7 +56,7 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
               setUrl(e.target.value);
               setError(null);
             }}
-            placeholder="YouTube, SoundCloud oder Spotify URL..."
+            placeholder="YouTube, SoundCloud, Spotify oder Apple Music URL..."
             className="glass w-full rounded-xl border border-border-glass px-4 py-3 text-sm text-text-primary placeholder-text-tertiary outline-none transition focus:border-amber/50 focus:ring-1 focus:ring-amber/30"
             disabled={disabled || loading}
             data-testid="url-input"
@@ -95,7 +96,7 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
       {/* Supported platforms */}
       <div className="flex items-center gap-2 pt-1">
         <span className="text-xs text-text-tertiary">Unterstützt:</span>
-        {(["youtube", "soundcloud", "spotify"] as const).map((p) => (
+        {(["youtube", "soundcloud", "spotify", "apple_music"] as const).map((p) => (
           <span
             key={p}
             className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
@@ -112,6 +113,9 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
             )}
             {p === "spotify" && (
               <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0a12 12 0 1 0 0 24 12 12 0 0 0 0-24Zm5.5 17.3a.7.7 0 0 1-1 .3c-2.8-1.7-6.3-2.1-10.4-1.1a.7.7 0 1 1-.4-1.4c4.5-1 8.4-.6 11.5 1.3a.7.7 0 0 1 .3 1Zm1.5-3.3a.9.9 0 0 1-1.3.3c-3.2-2-8.1-2.5-11.8-1.4a.9.9 0 1 1-.5-1.8c4.3-1.3 9.6-.7 13.3 1.6a.9.9 0 0 1 .3 1.3Zm.1-3.4C15.5 8.4 9 8.2 5.3 9.3a1.1 1.1 0 1 1-.6-2.1C9 5.9 16.2 6.1 20.4 8.7a1.1 1.1 0 0 1-1.3 1.9Z"/></svg>
+            )}
+            {p === "apple_music" && (
+              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor"><path d="M23.994 6.124a9.23 9.23 0 0 0-.24-2.19c-.317-1.31-1.062-2.31-2.18-3.043a5.022 5.022 0 0 0-1.877-.726 10.496 10.496 0 0 0-1.564-.15c-.073-.004-.148-.01-.224-.013H6.09c-.076.003-.152.01-.228.013-.487.04-.98.112-1.46.258C3.25.633 2.37 1.29 1.717 2.31A5.006 5.006 0 0 0 .972 3.89a9.334 9.334 0 0 0-.218 1.768c-.004.078-.01.15-.014.224V18.12c.004.074.01.148.014.224.035.498.103.99.246 1.47.318 1.07.893 1.95 1.76 2.63.482.378 1.024.66 1.616.826.44.124.89.19 1.347.224.238.02.478.03.716.03h11.15c.238 0 .476-.01.712-.03.484-.035.958-.112 1.422-.27.944-.322 1.72-.89 2.31-1.69.358-.48.62-1.014.79-1.592.124-.44.19-.89.223-1.345.017-.23.028-.462.03-.694V6.124Zm-6.29 5.01c-.006 3.442-.007 6.884.004 10.326 0 .356-.045.704-.18 1.033-.232.564-.637.893-1.228 1.023-.263.058-.53.088-.8.098-.426.016-.855.005-1.264-.12-.626-.19-1.02-.59-1.148-1.236-.108-.54-.033-1.06.26-1.52.333-.524.828-.813 1.416-.947.326-.074.66-.11.994-.136.388-.03.777-.046 1.156-.122.275-.054.465-.2.56-.47.058-.164.08-.338.08-.514V8.676c0-.12-.023-.237-.08-.347-.086-.166-.222-.26-.403-.288-.125-.02-.252-.022-.378-.004-.252.036-.503.084-.753.132l-4.14.814c-.357.07-.712.146-1.067.222-.168.036-.302.123-.385.282-.055.105-.082.22-.085.34-.01.33-.005.66-.005.99v7.5c.003.392-.003.785.005 1.177.008.404-.037.8-.186 1.178-.225.572-.636.904-1.228 1.04-.264.06-.532.093-.803.103-.425.015-.855.01-1.264-.113-.633-.188-1.034-.59-1.163-1.242-.1-.497-.045-.98.198-1.43.31-.575.827-.878 1.44-1.02.32-.074.647-.112.975-.136.392-.028.785-.044 1.168-.122.296-.06.494-.218.586-.512.046-.145.063-.3.063-.455V7.298c0-.254.055-.49.228-.687.14-.16.317-.252.516-.3.146-.035.294-.063.442-.09l5.346-1.057c.39-.076.78-.157 1.172-.228.23-.042.463-.058.696-.016.353.064.587.275.656.633.027.14.036.285.036.428.001 1.72 0 3.44-.002 5.16Z"/></svg>
             )}
             {platformLabels[p].name}
           </span>
