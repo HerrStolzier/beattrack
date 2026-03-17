@@ -32,7 +32,7 @@ def extract_features_safe(audio_path: str, timeout: int = 180) -> dict:
         result = subprocess.run(
             [sys.executable, extract_script, audio_path],
             capture_output=True, timeout=timeout, text=True,
-            preexec_fn=lambda: _limit_memory(2 * 1024**3),
+            process_group=0,
         )
     except subprocess.TimeoutExpired:
         logger.error("Feature extraction timed out after %ds for %s", timeout, audio_path)

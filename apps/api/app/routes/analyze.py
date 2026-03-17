@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import tempfile
+import time
 import uuid
 from pathlib import Path
 
@@ -30,6 +31,19 @@ Path(TEMP_DIR).mkdir(parents=True, exist_ok=True)
 # In-memory job status tracking (simple dict, sufficient for single-worker)
 # In production, this would be read from procrastinate_jobs table
 _job_status: dict[str, dict] = {}
+_JOB_TTL_SEC = 3600  # Remove completed/failed jobs after 1 hour
+
+
+def _cleanup_stale_jobs() -> None:
+    """Remove jobs older than _JOB_TTL_SEC from memory."""
+    now = time.time()
+    stale = [
+        jid for jid, job in _job_status.items()
+        if job.get("status") in ("completed", "failed")
+        and now - job.get("created_at", now) > _JOB_TTL_SEC
+    ]
+    for jid in stale:
+        del _job_status[jid]
 
 
 class AnalyzeResponse(BaseModel):
@@ -71,11 +85,13 @@ async def upload_and_analyze(request: Request, file: UploadFile):
         audio_info = await loop.run_in_executor(None, validate_audio, temp_path)
 
         # 4. Track job status
+        _cleanup_stale_jobs()
         _job_status[job_id] = {
             "status": "queued",
             "progress": 0.0,
             "audio_path": temp_path,
             "duration_sec": audio_info.get("duration_sec"),
+            "created_at": time.time(),
         }
 
         # 5. Enqueue analysis job

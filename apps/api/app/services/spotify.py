@@ -24,9 +24,10 @@ _NOISE_RE = re.compile(
 _OG_DESC_RE = re.compile(r'property="og:description"\s+content="([^"]+)"')
 
 
-def parse_spotify_url(url: str) -> bool:
-    """Check if URL is a valid Spotify track URL."""
-    return bool(_SPOTIFY_URL_RE.match(url.strip()))
+def parse_spotify_url(url: str) -> str | None:
+    """Validate a Spotify track URL and return the track ID, or None if invalid."""
+    m = _SPOTIFY_URL_RE.match(url.strip())
+    return m.group(1) if m else None
 
 
 async def fetch_oembed(url: str) -> dict | None:
@@ -44,10 +45,13 @@ async def fetch_oembed(url: str) -> dict | None:
             return None
 
         # 2) Scrape track page for og:description → artist name
+        #    Reconstruct URL from validated track ID to prevent SSRF via redirects
+        track_id = parse_spotify_url(url)
+        safe_url = f"https://open.spotify.com/track/{track_id}" if track_id else url
         author_name = ""
         try:
             page = await client.get(
-                url, headers={"User-Agent": "Mozilla/5.0 (compatible; Beattrack/1.0)"}
+                safe_url, headers={"User-Agent": "Mozilla/5.0 (compatible; Beattrack/1.0)"}
             )
             if page.status_code == 200:
                 match = _OG_DESC_RE.search(page.text)

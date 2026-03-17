@@ -30,14 +30,19 @@ async def validate_upload(file: UploadFile) -> None:
     Raises:
         HTTPException: 400 if MIME type is not audio or file exceeds 50 MB.
     """
-    # Read the full content to check both size and magic bytes
-    content = await file.read()
+    # Read only first 16KB for magic-byte detection (avoids loading full file into memory)
+    header = await file.read(16384)
 
-    # Reset stream so downstream consumers can re-read if needed
+    # Reset stream so downstream consumers can read the full file
     await file.seek(0)
 
-    # Size check — prefer Content-Length header when available, fall back to len(content)
-    content_length = file.size if file.size is not None else len(content)
+    # Size check — prefer Content-Length header when available
+    content_length = file.size
+    if content_length is None:
+        # Fallback: read full content to measure, then reset
+        full = await file.read()
+        content_length = len(full)
+        await file.seek(0)
     if content_length > _MAX_FILE_SIZE:
         logger.warning(
             "Upload rejected: file size %d bytes exceeds limit of %d bytes",
@@ -46,14 +51,14 @@ async def validate_upload(file: UploadFile) -> None:
         )
         raise HTTPException(
             status_code=400,
-            detail=f"File too large. Maximum allowed size is 50 MB.",
+            detail="File too large. Maximum allowed size is 50 MB.",
         )
 
     # MIME check via magic bytes (fake-file detection)
-    # Use larger buffer — ID3-tagged MP3s may need >2KB for libmagic to find the MPEG frame
-    detected_mime = magic.from_buffer(content[:16384], mime=True)
+    # Use 16KB buffer — ID3-tagged MP3s may need >2KB for libmagic to find the MPEG frame
+    detected_mime = magic.from_buffer(header, mime=True)
     # Fallback: ID3 header (0x494433) is always audio/mpeg
-    if detected_mime == "application/octet-stream" and content[:3] == b"ID3":
+    if detected_mime == "application/octet-stream" and header[:3] == b"ID3":
         detected_mime = "audio/mpeg"
     logger.debug("Detected MIME type from magic bytes: %s", detected_mime)
 

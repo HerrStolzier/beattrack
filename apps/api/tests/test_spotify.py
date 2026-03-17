@@ -15,27 +15,27 @@ from tests.conftest import _make_supabase_mock
 # ---------------------------------------------------------------------------
 
 def test_parse_spotify_url_valid():
-    assert parse_spotify_url("https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh") is True
+    assert parse_spotify_url("https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh") == "4iV5W9uYEdYUVa79Axb7Rh"
 
 
 def test_parse_spotify_url_valid_with_intl_prefix():
-    assert parse_spotify_url("https://open.spotify.com/intl-de/track/4iV5W9uYEdYUVa79Axb7Rh") is True
+    assert parse_spotify_url("https://open.spotify.com/intl-de/track/4iV5W9uYEdYUVa79Axb7Rh") == "4iV5W9uYEdYUVa79Axb7Rh"
 
 
 def test_parse_spotify_url_valid_with_query_params():
-    assert parse_spotify_url("https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh?si=abc123") is True
+    assert parse_spotify_url("https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh?si=abc123") == "4iV5W9uYEdYUVa79Axb7Rh"
 
 
 def test_parse_spotify_url_invalid_domain():
-    assert parse_spotify_url("https://spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh") is False
+    assert parse_spotify_url("https://spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh") is None
 
 
 def test_parse_spotify_url_invalid_not_track():
-    assert parse_spotify_url("https://open.spotify.com/album/4iV5W9uYEdYUVa79Axb7Rh") is False
+    assert parse_spotify_url("https://open.spotify.com/album/4iV5W9uYEdYUVa79Axb7Rh") is None
 
 
 def test_parse_spotify_url_empty():
-    assert parse_spotify_url("") is False
+    assert parse_spotify_url("") is None
 
 
 # ---------------------------------------------------------------------------

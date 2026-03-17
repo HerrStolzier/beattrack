@@ -52,12 +52,6 @@ async def get_feedback_stats(
     sb: Client = Depends(get_supabase),
 ) -> list[FeedbackStatsItem]:
     """Get top-rated or worst-rated song pair matches."""
-    # Try to refresh the materialized view (ignore errors if no data yet)
-    try:
-        sb.rpc("refresh_feedback_stats", {}).execute()
-    except Exception:
-        pass
-
     result = (
         sb.table("feedback_stats")
         .select("*")

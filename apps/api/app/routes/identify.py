@@ -116,7 +116,8 @@ async def identify_soundcloud(request: Request, body: IdentifyRequest, sb: Clien
 @router.post("/spotify", response_model=IdentifyResponse)
 @limiter.limit("20/minute")
 async def identify_spotify(request: Request, body: IdentifyRequest, sb: Client = Depends(get_supabase)):
-    if not parse_spotify_url(body.url):
+    track_id = parse_spotify_url(body.url)
+    if not track_id:
         raise HTTPException(status_code=400, detail="Invalid Spotify URL")
 
     meta = await sp_fetch_oembed(body.url)

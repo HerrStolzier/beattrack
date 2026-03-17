@@ -24,6 +24,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
+RUN adduser --disabled-password --gecos "" appuser
+
 WORKDIR /app
 
 # Copy virtual environment from builder
@@ -33,8 +35,14 @@ COPY --from=builder /build/app /app/app
 # Copy MusiCNN model
 COPY models/ /app/models/
 
+# Temp directory for uploads (writable by appuser)
+RUN mkdir -p /app/tmp && chown appuser:appuser /app/tmp
+ENV BEATTRACK_TEMP_DIR=/app/tmp
+
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
+
+USER appuser
 
 ENV PORT=8000
 EXPOSE 8000

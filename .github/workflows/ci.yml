@@ -18,7 +18,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v5
         with:
-          version: "latest"
+          version: "0.6.12"
 
       - uses: actions/setup-python@v5
         with:
@@ -26,6 +26,9 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --extra dev
+
+      - name: Audit dependencies
+        run: uv run pip-audit
 
       - name: Run tests
         run: uv run pytest tests/ -v
@@ -41,7 +44,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.2.5"
 
       - name: Install dependencies
         run: |

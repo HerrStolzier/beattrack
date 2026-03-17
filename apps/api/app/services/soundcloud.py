@@ -30,17 +30,24 @@ def parse_soundcloud_url(url: str) -> bool:
     return bool(_SC_URL_RE.match(stripped) or _SC_SHORT_RE.match(stripped))
 
 
+def _is_soundcloud_host(url: str) -> bool:
+    """Verify that a resolved URL points to soundcloud.com."""
+    from urllib.parse import urlparse
+    host = urlparse(url).hostname
+    return host is not None and (host == "soundcloud.com" or host.endswith(".soundcloud.com"))
+
+
 async def _resolve_shortened_url(url: str, client: httpx.AsyncClient) -> str | None:
     """Resolve on.soundcloud.com shortened URL to full soundcloud.com URL."""
     try:
         resp = await client.head(url, follow_redirects=True)
         resolved = str(resp.url)
-        if _SC_URL_RE.match(resolved):
+        if _SC_URL_RE.match(resolved) and _is_soundcloud_host(resolved):
             return resolved
         # HEAD might not redirect — try GET
         resp = await client.get(url, follow_redirects=True)
         resolved = str(resp.url)
-        if _SC_URL_RE.match(resolved):
+        if _SC_URL_RE.match(resolved) and _is_soundcloud_host(resolved):
             return resolved
     except Exception as exc:
         logger.debug("SoundCloud URL resolution failed for %s: %s", url, exc)

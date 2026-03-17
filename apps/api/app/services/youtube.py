@@ -1,7 +1,7 @@
 """YouTube oEmbed service for URL validation and metadata extraction."""
 import re
 import logging
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 
 import requests
 
@@ -43,7 +43,7 @@ def fetch_oembed(url: str) -> dict | None:
     Returns a dict with at least ``title`` and ``author_name`` keys,
     or None if the request fails.
     """
-    oembed_url = f"https://www.youtube.com/oembed?url={url}&format=json"
+    oembed_url = f"https://www.youtube.com/oembed?url={quote(url, safe='')}&format=json"
     try:
         resp = requests.get(oembed_url, timeout=10)
         if resp.status_code != 200:

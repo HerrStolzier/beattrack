@@ -84,7 +84,8 @@ async def find_similar(
     try:
         rpc_result = sb.rpc("find_similar_songs", rpc_params).execute()
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Similarity search failed: {exc}")
+        logger.error("Similarity search failed: %s", exc)
+        raise HTTPException(status_code=502, detail="Similarity search failed")
     results = rpc_result.data or []
 
     # 3. Late Fusion: blend learned_similarity with handcrafted cosine similarity
