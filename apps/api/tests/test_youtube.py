@@ -1,5 +1,5 @@
 """Tests for YouTube URL parsing, title parsing, and identify endpoint."""
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -120,7 +120,7 @@ def test_identify_youtube_match(client):
 
     app.dependency_overrides[get_supabase] = lambda: sb
 
-    with patch("app.routes.identify.fetch_oembed") as mock_oembed:
+    with patch("app.routes.identify.yt_fetch_oembed", new_callable=AsyncMock) as mock_oembed:
         mock_oembed.return_value = {"title": "Artist - Song Title", "author_name": "ArtistChannel"}
         resp = client.post("/identify/youtube", json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"})
 
@@ -146,7 +146,7 @@ def test_identify_youtube_no_match(client):
 
     app.dependency_overrides[get_supabase] = lambda: sb
 
-    with patch("app.routes.identify.fetch_oembed") as mock_oembed:
+    with patch("app.routes.identify.yt_fetch_oembed", new_callable=AsyncMock) as mock_oembed:
         mock_oembed.return_value = {"title": "Unknown Artist - Rare Track", "author_name": "SomeChannel"}
         resp = client.post("/identify/youtube", json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"})
 
@@ -161,7 +161,7 @@ def test_identify_youtube_oembed_failure(client):
     sb, _ = _make_supabase_mock()
     app.dependency_overrides[get_supabase] = lambda: sb
 
-    with patch("app.routes.identify.fetch_oembed") as mock_oembed:
+    with patch("app.routes.identify.yt_fetch_oembed", new_callable=AsyncMock) as mock_oembed:
         mock_oembed.return_value = None
         resp = client.post("/identify/youtube", json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"})
 

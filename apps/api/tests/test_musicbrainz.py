@@ -2,7 +2,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-import requests as _requests
+import httpx as _httpx
 
 
 # ---------------------------------------------------------------------------
@@ -14,8 +14,8 @@ def _make_mb_response(data: dict, status_code: int = 200) -> MagicMock:
     mock_resp.status_code = status_code
     mock_resp.json.return_value = data
     if status_code >= 400:
-        mock_resp.raise_for_status.side_effect = _requests.HTTPError(
-            f"{status_code} Error"
+        mock_resp.raise_for_status.side_effect = _httpx.HTTPStatusError(
+            f"{status_code} Error", request=MagicMock(), response=MagicMock()
         )
     else:
         mock_resp.raise_for_status.return_value = None
@@ -37,7 +37,7 @@ def test_lookup_recording_success():
     }
     mock_resp = _make_mb_response(data)
 
-    with patch("app.services.musicbrainz.requests.get", return_value=mock_resp):
+    with patch("app.services.musicbrainz.httpx.get", return_value=mock_resp):
         from app.services.musicbrainz import lookup_recording
         result = lookup_recording("abc-mbid")
 
@@ -66,7 +66,7 @@ def test_lookup_recording_multiple_artists():
     }
     mock_resp = _make_mb_response(data)
 
-    with patch("app.services.musicbrainz.requests.get", return_value=mock_resp):
+    with patch("app.services.musicbrainz.httpx.get", return_value=mock_resp):
         from app.services.musicbrainz import lookup_recording
         result = lookup_recording("abc-mbid")
 
@@ -79,7 +79,7 @@ def test_lookup_recording_not_found():
     """Returns None when MusicBrainz returns 404."""
     mock_resp = _make_mb_response({}, status_code=404)
 
-    with patch("app.services.musicbrainz.requests.get", return_value=mock_resp):
+    with patch("app.services.musicbrainz.httpx.get", return_value=mock_resp):
         from app.services.musicbrainz import lookup_recording
         result = lookup_recording("nonexistent-mbid")
 
@@ -89,7 +89,7 @@ def test_lookup_recording_not_found():
 def test_lookup_recording_api_error():
     """Returns None on connection error, does not raise."""
     with patch(
-        "app.services.musicbrainz.requests.get",
+        "app.services.musicbrainz.httpx.get",
         side_effect=ConnectionError("Network unreachable"),
     ):
         from app.services.musicbrainz import lookup_recording
@@ -102,7 +102,7 @@ def test_lookup_recording_http_error():
     """Returns None on HTTP 500 error."""
     mock_resp = _make_mb_response({}, status_code=500)
 
-    with patch("app.services.musicbrainz.requests.get", return_value=mock_resp):
+    with patch("app.services.musicbrainz.httpx.get", return_value=mock_resp):
         from app.services.musicbrainz import lookup_recording
         result = lookup_recording("some-mbid")
 

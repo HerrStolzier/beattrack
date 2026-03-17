@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from app.main import periodic_cleanup
+from app.main import _periodic_cleanup
 
 
 # ---------------------------------------------------------------------------

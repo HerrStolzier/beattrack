@@ -13,13 +13,6 @@ _SPOTIFY_URL_RE = re.compile(
     r"https?://open\.spotify\.com/(?:intl-\w+/)?track/([a-zA-Z0-9]+)"
 )
 
-# Suffixes to strip from titles (case-insensitive)
-_NOISE_RE = re.compile(
-    r"\s*[\(\[](Official|Audio|Lyric|Music|HD|4K|Visualizer|Live|Remix|Explicit|Remaster)"
-    r"[^\)\]]*[\)\]]",
-    re.IGNORECASE,
-)
-
 # OG description pattern: "Artist · Album · Song · Year"
 _OG_DESC_RE = re.compile(r'property="og:description"\s+content="([^"]+)"')
 
@@ -66,17 +59,5 @@ async def fetch_oembed(url: str) -> dict | None:
         return {"title": title, "author_name": author_name}
 
 
-def parse_title(title: str, author_name: str = "") -> tuple[str, str]:
-    """Extract (artist, track_title) from Spotify metadata.
-
-    Uses oEmbed title (track name) combined with OG-scraped artist name.
-    """
-    cleaned = _NOISE_RE.sub("", title).strip()
-
-    # Try "Artist - Title" format (rare but possible)
-    if " - " in cleaned:
-        parts = cleaned.split(" - ", 1)
-        return parts[0].strip(), parts[1].strip()
-
-    artist = author_name.strip() if author_name else "Unknown"
-    return artist, cleaned if cleaned else title
+# Re-export shared parse_title for backwards compatibility with identify.py imports
+from app.services import parse_title as parse_title  # noqa: F811

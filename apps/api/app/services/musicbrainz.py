@@ -1,9 +1,8 @@
 """MusicBrainz metadata lookup service."""
 import logging
 import time
-from typing import Optional
 
-import requests
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +12,7 @@ _MIN_INTERVAL = 1.0  # max 1 request per second
 _last_call: float = 0.0
 
 
-def lookup_recording(mbid: str) -> Optional[dict]:
+def lookup_recording(mbid: str) -> dict | None:
     """Fetch recording metadata from MusicBrainz by MBID.
 
     Rate-limited to max 1 request per second as required by MusicBrainz policy.
@@ -32,7 +31,7 @@ def lookup_recording(mbid: str) -> Optional[dict]:
     headers = {"User-Agent": _USER_AGENT}
 
     try:
-        response = requests.get(url, params=params, headers=headers, timeout=10)
+        response = httpx.get(url, params=params, headers=headers, timeout=10)
         if response.status_code == 404:
             logger.info("MusicBrainz recording not found: %s", mbid)
             return None
@@ -61,7 +60,7 @@ def lookup_recording(mbid: str) -> Optional[dict]:
 
         return {"title": title, "artist": artist, "album": album}
 
-    except requests.HTTPError as exc:
+    except httpx.HTTPStatusError as exc:
         logger.warning("MusicBrainz HTTP error for %s: %s", mbid, exc)
         return None
     except Exception as exc:

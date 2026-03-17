@@ -4,9 +4,8 @@ import os
 import shutil
 import subprocess
 import time
-from typing import Optional
 
-import requests
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +14,7 @@ _MIN_INTERVAL = 0.5  # max 2 requests per second
 _last_call: float = 0.0
 
 
-def fingerprint_file(audio_path: str) -> Optional[tuple[str, int]]:
+def fingerprint_file(audio_path: str) -> tuple[str, int] | None:
     """Compute AcoustID fingerprint for an audio file using fpcalc.
 
     Returns (fingerprint, duration) or None if fpcalc is not installed or fails.
@@ -53,7 +52,7 @@ def fingerprint_file(audio_path: str) -> Optional[tuple[str, int]]:
         return None
 
 
-def lookup(fingerprint: str, duration: int, api_key: str) -> Optional[str]:
+def lookup(fingerprint: str, duration: int, api_key: str) -> str | None:
     """Look up a fingerprint on AcoustID and return the MusicBrainz Recording ID.
 
     Rate-limited to max 2 requests per second.
@@ -72,7 +71,7 @@ def lookup(fingerprint: str, duration: int, api_key: str) -> Optional[str]:
     _last_call = time.monotonic()
 
     try:
-        response = requests.post(
+        response = httpx.post(
             _ACOUSTID_API_URL,
             data={
                 "client": api_key,
@@ -97,7 +96,7 @@ def lookup(fingerprint: str, duration: int, api_key: str) -> Optional[str]:
 
         return None
 
-    except requests.HTTPError as exc:
+    except httpx.HTTPStatusError as exc:
         logger.warning("AcoustID HTTP error: %s", exc)
         return None
     except Exception as exc:
@@ -105,7 +104,7 @@ def lookup(fingerprint: str, duration: int, api_key: str) -> Optional[str]:
         return None
 
 
-def lookup_file(audio_path: str) -> Optional[str]:
+def lookup_file(audio_path: str) -> str | None:
     """Convenience: fingerprint a file and look it up on AcoustID.
 
     Returns MBID or None.

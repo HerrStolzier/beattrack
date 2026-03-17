@@ -9,6 +9,11 @@ from app.db import get_supabase
 router = APIRouter(prefix="/songs", tags=["songs"])
 
 
+def _escape_like(value: str) -> str:
+    """Escape LIKE wildcards in user input."""
+    return value.replace("%", r"\%").replace("_", r"\_")
+
+
 class SongResponse(BaseModel):
     id: str
     title: str
@@ -56,7 +61,7 @@ async def list_songs(
         "id, title, artist, album, bpm, musical_key, duration_sec, genre"
     )
     if q:
-        query = query.ilike("title", f"%{q}%")
+        query = query.ilike("title", f"%{_escape_like(q)}%")
     if genre:
         query = query.eq("genre", genre)
     result = query.range(offset, offset + limit - 1).execute()

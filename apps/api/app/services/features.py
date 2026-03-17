@@ -1,8 +1,6 @@
 """Feature extraction service — runs Essentia in isolated subprocess."""
 import json
 import logging
-import platform
-import resource
 import subprocess
 
 import numpy as np
@@ -12,12 +10,6 @@ logger = logging.getLogger(__name__)
 
 class FeatureExtractionError(Exception):
     """Raised when feature extraction fails."""
-
-
-def _limit_memory(max_bytes: int = 2 * 1024**3):
-    """RLIMIT_AS auf Linux. Auf macOS wirkungslos."""
-    if platform.system() == "Linux":
-        resource.setrlimit(resource.RLIMIT_AS, (max_bytes, resource.RLIM_INFINITY))
 
 
 def extract_features_safe(audio_path: str, timeout: int = 180) -> dict:

@@ -54,8 +54,5 @@ async def fetch_metadata(url: str) -> dict | None:
         return None
 
 
-def parse_title(title: str, author_name: str = "") -> tuple[str, str]:
-    """Extract (artist, track_title) from iTunes metadata."""
-    artist = author_name.strip() if author_name else "Unknown"
-    cleaned = title.strip() if title else "Unknown"
-    return artist, cleaned
+# Re-export shared parse_title for backwards compatibility with identify.py imports
+from app.services import parse_title as parse_title  # noqa: F811

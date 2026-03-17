@@ -4,6 +4,8 @@ import logging
 import os
 import shutil
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
@@ -31,10 +33,39 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+async def _periodic_cleanup(temp_dir: str, max_age_minutes: int = 15, interval_minutes: int = 15):
+    """Periodically remove old temp files."""
+    while True:
+        await asyncio.sleep(interval_minutes * 60)
+        try:
+            cutoff = time.time() - (max_age_minutes * 60)
+            temp_path = Path(temp_dir)
+            if not temp_path.exists():
+                continue
+            for f in temp_path.iterdir():
+                if f.is_file() and f.stat().st_mtime < cutoff:
+                    f.unlink(missing_ok=True)
+                    logger.debug("Cleaned up temp file: %s", f.name)
+        except Exception as exc:
+            logger.warning("Temp cleanup error: %s", exc)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """Manage startup/shutdown lifecycle."""
+    from app.routes.analyze import TEMP_DIR
+
+    cleanup_task = asyncio.create_task(_periodic_cleanup(TEMP_DIR))
+    yield
+    cleanup_task.cancel()
+    shutil.rmtree(TEMP_DIR, ignore_errors=True)
+
+
 app = FastAPI(
     title="Beattrack API",
     description="Find sonically similar songs through audio analysis",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(SecurityHeadersMiddleware)
@@ -65,37 +96,7 @@ async def health() -> dict:
     return {"status": "ok"}
 
 
-# === Temp-Cleanup ===
-async def periodic_cleanup(temp_dir: str, max_age_minutes: int = 15, interval_minutes: int = 15):
-    """Periodically remove old temp files."""
-    while True:
-        await asyncio.sleep(interval_minutes * 60)
-        try:
-            cutoff = time.time() - (max_age_minutes * 60)
-            temp_path = Path(temp_dir)
-            if not temp_path.exists():
-                continue
-            for f in temp_path.iterdir():
-                if f.is_file() and f.stat().st_mtime < cutoff:
-                    f.unlink(missing_ok=True)
-                    logger.debug("Cleaned up temp file: %s", f.name)
-        except Exception as exc:
-            logger.warning("Temp cleanup error: %s", exc)
-
-
-@app.on_event("startup")
-async def startup():
-    from app.routes.analyze import TEMP_DIR
-    asyncio.create_task(periodic_cleanup(TEMP_DIR))
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    from app.routes.analyze import TEMP_DIR
-    shutil.rmtree(TEMP_DIR, ignore_errors=True)
-
-
-# atexit als Fallback
+# atexit als Fallback bei hartem Prozess-Kill
 def _atexit_cleanup():
     from app.routes.analyze import TEMP_DIR
     shutil.rmtree(TEMP_DIR, ignore_errors=True)

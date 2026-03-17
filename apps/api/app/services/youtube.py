@@ -3,7 +3,7 @@ import re
 import logging
 from urllib.parse import urlparse, quote
 
-import requests
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def parse_youtube_url(url: str) -> str | None:
     return match.group(1)
 
 
-def fetch_oembed(url: str) -> dict | None:
+async def fetch_oembed(url: str) -> dict | None:
     """Fetch YouTube oEmbed metadata for the given URL.
 
     Returns a dict with at least ``title`` and ``author_name`` keys,
@@ -45,11 +45,12 @@ def fetch_oembed(url: str) -> dict | None:
     """
     oembed_url = f"https://www.youtube.com/oembed?url={quote(url, safe='')}&format=json"
     try:
-        resp = requests.get(oembed_url, timeout=10)
-        if resp.status_code != 200:
-            logger.warning("oEmbed returned HTTP %s for %s", resp.status_code, url)
-            return None
-        return resp.json()
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(oembed_url)
+            if resp.status_code != 200:
+                logger.warning("oEmbed returned HTTP %s for %s", resp.status_code, url)
+                return None
+            return resp.json()
     except Exception as exc:
         logger.warning("oEmbed fetch error for %s: %s", url, exc)
         return None

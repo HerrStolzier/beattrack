@@ -74,7 +74,7 @@ def test_lookup_success():
     """Returns MBID when AcoustID finds a match."""
     mock_resp = _make_acoustid_response([{"id": "abc-123-mbid"}])
 
-    with patch("app.services.acoustid.requests.post", return_value=mock_resp):
+    with patch("app.services.acoustid.httpx.post", return_value=mock_resp):
         from app.services.acoustid import lookup
         result = lookup("FINGERPRINT", 180, "test-api-key")
 
@@ -87,7 +87,7 @@ def test_lookup_no_results():
     mock_resp.json.return_value = {"status": "ok", "results": []}
     mock_resp.raise_for_status.return_value = None
 
-    with patch("app.services.acoustid.requests.post", return_value=mock_resp):
+    with patch("app.services.acoustid.httpx.post", return_value=mock_resp):
         from app.services.acoustid import lookup
         result = lookup("FINGERPRINT", 180, "test-api-key")
 
@@ -103,7 +103,7 @@ def test_lookup_no_recordings():
     }
     mock_resp.raise_for_status.return_value = None
 
-    with patch("app.services.acoustid.requests.post", return_value=mock_resp):
+    with patch("app.services.acoustid.httpx.post", return_value=mock_resp):
         from app.services.acoustid import lookup
         result = lookup("FINGERPRINT", 180, "test-api-key")
 
@@ -112,12 +112,14 @@ def test_lookup_no_recordings():
 
 def test_lookup_api_error():
     """Returns None on HTTP error, does not raise."""
-    import requests as _requests
+    import httpx as _httpx
 
     mock_resp = MagicMock()
-    mock_resp.raise_for_status.side_effect = _requests.HTTPError("500 Server Error")
+    mock_resp.raise_for_status.side_effect = _httpx.HTTPStatusError(
+        "500 Server Error", request=MagicMock(), response=MagicMock()
+    )
 
-    with patch("app.services.acoustid.requests.post", return_value=mock_resp):
+    with patch("app.services.acoustid.httpx.post", return_value=mock_resp):
         from app.services.acoustid import lookup
         result = lookup("FINGERPRINT", 180, "test-api-key")
 
@@ -126,7 +128,7 @@ def test_lookup_api_error():
 
 def test_lookup_missing_api_key():
     """Returns None immediately when api_key is empty."""
-    with patch("app.services.acoustid.requests.post") as mock_post:
+    with patch("app.services.acoustid.httpx.post") as mock_post:
         from app.services.acoustid import lookup
         result = lookup("FINGERPRINT", 180, "")
 
@@ -145,7 +147,7 @@ def test_rate_limiting():
     acoustid_mod._last_call = 0.0
 
     start = time.monotonic()
-    with patch("app.services.acoustid.requests.post", return_value=mock_resp):
+    with patch("app.services.acoustid.httpx.post", return_value=mock_resp):
         from app.services.acoustid import lookup
         lookup("FP", 10, "key")
         lookup("FP", 10, "key")

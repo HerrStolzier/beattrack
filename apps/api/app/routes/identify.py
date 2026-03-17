@@ -1,25 +1,17 @@
+from collections.abc import Callable, Coroutine
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from supabase import Client
 
 from app.db import get_supabase
 from app.limiter import limiter
-from app.services.youtube import parse_youtube_url, fetch_oembed, parse_title
-from app.services.soundcloud import (
-    parse_soundcloud_url,
-    fetch_oembed as sc_fetch_oembed,
-    parse_title as sc_parse_title,
-)
-from app.services.spotify import (
-    parse_spotify_url,
-    fetch_oembed as sp_fetch_oembed,
-    parse_title as sp_parse_title,
-)
-from app.services.apple_music import (
-    parse_apple_music_url,
-    fetch_metadata as am_fetch_metadata,
-    parse_title as am_parse_title,
-)
+from app.services import parse_title
+from app.services.apple_music import parse_apple_music_url, fetch_metadata as am_fetch_metadata
+from app.services.soundcloud import parse_soundcloud_url, fetch_oembed as sc_fetch_oembed
+from app.services.spotify import parse_spotify_url, fetch_oembed as sp_fetch_oembed
+from app.services.youtube import fetch_oembed as yt_fetch_oembed, parse_title as yt_parse_title, parse_youtube_url
 
 router = APIRouter(prefix="/identify", tags=["identify"])
 
@@ -68,18 +60,25 @@ class IdentifyResponse(BaseModel):
     message: str
 
 
-@router.post("/youtube", response_model=IdentifyResponse)
-@limiter.limit("20/minute")
-async def identify_youtube(request: Request, body: IdentifyRequest, sb: Client = Depends(get_supabase)):
-    video_id = parse_youtube_url(body.url)
-    if not video_id:
-        raise HTTPException(status_code=400, detail="Invalid YouTube URL")
+async def _identify_platform(
+    url: str,
+    sb: Client,
+    *,
+    validate_url: Callable[[str], Any],
+    fetch_meta: Callable[[str], Coroutine[Any, Any, dict | None]],
+    platform_name: str,
+    title_parser: Callable[[str, str], tuple[str, str]] = parse_title,
+) -> IdentifyResponse:
+    """Generic identify handler shared by all platform endpoints."""
+    if not validate_url(url):
+        raise HTTPException(status_code=400, detail=f"Invalid {platform_name} URL")
 
-    oembed = fetch_oembed(body.url)
-    if not oembed:
-        raise HTTPException(status_code=502, detail="Could not fetch YouTube metadata")
+    meta = await fetch_meta(url)
 
-    artist, title = parse_title(oembed.get("title", ""), oembed.get("author_name", ""))
+    if not meta:
+        raise HTTPException(status_code=502, detail=f"Could not fetch {platform_name} metadata")
+
+    artist, title = title_parser(meta.get("title", ""), meta.get("author_name", ""))
     match = _match_in_db(artist, title, sb)
 
     return IdentifyResponse(
@@ -87,72 +86,62 @@ async def identify_youtube(request: Request, body: IdentifyRequest, sb: Client =
         song=match,
         parsed_artist=artist,
         parsed_title=title,
-        message=f"Match: {match['artist']} — {match['title']}" if match else "Kein Match im Katalog gefunden.",
+        message=(
+            f"Match: {match['artist']} — {match['title']}"
+            if match
+            else "Kein Match im Katalog gefunden."
+        ),
+    )
+
+
+@router.post("/youtube", response_model=IdentifyResponse)
+@limiter.limit("20/minute")
+async def identify_youtube(
+    request: Request, body: IdentifyRequest, sb: Client = Depends(get_supabase),
+):
+    return await _identify_platform(
+        body.url, sb,
+        validate_url=parse_youtube_url,
+        fetch_meta=yt_fetch_oembed,
+        platform_name="YouTube",
+        title_parser=yt_parse_title,
     )
 
 
 @router.post("/soundcloud", response_model=IdentifyResponse)
 @limiter.limit("20/minute")
-async def identify_soundcloud(request: Request, body: IdentifyRequest, sb: Client = Depends(get_supabase)):
-    if not parse_soundcloud_url(body.url):
-        raise HTTPException(status_code=400, detail="Invalid SoundCloud URL")
-
-    meta = await sc_fetch_oembed(body.url)
-    if not meta:
-        raise HTTPException(status_code=502, detail="Could not fetch SoundCloud metadata")
-
-    artist, title = sc_parse_title(meta["title"], meta["author_name"])
-    match = _match_in_db(artist, title, sb)
-
-    return IdentifyResponse(
-        matched=match is not None,
-        song=match,
-        parsed_artist=artist,
-        parsed_title=title,
-        message=f"Match: {match['artist']} — {match['title']}" if match else "Kein Match im Katalog gefunden.",
+async def identify_soundcloud(
+    request: Request, body: IdentifyRequest, sb: Client = Depends(get_supabase),
+):
+    return await _identify_platform(
+        body.url, sb,
+        validate_url=parse_soundcloud_url,
+        fetch_meta=sc_fetch_oembed,
+        platform_name="SoundCloud",
     )
 
 
 @router.post("/spotify", response_model=IdentifyResponse)
 @limiter.limit("20/minute")
-async def identify_spotify(request: Request, body: IdentifyRequest, sb: Client = Depends(get_supabase)):
-    track_id = parse_spotify_url(body.url)
-    if not track_id:
-        raise HTTPException(status_code=400, detail="Invalid Spotify URL")
-
-    meta = await sp_fetch_oembed(body.url)
-    if not meta:
-        raise HTTPException(status_code=502, detail="Could not fetch Spotify metadata")
-
-    artist, title = sp_parse_title(meta["title"], meta["author_name"])
-    match = _match_in_db(artist, title, sb)
-
-    return IdentifyResponse(
-        matched=match is not None,
-        song=match,
-        parsed_artist=artist,
-        parsed_title=title,
-        message=f"Match: {match['artist']} — {match['title']}" if match else "Kein Match im Katalog gefunden.",
+async def identify_spotify(
+    request: Request, body: IdentifyRequest, sb: Client = Depends(get_supabase),
+):
+    return await _identify_platform(
+        body.url, sb,
+        validate_url=parse_spotify_url,
+        fetch_meta=sp_fetch_oembed,
+        platform_name="Spotify",
     )
 
 
 @router.post("/apple_music", response_model=IdentifyResponse)
 @limiter.limit("20/minute")
-async def identify_apple_music(request: Request, body: IdentifyRequest, sb: Client = Depends(get_supabase)):
-    if not parse_apple_music_url(body.url):
-        raise HTTPException(status_code=400, detail="Invalid Apple Music URL")
-
-    meta = await am_fetch_metadata(body.url)
-    if not meta:
-        raise HTTPException(status_code=502, detail="Could not fetch Apple Music metadata")
-
-    artist, title = am_parse_title(meta["title"], meta["author_name"])
-    match = _match_in_db(artist, title, sb)
-
-    return IdentifyResponse(
-        matched=match is not None,
-        song=match,
-        parsed_artist=artist,
-        parsed_title=title,
-        message=f"Match: {match['artist']} — {match['title']}" if match else "Kein Match im Katalog gefunden.",
+async def identify_apple_music(
+    request: Request, body: IdentifyRequest, sb: Client = Depends(get_supabase),
+):
+    return await _identify_platform(
+        body.url, sb,
+        validate_url=parse_apple_music_url,
+        fetch_meta=am_fetch_metadata,
+        platform_name="Apple Music",
     )
