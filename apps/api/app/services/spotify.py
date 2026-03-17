@@ -1,4 +1,4 @@
-"""Spotify metadata via oEmbed."""
+"""Spotify metadata via oEmbed + Open Graph scraping."""
 
 import logging
 import re
@@ -20,6 +20,9 @@ _NOISE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# OG description pattern: "Artist · Album · Song · Year"
+_OG_DESC_RE = re.compile(r'property="og:description"\s+content="([^"]+)"')
+
 
 def parse_spotify_url(url: str) -> bool:
     """Check if URL is a valid Spotify track URL."""
@@ -27,31 +30,46 @@ def parse_spotify_url(url: str) -> bool:
 
 
 async def fetch_oembed(url: str) -> dict | None:
-    """Fetch track metadata via Spotify oEmbed API."""
-    oembed_url = f"https://open.spotify.com/oembed?url={quote(url, safe='')}"
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
+    """Fetch track metadata via Spotify oEmbed + OG meta tags for artist."""
+    async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+        # 1) oEmbed for track title
+        oembed_url = f"https://open.spotify.com/oembed?url={quote(url, safe='')}"
+        try:
             resp = await client.get(oembed_url)
             resp.raise_for_status()
             data = resp.json()
-            return {
-                "title": data.get("title", ""),
-                "author_name": "",  # Spotify oEmbed doesn't have separate author
-            }
-    except Exception as exc:
-        logger.warning("Spotify oEmbed failed for %s: %s", url, exc)
-        return None
+            title = data.get("title", "")
+        except Exception as exc:
+            logger.warning("Spotify oEmbed failed for %s: %s", url, exc)
+            return None
+
+        # 2) Scrape track page for og:description → artist name
+        author_name = ""
+        try:
+            page = await client.get(
+                url, headers={"User-Agent": "Mozilla/5.0 (compatible; Beattrack/1.0)"}
+            )
+            if page.status_code == 200:
+                match = _OG_DESC_RE.search(page.text)
+                if match:
+                    # Pattern: "Artist · Album · Song · Year"
+                    parts = match.group(1).split(" · ")
+                    if parts:
+                        author_name = parts[0].strip()
+        except Exception as exc:
+            logger.debug("Spotify OG scrape failed for %s: %s", url, exc)
+
+        return {"title": title, "author_name": author_name}
 
 
 def parse_title(title: str, author_name: str = "") -> tuple[str, str]:
-    """Extract (artist, track_title) from Spotify oEmbed data.
+    """Extract (artist, track_title) from Spotify metadata.
 
-    Spotify oEmbed title is usually "Track Name" and the HTML contains artist info.
-    The title field alone might be "Song - Artist" or just "Song".
+    Uses oEmbed title (track name) combined with OG-scraped artist name.
     """
     cleaned = _NOISE_RE.sub("", title).strip()
 
-    # Try "Artist - Title" format
+    # Try "Artist - Title" format (rare but possible)
     if " - " in cleaned:
         parts = cleaned.split(" - ", 1)
         return parts[0].strip(), parts[1].strip()
