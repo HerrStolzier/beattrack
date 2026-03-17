@@ -108,7 +108,7 @@ export default function PrivacyPage() {
           </Section>
 
           {/* 5. URL-Identifikation */}
-          <Section title="5. URL-Identifikation (YouTube, Spotify, SoundCloud)">
+          <Section title="5. URL-Identifikation (YouTube, Spotify, SoundCloud, Apple Music)">
             <p>
               Wenn du eine URL eingibst, wird diese an den jeweiligen Dienst
               weitergeleitet, um Metadaten (Titel, Künstler) abzurufen:
@@ -126,11 +126,36 @@ export default function PrivacyPage() {
                 <strong className="text-text-primary">SoundCloud</strong> — oEmbed-API von SoundCloud Global
                 Ltd. (Berlin, Deutschland).
               </li>
+              <li>
+                <strong className="text-text-primary">Apple Music</strong> — iTunes Search API von Apple Inc.
+                (Cupertino, USA). Metadaten werden über die öffentliche Such-API abgerufen.
+              </li>
             </ul>
             <p>
               Die URL wird nur zur einmaligen Abfrage verwendet und nicht gespeichert.
               Es werden dabei Verbindungsdaten (IP-Adresse) an den jeweiligen Dienst
               übermittelt. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
+            </p>
+          </Section>
+
+          {/* 5a. Audio-Fingerprinting */}
+          <Section title="5a. Audio-Fingerprinting (AcoustID)">
+            <p>
+              Beim Upload einer Audiodatei kann zur Identifikation des Songs ein
+              Audio-Fingerprint erzeugt und an den Dienst{" "}
+              <strong className="text-text-primary">AcoustID</strong> (betrieben von Lukáš Lalinský,
+              acoustid.org) gesendet werden. Dabei werden übermittelt:
+            </p>
+            <ul className="list-inside list-disc space-y-1 pl-1">
+              <li>Der berechnete Audio-Fingerprint (Chromaprint)</li>
+              <li>Die Dauer der Audiodatei</li>
+              <li>Die IP-Adresse des Servers (nicht des Nutzers)</li>
+            </ul>
+            <p>
+              Es werden keine Audiodaten an AcoustID übertragen — nur der numerische
+              Fingerprint. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Bereitstellung
+              des angefragten Dienstes). Datenschutzerklärung:{" "}
+              <span className="text-text-tertiary">acoustid.org/privacy</span>
             </p>
           </Section>
 

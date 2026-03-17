@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from supabase import Client
 
 from app.db import get_supabase
+from app.limiter import limiter
 from app.services.youtube import parse_youtube_url, fetch_oembed, parse_title
 from app.services.soundcloud import (
     parse_soundcloud_url,
@@ -68,7 +69,8 @@ class IdentifyResponse(BaseModel):
 
 
 @router.post("/youtube", response_model=IdentifyResponse)
-async def identify_youtube(body: IdentifyRequest, sb: Client = Depends(get_supabase)):
+@limiter.limit("20/minute")
+async def identify_youtube(request: Request, body: IdentifyRequest, sb: Client = Depends(get_supabase)):
     video_id = parse_youtube_url(body.url)
     if not video_id:
         raise HTTPException(status_code=400, detail="Invalid YouTube URL")
@@ -90,7 +92,8 @@ async def identify_youtube(body: IdentifyRequest, sb: Client = Depends(get_supab
 
 
 @router.post("/soundcloud", response_model=IdentifyResponse)
-async def identify_soundcloud(body: IdentifyRequest, sb: Client = Depends(get_supabase)):
+@limiter.limit("20/minute")
+async def identify_soundcloud(request: Request, body: IdentifyRequest, sb: Client = Depends(get_supabase)):
     if not parse_soundcloud_url(body.url):
         raise HTTPException(status_code=400, detail="Invalid SoundCloud URL")
 
@@ -111,7 +114,8 @@ async def identify_soundcloud(body: IdentifyRequest, sb: Client = Depends(get_su
 
 
 @router.post("/spotify", response_model=IdentifyResponse)
-async def identify_spotify(body: IdentifyRequest, sb: Client = Depends(get_supabase)):
+@limiter.limit("20/minute")
+async def identify_spotify(request: Request, body: IdentifyRequest, sb: Client = Depends(get_supabase)):
     if not parse_spotify_url(body.url):
         raise HTTPException(status_code=400, detail="Invalid Spotify URL")
 
@@ -132,7 +136,8 @@ async def identify_spotify(body: IdentifyRequest, sb: Client = Depends(get_supab
 
 
 @router.post("/apple_music", response_model=IdentifyResponse)
-async def identify_apple_music(body: IdentifyRequest, sb: Client = Depends(get_supabase)):
+@limiter.limit("20/minute")
+async def identify_apple_music(request: Request, body: IdentifyRequest, sb: Client = Depends(get_supabase)):
     if not parse_apple_music_url(body.url):
         raise HTTPException(status_code=400, detail="Invalid Apple Music URL")
 

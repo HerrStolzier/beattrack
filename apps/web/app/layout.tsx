@@ -17,14 +17,58 @@ const dmSans = DM_Sans({
   weight: ["400", "500", "600"],
 });
 
+const baseUrl = "https://beattrack.vercel.app";
+
 export const metadata: Metadata = {
-  title: "Beattrack",
-  description: "Finde klanglich ähnliche Songs durch Audio-Analyse",
+  title: {
+    default: "Beattrack — Finde deinen nächsten Track",
+    template: "%s — Beattrack",
+  },
+  description:
+    "Finde klanglich ähnliche Songs durch Audio-Analyse. Paste eine YouTube, Spotify oder SoundCloud URL oder lade eine Audio-Datei hoch.",
+  metadataBase: new URL(baseUrl),
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "Beattrack — Finde deinen nächsten Track",
+    description:
+      "Finde klanglich ähnliche Songs durch Audio-Analyse. Über 50.000 Electronic-Tracks analysiert.",
+    url: baseUrl,
+    siteName: "Beattrack",
+    locale: "de_DE",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Beattrack — Finde deinen nächsten Track",
+    description:
+      "Finde klanglich ähnliche Songs durch Audio-Analyse. Paste eine URL oder lade Audio hoch.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
+
+// JSON-LD structured data — static, no user input, safe for inline rendering
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "Beattrack",
+  url: baseUrl,
+  description:
+    "Finde klanglich ähnliche Songs durch Audio-Analyse mit über 50.000 Electronic-Tracks.",
+  applicationCategory: "MusicApplication",
+  operatingSystem: "Web",
+  inLanguage: "de",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
+});
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="de">
+      <head>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
+      </head>
       <body className={`${syne.variable} ${dmSans.variable} font-sans antialiased`}>
         <MeshGradient />
         <MouseGlow />

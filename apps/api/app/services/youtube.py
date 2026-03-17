@@ -1,6 +1,7 @@
 """YouTube oEmbed service for URL validation and metadata extraction."""
 import re
 import logging
+from urllib.parse import urlparse
 
 import requests
 
@@ -8,6 +9,9 @@ logger = logging.getLogger(__name__)
 
 # Matches standard watch, short youtu.be, and Shorts URLs
 _VIDEO_ID_RE = re.compile(r'(?:v=|youtu\.be/|shorts/)([a-zA-Z0-9_-]{11})')
+
+# Allowed YouTube hostnames (exact match prevents SSRF via youtube.com.evil.com)
+_ALLOWED_HOSTS = {"www.youtube.com", "youtube.com", "m.youtube.com", "youtu.be"}
 
 # Suffixes to strip from titles (case-insensitive)
 _STRIP_SUFFIXES = re.compile(
@@ -26,8 +30,9 @@ def parse_youtube_url(url: str) -> str | None:
     match = _VIDEO_ID_RE.search(url)
     if not match:
         return None
-    # Require youtube.com or youtu.be host
-    if "youtube.com" not in url and "youtu.be" not in url:
+    # Validate actual hostname to prevent SSRF
+    parsed = urlparse(url.strip())
+    if parsed.hostname not in _ALLOWED_HOSTS:
         return None
     return match.group(1)
 

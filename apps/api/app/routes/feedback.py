@@ -1,10 +1,11 @@
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from supabase import Client
 
 from app.db import get_supabase
+from app.limiter import limiter
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
@@ -25,7 +26,9 @@ class FeedbackRequest(BaseModel):
 
 
 @router.post("", status_code=201)
+@limiter.limit("30/minute")
 async def submit_feedback(
+    request: Request,
     body: FeedbackRequest,
     sb: Client = Depends(get_supabase),
 ) -> Response:
