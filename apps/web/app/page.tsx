@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { findSimilar, searchSongs, getGenres, type Song, type SimilarSong } from "@/lib/api";
+import { findSimilar, searchSongs, type Song, type SimilarSong } from "@/lib/api";
 import SearchBar from "./components/SearchBar";
-import GenreFilter from "./components/GenreFilter";
 import SongCard from "./components/SongCard";
 import SimilarResults from "./components/SimilarResults";
 import AnalyzeView from "./components/AnalyzeView";
@@ -59,8 +58,6 @@ export default function Home() {
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [similarResults, setSimilarResults] = useState<SimilarSong[]>([]);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
-  const [genres, setGenres] = useState<string[]>([]);
-  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
 
   // Filters
@@ -71,7 +68,6 @@ export default function Home() {
   // Load initial data on mount
   useEffect(() => {
     searchSongs("").then(setSongs).catch((err) => toast.error(err.message || "Anfrage fehlgeschlagen")).finally(() => setInitialLoading(false));
-    getGenres().then(setGenres).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -186,24 +182,12 @@ export default function Home() {
               <motion.div className="mb-4" variants={fadeInUp} custom={2}>
                 <SearchBar
                   onResults={handleResults}
-                  genre={selectedGenre}
                   resultCount={songs.length}
                 />
               </motion.div>
 
-              {/* Genre filter chips */}
-              {genres.length > 0 && (
-                <motion.div className="mb-6" variants={fadeInUp} custom={3}>
-                  <GenreFilter
-                    genres={genres}
-                    selected={selectedGenre}
-                    onSelect={setSelectedGenre}
-                  />
-                </motion.div>
-              )}
-
-              <div className="flex flex-col gap-6 lg:flex-row">
-                <section className="flex-1">
+              <div className="space-y-6">
+                <section>
                   {songs.length === 0 && initialLoading ? (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                       {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -238,8 +222,8 @@ export default function Home() {
 
                 <AnimatePresence>
                   {selectedSong && (
-                    <motion.aside
-                      className="w-full lg:w-80 lg:shrink-0"
+                    <motion.div
+                      className="w-full"
                       variants={slideIn}
                       initial="hidden"
                       animate="visible"
@@ -317,7 +301,7 @@ export default function Home() {
                           </>
                         )}
                       </div>
-                    </motion.aside>
+                    </motion.div>
                   )}
                 </AnimatePresence>
               </div>
