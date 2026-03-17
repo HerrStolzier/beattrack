@@ -8,9 +8,10 @@ import ProgressTracker from "./ProgressTracker";
 import UrlInput from "./UrlInput";
 import SimilarResults from "./SimilarResults";
 import JourneyView from "./JourneyView";
+import MultiSongSearch from "./MultiSongSearch";
 import Button from "./Button";
 
-type AnalyzePhase = "idle" | "uploading" | "processing" | "results" | "error" | "youtube-result" | "journey";
+type AnalyzePhase = "idle" | "uploading" | "processing" | "results" | "error" | "youtube-result" | "journey" | "blend" | "vibe";
 
 const phaseVariants = {
   initial: { opacity: 0, y: 20 },
@@ -31,6 +32,7 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
   const [uploadedFileName, setUploadedFileName] = useState<string>("");
   const [focus, setFocus] = useState<FocusCategory | null>(null);
   const [focusLoading, setFocusLoading] = useState(false);
+  const [multiLabel, setMultiLabel] = useState<string>("");
 
   // Auto-trigger identify when initialUrl is provided (deep-link)
   const deepLinkTriggered = useRef(false);
@@ -138,12 +140,24 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
     }
   }, [result]);
 
+  const handleMultiResults = useCallback((results: SimilarSong[], label: string) => {
+    setMultiLabel(label);
+    setResult({
+      song_id: "multi",
+      bpm: 0,
+      key: "",
+      duration: 0,
+      similar_songs: results,
+    });
+    setPhase("results");
+  }, []);
+
   // Build a Song object from the result for SimilarResults query display
   const querySong: Song | null = result
     ? {
         id: result.song_id,
-        title: ytResult?.parsed_title || uploadedFileName || `Upload ${result.song_id.slice(0, 8)}`,
-        artist: ytResult?.parsed_artist || "Unbekannt",
+        title: multiLabel || ytResult?.parsed_title || uploadedFileName || `Upload ${result.song_id.slice(0, 8)}`,
+        artist: multiLabel ? "" : (ytResult?.parsed_artist || "Unbekannt"),
         album: null,
         bpm: result.bpm,
         musical_key: result.key,
@@ -173,6 +187,29 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
               <div className="h-px flex-1 bg-gradient-to-l from-transparent to-border-subtle" />
             </div>
             <UploadZone onFileSelected={handleFileSelected} />
+
+            {/* Blend + Vibe buttons */}
+            <div className="flex items-center gap-3 mt-6">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent to-border-subtle" />
+              <span className="text-xs text-text-tertiary font-medium">oder</span>
+              <div className="h-px flex-1 bg-gradient-to-l from-transparent to-border-subtle" />
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => setPhase("blend")}
+                className="flex-1 glass rounded-xl px-4 py-3 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-elevated hover:text-text-primary"
+              >
+                Sonic Blend
+                <span className="block text-[10px] text-text-tertiary font-normal mt-0.5">Zwischen zwei Songs</span>
+              </button>
+              <button
+                onClick={() => setPhase("vibe")}
+                className="flex-1 glass rounded-xl px-4 py-3 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-elevated hover:text-text-primary"
+              >
+                Vibe definieren
+                <span className="block text-[10px] text-text-tertiary font-normal mt-0.5">2-5 Songs kombinieren</span>
+              </button>
+            </div>
           </motion.div>
         )}
 
@@ -348,6 +385,34 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
 
             </motion.div>
           )}
+        {/* Blend mode */}
+        {phase === "blend" && (
+          <motion.div
+            key="blend"
+            variants={phaseVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: 0.3 }}
+          >
+            <MultiSongSearch mode="blend" onResults={handleMultiResults} onCancel={handleReset} />
+          </motion.div>
+        )}
+
+        {/* Vibe mode */}
+        {phase === "vibe" && (
+          <motion.div
+            key="vibe"
+            variants={phaseVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: 0.3 }}
+          >
+            <MultiSongSearch mode="vibe" onResults={handleMultiResults} onCancel={handleReset} />
+          </motion.div>
+        )}
+
         {/* Journey mode */}
         {phase === "journey" && querySong && (
           <motion.div
