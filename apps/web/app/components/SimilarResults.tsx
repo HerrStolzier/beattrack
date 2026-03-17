@@ -5,9 +5,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { type Song, type SimilarSong } from "@/lib/api";
 import { getGenreColor } from "./GenreFilter";
 import FeedbackButtons from "./FeedbackButtons";
+import HarmonicBadge from "./HarmonicBadge";
 import RadarChart from "./RadarChart";
 import DeezerEmbed from "./DeezerEmbed";
-
 
 import type { FocusCategory } from "@/lib/api";
 import FocusSelector from "./FocusSelector";
@@ -60,16 +60,30 @@ const itemVariants = {
 
 export default function SimilarResults({ results, querySong, onFeedback, focus, onFocusChange, focusLoading }: SimilarResultsProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [djMode, setDjMode] = useState(false);
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-sm font-semibold text-text-secondary">
-        Ähnlich wie{" "}
-        <span className="text-text-primary">{querySong.title}</span>
-        <span className="ml-2 text-xs font-normal text-text-tertiary">
-          {results.length} {results.length === 1 ? "Treffer" : "Treffer"}
-        </span>
-      </h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-text-secondary">
+          Ähnlich wie{" "}
+          <span className="text-text-primary">{querySong.title}</span>
+          <span className="ml-2 text-xs font-normal text-text-tertiary">
+            {results.length} {results.length === 1 ? "Treffer" : "Treffer"}
+          </span>
+        </h2>
+        <button
+          onClick={() => setDjMode(!djMode)}
+          className={`rounded-lg px-2.5 py-1 text-[10px] font-medium transition-colors ${
+            djMode
+              ? "bg-cyan/15 text-cyan border border-cyan/30"
+              : "text-text-tertiary hover:text-text-secondary hover:bg-surface-elevated"
+          }`}
+          title={djMode ? "DJ-Modus aus" : "DJ-Modus an — zeigt harmonische Kompatibilität"}
+        >
+          DJ
+        </button>
+      </div>
 
       {onFocusChange && (
         <FocusSelector
@@ -126,6 +140,18 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
                   <p className="text-[10px] text-text-tertiary">{similarityLabel(song.similarity)}</p>
                 </div>
               </div>
+
+              {/* Harmonic badge (DJ mode) */}
+              {djMode && (
+                <div className="mt-2">
+                  <HarmonicBadge
+                    queryKey={querySong.musical_key}
+                    queryBpm={querySong.bpm}
+                    resultKey={song.musical_key}
+                    resultBpm={song.bpm}
+                  />
+                </div>
+              )}
 
               {/* Metadata row: genre + tags */}
               <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
