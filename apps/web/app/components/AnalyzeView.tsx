@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { uploadAudio, findSimilar, identifyUrl, detectPlatform, NetworkError, TimeoutError, ApiError, type AnalysisResult, type IdentifyResponse, type SimilarSong, type Song } from "@/lib/api";
+import { uploadAudio, findSimilar, identifyUrl, detectPlatform, NetworkError, TimeoutError, ApiError, type AnalysisResult, type IdentifyResponse, type SimilarSong, type Song, type FocusCategory } from "@/lib/api";
 import UploadZone from "./UploadZone";
 import ProgressTracker from "./ProgressTracker";
 import UrlInput from "./UrlInput";
@@ -29,6 +29,8 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [ytResult, setYtResult] = useState<IdentifyResponse | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string>("");
+  const [focus, setFocus] = useState<FocusCategory | null>(null);
+  const [focusLoading, setFocusLoading] = useState(false);
 
   // Auto-trigger identify when initialUrl is provided (deep-link)
   const deepLinkTriggered = useRef(false);
@@ -117,7 +119,24 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
     setResult(null);
     setYtResult(null);
     setUploadedFileName("");
+    setFocus(null);
   }, []);
+
+  const handleFocusChange = useCallback(async (newFocus: FocusCategory | null) => {
+    if (!result) return;
+    setFocus(newFocus);
+    setFocusLoading(true);
+    try {
+      const similar = await findSimilar(result.song_id, {
+        focus: newFocus ?? undefined,
+      });
+      setResult((prev) => prev ? { ...prev, similar_songs: similar } : prev);
+    } catch {
+      // Keep existing results on error
+    } finally {
+      setFocusLoading(false);
+    }
+  }, [result]);
 
   // Build a Song object from the result for SimilarResults query display
   const querySong: Song | null = result
@@ -319,6 +338,9 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
                   onFeedback={(qId, rId, rating) => {
                     console.log(`Feedback: ${rating} for ${qId} → ${rId}`);
                   }}
+                  focus={focus}
+                  onFocusChange={handleFocusChange}
+                  focusLoading={focusLoading}
                 />
               ) : (
                 <p className="text-sm text-text-tertiary">Keine ähnlichen Songs gefunden.</p>

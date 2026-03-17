@@ -9,10 +9,16 @@ import RadarChart from "./RadarChart";
 import DeezerEmbed from "./DeezerEmbed";
 
 
+import type { FocusCategory } from "@/lib/api";
+import FocusSelector from "./FocusSelector";
+
 interface SimilarResultsProps {
   results: SimilarSong[];
   querySong: Song;
   onFeedback?: (querySongId: string, resultSongId: string, rating: 1 | -1) => void;
+  focus?: FocusCategory | null;
+  onFocusChange?: (focus: FocusCategory | null) => void;
+  focusLoading?: boolean;
 }
 
 function similarityColor(score: number): string {
@@ -52,7 +58,7 @@ const itemVariants = {
   visible: { opacity: 1, x: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } },
 };
 
-export default function SimilarResults({ results, querySong, onFeedback }: SimilarResultsProps) {
+export default function SimilarResults({ results, querySong, onFeedback, focus, onFocusChange, focusLoading }: SimilarResultsProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
@@ -64,6 +70,14 @@ export default function SimilarResults({ results, querySong, onFeedback }: Simil
           {results.length} {results.length === 1 ? "Treffer" : "Treffer"}
         </span>
       </h2>
+
+      {onFocusChange && (
+        <FocusSelector
+          selected={focus ?? null}
+          onSelect={onFocusChange}
+          disabled={focusLoading}
+        />
+      )}
 
       {results.length === 0 && (
         <div className="rounded-xl bg-surface-raised p-6 text-center">
