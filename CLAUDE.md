@@ -30,8 +30,8 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 ## Data Scope
 - **Genre**: Electronic (Sub-Genres: Techno, House, IDM, Minimal Electronic, Dance, Downtempo, Chill-out, Dubstep, Drum & Bass, Trance, Breakbeat, Ambient, Electronic)
 - **Quelle**: Deezer API — kommerzielle Electronic-Tracks (30s Previews → Essentia-Extraktion)
-- **Crawl-Strategie**: 53 Seed-Artists → Top-Tracks + Related Artists (2 Ebenen) mit Album-Genre-Filter
-- **Aktuell**: ~19.9K kommerzielle Tracks, 440+ Artists
+- **Crawl-Strategie**: 105 Seed-Artists → Top-Tracks + Related Artists (2 Ebenen) mit Album-Genre-Filter
+- **Aktuell**: ~57.8K kommerzielle Tracks, 1.434 Artists
 - **Legacy (gelöscht)**: FMA-large, MTG-Jamendo — CC-Musik, ersetzt durch Deezer
 
 ## Deployment
@@ -66,7 +66,7 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - Essentia läuft in isoliertem Subprocess (Crash-Schutz)
 - Dual Embeddings: MusiCNN 200d (learned) + 44d handcrafted
 - Normalisierung via Z-Score aus `config`-Tabelle
-- URL-Identify: YouTube oEmbed, SoundCloud oEmbed, Spotify Web API
+- URL-Identify: YouTube oEmbed, SoundCloud oEmbed, Spotify oEmbed+OG-Scraping, Apple Music iTunes API
 - Commit-Messages auf Englisch, UI-Texte auf Deutsch
 
 ## Gotchas
@@ -81,3 +81,18 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - **pgvector Subscripting**: `vector`-Typ unterstützt kein `[]` — erst `::text` dann `replace([→{, ]→})::float8[]`
 - **Deezer Preview URLs**: HMAC-signiert, ~10min TTL — vor jedem Download frische URL via `/track/{id}` holen
 - **Dockerfile**: Runtime braucht `ffmpeg` + `libmagic1`
+- **Spotify oEmbed**: Liefert keinen `author_name` — Artist muss via OG-Tag (`og:description`) von der Track-Page gescrapt werden (Pattern: `"Artist · Album · Song · Year"`)
+- **Essentia Extraction**: Kann bei `--workers >1` in Multiprocessing-Deadlock geraten (POSIX Semaphores). Fix: Prozess killen + `--resume`
+
+## Security
+- **Rate Limiting**: slowapi auf `/analyze` (10/min), `/identify/*` (20/min), `/feedback` (30/min)
+- **HTTP Headers**: CSP, HSTS, X-Frame-Options, X-Content-Type-Options via `next.config.ts`
+- **CORS**: Eingeschränkt auf GET/POST/OPTIONS, explizite Headers
+- **SSRF-Schutz**: YouTube URL-Validation via `urlparse` Host-Check (nicht Substring)
+- **RLS**: Enabled auf allen Tabellen (anon=SELECT, service_role=ALL)
+
+## SEO
+- `sitemap.ts` + `robots.ts` im App-Root
+- Open Graph + Twitter Cards in `layout.tsx` Metadata
+- JSON-LD WebApplication Schema
+- Canonical URL: `https://beattrack.vercel.app`
