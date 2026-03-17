@@ -3,7 +3,7 @@ import os
 
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from supabase import Client
 
 from app.db import get_supabase
@@ -217,6 +217,11 @@ async def find_similar(
         except Exception as exc:
             logger.warning("Feedback boost failed: %s", exc)
 
+    return _to_similar_songs(results)
+
+
+def _to_similar_songs(results: list[dict]) -> list[SimilarSong]:
+    """Convert raw result dicts to SimilarSong models, filtering by minimum similarity."""
     return [
         SimilarSong(
             id=str(r["id"]),
@@ -233,3 +238,161 @@ async def find_similar(
         for r in results
         if float(r["similarity"]) >= MIN_SIMILARITY
     ]
+
+
+def _fetch_embedding(sb: Client, song_id: str) -> tuple[list[float], list[float] | None]:
+    """Fetch learned_embedding and handcrafted_norm for a song. Raises HTTPException on failure."""
+    result = (
+        sb.table("songs")
+        .select("learned_embedding, handcrafted_norm")
+        .eq("id", song_id)
+        .single()
+        .execute()
+    )
+    if not result.data:
+        raise HTTPException(status_code=404, detail=f"Song {song_id} not found")
+    embedding = result.data.get("learned_embedding")
+    if not embedding:
+        raise HTTPException(status_code=422, detail=f"Song {song_id} has no embedding")
+    return embedding, result.data.get("handcrafted_norm")
+
+
+# ---------------------------------------------------------------------------
+# Blend — find songs between two reference songs
+# ---------------------------------------------------------------------------
+
+class BlendRequest(BaseModel):
+    song_id_a: str
+    song_id_b: str
+    limit: int = 20
+
+
+@router.post("/blend", response_model=list[SimilarSong])
+async def find_blend(
+    body: BlendRequest,
+    sb: Client = Depends(get_supabase),
+) -> list[SimilarSong]:
+    """Find songs sonically between two reference songs (centroid search)."""
+    emb_a, hc_a = _fetch_embedding(sb, body.song_id_a)
+    emb_b, hc_b = _fetch_embedding(sb, body.song_id_b)
+
+    # Compute centroid of learned embeddings
+    centroid = ((np.asarray(emb_a) + np.asarray(emb_b)) / 2).tolist()
+
+    rpc_params: dict = {
+        "query_embedding": str(centroid),
+        "match_count": body.limit + 2,  # overfetch to exclude seeds
+    }
+    try:
+        rpc_result = sb.rpc("find_similar_songs", rpc_params).execute()
+    except Exception as exc:
+        logger.error("Blend search failed: %s", exc)
+        raise HTTPException(status_code=502, detail="Blend search failed")
+
+    results = rpc_result.data or []
+    # Exclude the two seed songs
+    seed_ids = {body.song_id_a, body.song_id_b}
+    results = [r for r in results if str(r["id"]) not in seed_ids][: body.limit]
+
+    # Late fusion with centroid of handcrafted features
+    if hc_a and hc_b and results:
+        hc_centroid = ((np.asarray(hc_a) + np.asarray(hc_b)) / 2).tolist()
+        try:
+            results = _apply_late_fusion(results, hc_centroid, sb)
+        except Exception as exc:
+            logger.warning("Blend late fusion failed: %s", exc)
+
+    return _to_similar_songs(results)
+
+
+# ---------------------------------------------------------------------------
+# Vibe — find songs similar to ALL of 2-5 seed songs (intersection search)
+# ---------------------------------------------------------------------------
+
+class VibeRequest(BaseModel):
+    song_ids: list[str]
+    limit: int = 20
+
+    @field_validator("song_ids")
+    @classmethod
+    def validate_song_ids(cls, v: list[str]) -> list[str]:
+        if len(v) < 2:
+            raise ValueError("At least 2 songs required")
+        if len(v) > 5:
+            raise ValueError("Maximum 5 songs allowed")
+        return v
+
+
+@router.post("/vibe", response_model=list[SimilarSong])
+async def find_vibe(
+    body: VibeRequest,
+    sb: Client = Depends(get_supabase),
+) -> list[SimilarSong]:
+    """Find songs similar to ALL seed songs (intersection approach)."""
+    seed_set = set(body.song_ids)
+
+    # Fetch embeddings for all seeds
+    embeddings: list[list[float]] = []
+    for song_id in body.song_ids:
+        emb, _ = _fetch_embedding(sb, song_id)
+        embeddings.append(emb)
+
+    # Search from each seed (broader search for intersection)
+    per_seed_count = 100
+    all_results: list[list[dict]] = []
+
+    for emb in embeddings:
+        rpc_params = {
+            "query_embedding": str(emb),
+            "match_count": per_seed_count,
+        }
+        try:
+            rpc_result = sb.rpc("find_similar_songs", rpc_params).execute()
+            all_results.append(rpc_result.data or [])
+        except Exception as exc:
+            logger.warning("Vibe search failed for one seed: %s", exc)
+            all_results.append([])
+
+    # Build intersection: songs appearing in at least 2 seed results
+    song_scores: dict[str, list[float]] = {}
+    song_data: dict[str, dict] = {}
+    for result_list in all_results:
+        for r in result_list:
+            rid = str(r["id"])
+            if rid in seed_set:
+                continue
+            if rid not in song_scores:
+                song_scores[rid] = []
+                song_data[rid] = r
+            song_scores[rid].append(float(r.get("similarity", 0)))
+
+    # Filter: must appear in at least 2 seed results
+    min_appearances = min(2, len(body.song_ids))
+    candidates = [
+        {**song_data[rid], "similarity": min(scores)}  # worst-case similarity
+        for rid, scores in song_scores.items()
+        if len(scores) >= min_appearances
+    ]
+    candidates.sort(key=lambda x: x["similarity"], reverse=True)
+
+    # Fallback: if intersection is too small, use centroid
+    if len(candidates) < body.limit:
+        centroid = np.mean(embeddings, axis=0).tolist()
+        rpc_params = {
+            "query_embedding": str(centroid),
+            "match_count": body.limit + len(seed_set),
+        }
+        try:
+            rpc_result = sb.rpc("find_similar_songs", rpc_params).execute()
+            fallback = [r for r in (rpc_result.data or []) if str(r["id"]) not in seed_set]
+            # Merge: existing candidates first, then fallback (deduped)
+            existing_ids = {str(c["id"]) for c in candidates}
+            for r in fallback:
+                if str(r["id"]) not in existing_ids:
+                    candidates.append(r)
+                    if len(candidates) >= body.limit:
+                        break
+        except Exception as exc:
+            logger.warning("Vibe centroid fallback failed: %s", exc)
+
+    return _to_similar_songs(candidates[: body.limit])

@@ -181,6 +181,37 @@ export async function findSimilar(
   return res.json();
 }
 
+export async function findBlend(
+  songIdA: string,
+  songIdB: string,
+  opts?: { limit?: number }
+): Promise<SimilarSong[]> {
+  const body: Record<string, unknown> = { song_id_a: songIdA, song_id_b: songIdB };
+  if (opts?.limit !== undefined) body.limit = opts.limit;
+  const res = await fetchWithRetry(`${API_URL}/similar/blend`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new ApiError(`findBlend failed`, res.status);
+  return res.json();
+}
+
+export async function findVibe(
+  songIds: string[],
+  opts?: { limit?: number }
+): Promise<SimilarSong[]> {
+  const body: Record<string, unknown> = { song_ids: songIds };
+  if (opts?.limit !== undefined) body.limit = opts.limit;
+  const res = await fetchWithRetry(`${API_URL}/similar/vibe`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new ApiError(`findVibe failed`, res.status);
+  return res.json();
+}
+
 export async function submitFeedback(
   querySongId: string,
   resultSongId: string,
