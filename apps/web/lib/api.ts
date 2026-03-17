@@ -162,12 +162,13 @@ export async function getSong(id: string): Promise<Song> {
 
 export async function findSimilar(
   songId: string,
-  opts?: { limit?: number; minBpm?: number; maxBpm?: number }
+  opts?: { limit?: number; minBpm?: number; maxBpm?: number; excludeIds?: string[] }
 ): Promise<SimilarSong[]> {
   const body: Record<string, unknown> = { song_id: songId };
   if (opts?.limit !== undefined) body.limit = opts.limit;
   if (opts?.minBpm !== undefined) body.min_bpm = opts.minBpm;
   if (opts?.maxBpm !== undefined) body.max_bpm = opts.maxBpm;
+  if (opts?.excludeIds?.length) body.exclude_ids = opts.excludeIds;
   const res = await fetchWithRetry(`${API_URL}/similar`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

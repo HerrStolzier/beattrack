@@ -23,6 +23,7 @@ class SimilarRequest(BaseModel):
     limit: int = 20
     min_bpm: float | None = None
     max_bpm: float | None = None
+    exclude_ids: list[str] = []
 
 
 class SimilarSong(BaseModel):
@@ -133,9 +134,12 @@ async def find_similar(
         raise HTTPException(status_code=422, detail="Song has no embedding")
 
     # 2. Vector similarity search via RPC
+    # Fetch extra results to compensate for exclude_ids filtering
+    exclude_set = set(body.exclude_ids)
+    overfetch = min(len(exclude_set), 50)  # cap to avoid excessive queries
     rpc_params: dict = {
         "query_embedding": str(embedding),
-        "match_count": body.limit,
+        "match_count": body.limit + overfetch,
         "exclude_id": body.song_id,
     }
     if body.min_bpm is not None:
@@ -149,6 +153,11 @@ async def find_similar(
         logger.error("Similarity search failed: %s", exc)
         raise HTTPException(status_code=502, detail="Similarity search failed")
     results = rpc_result.data or []
+
+    # Filter out excluded IDs (for chain discovery / journey mode)
+    if exclude_set:
+        results = [r for r in results if str(r["id"]) not in exclude_set]
+    results = results[: body.limit]
 
     # 3. Late fusion with handcrafted features
     query_handcrafted: list[float] | None = query_song.get("handcrafted_norm")
