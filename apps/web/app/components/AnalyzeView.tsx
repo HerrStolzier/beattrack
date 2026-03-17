@@ -7,9 +7,10 @@ import UploadZone from "./UploadZone";
 import ProgressTracker from "./ProgressTracker";
 import UrlInput from "./UrlInput";
 import SimilarResults from "./SimilarResults";
+import JourneyView from "./JourneyView";
 import Button from "./Button";
 
-type AnalyzePhase = "idle" | "uploading" | "processing" | "results" | "error" | "youtube-result";
+type AnalyzePhase = "idle" | "uploading" | "processing" | "results" | "error" | "youtube-result" | "journey";
 
 const phaseVariants = {
   initial: { opacity: 0, y: 20 },
@@ -291,13 +292,22 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
                       )}
                     </div>
                   </div>
-                  <button
-                    onClick={handleReset}
-                    className="shrink-0 rounded-lg border border-border-glass px-3 py-1.5 text-xs font-medium text-amber-light transition-colors hover:bg-amber-dim hover:text-amber"
-                    title="Neue Analyse starten"
-                  >
-                    Neue Suche
-                  </button>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => setPhase("journey")}
+                      className="rounded-lg border border-cyan/30 bg-cyan/10 px-3 py-1.5 text-xs font-medium text-cyan transition-colors hover:bg-cyan/20"
+                      title="Sonic Journey starten"
+                    >
+                      Sonic Journey
+                    </button>
+                    <button
+                      onClick={handleReset}
+                      className="rounded-lg border border-border-glass px-3 py-1.5 text-xs font-medium text-amber-light transition-colors hover:bg-amber-dim hover:text-amber"
+                      title="Neue Analyse starten"
+                    >
+                      Neue Suche
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -316,6 +326,19 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
 
             </motion.div>
           )}
+        {/* Journey mode */}
+        {phase === "journey" && querySong && (
+          <motion.div
+            key="journey"
+            variants={phaseVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: 0.3 }}
+          >
+            <JourneyView startSong={querySong} onExit={handleReset} />
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
