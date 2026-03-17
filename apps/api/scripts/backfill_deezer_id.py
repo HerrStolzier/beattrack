@@ -1,12 +1,14 @@
-"""Backfill deezer_id from JSONL into existing songs.
+"""Backfill deezer_id from JSONL into existing songs via RPC.
 
-Matches songs by (title, artist) and updates their deezer_id.
+Uses the `backfill_deezer_ids(jsonb)` RPC function on Supabase
+to batch-update songs by (title, artist) match.
 
 Usage:
     python apps/api/scripts/backfill_deezer_id.py \
         --url https://xxx.supabase.co \
         --key eyJ... \
-        --jsonl scripts/deezer_features.jsonl
+        --jsonl scripts/deezer_features.jsonl \
+        --batch-size 500
 """
 
 from __future__ import annotations
@@ -31,68 +33,39 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def supabase_patch(url: str, key: str, song_id: str, deezer_id: int) -> bool:
-    """Update a single song's deezer_id via Supabase REST API."""
-    patch_url = f"{url}/rest/v1/songs?id=eq.{song_id}"
-    payload = json.dumps({"deezer_id": deezer_id}).encode("utf-8")
+def call_rpc(url: str, key: str, batch: list[dict]) -> int:
+    """Call backfill_deezer_ids RPC with a batch of {title, artist, deezer_id}."""
+    rpc_url = f"{url}/rest/v1/rpc/backfill_deezer_ids"
+    payload = json.dumps({"rows": batch}).encode("utf-8")
 
     req = urllib.request.Request(
-        patch_url,
+        rpc_url,
         data=payload,
         headers={
             "apikey": key,
             "Authorization": f"Bearer {key}",
             "Content-Type": "application/json",
-            "Prefer": "return=minimal",
         },
-        method="PATCH",
     )
     try:
-        urllib.request.urlopen(req, timeout=30)
-        return True
+        resp = urllib.request.urlopen(req, timeout=60)
+        result = json.loads(resp.read().decode("utf-8"))
+        return int(result) if isinstance(result, (int, float)) else 0
     except urllib.error.HTTPError as exc:
-        logger.warning("PATCH failed for %s: HTTP %d", song_id, exc.code)
-        return False
-
-
-def supabase_query(url: str, key: str, title: str, artist: str) -> str | None:
-    """Find a song ID by exact title + artist match."""
-    import urllib.parse
-
-    # Use exact match to avoid false positives
-    query_url = (
-        f"{url}/rest/v1/songs"
-        f"?title=eq.{urllib.parse.quote(title, safe='')}"
-        f"&artist=eq.{urllib.parse.quote(artist, safe='')}"
-        f"&source=eq.deezer"
-        f"&deezer_id=is.null"
-        f"&select=id"
-        f"&limit=1"
-    )
-
-    req = urllib.request.Request(
-        query_url,
-        headers={
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-        },
-    )
-    try:
-        resp = urllib.request.urlopen(req, timeout=30)
-        data = json.loads(resp.read().decode("utf-8"))
-        if data:
-            return data[0]["id"]
+        body = exc.read().decode("utf-8", errors="replace")
+        logger.error("RPC failed (HTTP %d): %s", exc.code, body[:200])
+        return -1
     except Exception as exc:
-        logger.debug("Query failed for '%s - %s': %s", artist, title, exc)
-    return None
+        logger.error("RPC error: %s", exc)
+        return -1
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Backfill deezer_id into existing songs.")
+    parser = argparse.ArgumentParser(description="Backfill deezer_id via RPC.")
     parser.add_argument("--jsonl", default=str(DEFAULT_JSONL), help="JSONL with _tid field")
     parser.add_argument("--url", required=True, help="Supabase project URL")
     parser.add_argument("--key", required=True, help="Supabase anon key")
-    parser.add_argument("--dry-run", action="store_true", help="Don't write, just show matches")
+    parser.add_argument("--batch-size", type=int, default=500, help="Rows per RPC call")
     args = parser.parse_args()
 
     jsonl_path = Path(args.jsonl).resolve()
@@ -100,55 +73,53 @@ def main() -> None:
         logger.error("JSONL not found: %s", jsonl_path)
         sys.exit(1)
 
-    # Build mapping from JSONL: (title, artist) -> deezer_id
-    tid_map: dict[tuple[str, str], int] = {}
+    # Build unique mappings from JSONL
+    seen: set[int] = set()
+    rows: list[dict] = []
     with open(jsonl_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
             try:
-                row = json.loads(line)
-                tid = row.get("_tid")
-                title = row.get("title", "").strip()
-                artist = row.get("artist", "").strip()
+                data = json.loads(line)
+                tid = data.get("_tid")
+                title = data.get("title", "").strip()
+                artist = data.get("artist", "").strip()
                 if tid and title and artist:
-                    tid_map[(title, artist)] = int(tid)
+                    tid_int = int(tid)
+                    if tid_int not in seen:
+                        seen.add(tid_int)
+                        rows.append({"title": title, "artist": artist, "deezer_id": tid_int})
             except (json.JSONDecodeError, ValueError):
                 continue
 
-    logger.info("Loaded %d title/artist -> deezer_id mappings", len(tid_map))
+    logger.info("Loaded %d unique deezer_id mappings", len(rows))
 
-    matched = 0
-    updated = 0
-    errors = 0
+    total_updated = 0
+    total_errors = 0
+    batch_size = args.batch_size
 
-    for i, ((title, artist), deezer_id) in enumerate(tid_map.items(), 1):
-        song_id = supabase_query(args.url, args.key, title, artist)
-        if not song_id:
-            continue
+    for i in range(0, len(rows), batch_size):
+        batch = rows[i : i + batch_size]
+        batch_num = i // batch_size + 1
+        total_batches = (len(rows) + batch_size - 1) // batch_size
 
-        matched += 1
-        if args.dry_run:
-            logger.info("[DRY] %s - %s -> deezer_id=%d", artist, title, deezer_id)
+        result = call_rpc(args.url, args.key, batch)
+        if result < 0:
+            total_errors += 1
+            logger.warning("Batch %d/%d failed, continuing...", batch_num, total_batches)
         else:
-            if supabase_patch(args.url, args.key, song_id, deezer_id):
-                updated += 1
-            else:
-                errors += 1
+            total_updated += result
+            logger.info(
+                "Batch %d/%d: %d updated (total: %d)",
+                batch_num, total_batches, result, total_updated,
+            )
 
-        if i % 500 == 0:
-            logger.info("Progress: %d/%d checked, %d matched, %d updated", i, len(tid_map), matched, updated)
-            time.sleep(0.2)  # Rate limiting
+        # Small delay between batches
+        time.sleep(0.3)
 
-        # Small delay between requests
-        if not args.dry_run and matched % 10 == 0:
-            time.sleep(0.05)
-
-    logger.info(
-        "Done! %d/%d matched, %d updated, %d errors",
-        matched, len(tid_map), updated, errors,
-    )
+    logger.info("Done! %d songs updated, %d batch errors", total_updated, total_errors)
 
 
 if __name__ == "__main__":
