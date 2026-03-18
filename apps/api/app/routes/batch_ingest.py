@@ -148,5 +148,8 @@ def ingest_status(authorization: str | None = Header(None)):
     from app.db import get_supabase
 
     sb = get_supabase()
-    result = sb.table("songs").select("id", count="exact").execute()
-    return {"total_songs": result.count}
+    try:
+        result = sb.table("songs").select("id", count="exact").limit(0).execute()
+        return {"total_songs": result.count or 0}
+    except Exception as exc:
+        return {"total_songs": -1, "error": str(exc)[:200]}
