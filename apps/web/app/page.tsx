@@ -99,6 +99,9 @@ export default function Home() {
             <a href="/privacy" className="text-xs text-text-tertiary transition-colors hover:text-amber-light">
               Datenschutz
             </a>
+            <a href="/nutzungsbedingungen" className="text-xs text-text-tertiary transition-colors hover:text-amber-light">
+              Nutzungsbedingungen
+            </a>
           </div>
         </div>
       </footer>

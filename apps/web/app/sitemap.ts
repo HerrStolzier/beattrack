@@ -18,7 +18,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: `${baseUrl}/impressum`,
-      lastModified: new Date("2026-03-01"),
+      lastModified: new Date("2026-03-18"),
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/nutzungsbedingungen`,
+      lastModified: new Date("2026-03-18"),
       changeFrequency: "monthly",
       priority: 0.5,
     },
