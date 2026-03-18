@@ -108,44 +108,121 @@ def deezer_get_all(endpoint: str, limit: int = 0) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 SEED_ARTIST_NAMES: list[str] = [
-    # EDM / Progressive House
+    # ── EDM / Progressive House ──────────────────────────────────
     "Avicii", "Calvin Harris", "David Guetta", "Tiësto", "Afrojack",
     "Steve Aoki", "Martin Garrix", "Marshmello", "Skrillex", "Zedd",
     "Kygo", "Swedish House Mafia", "Alan Walker", "Disclosure", "Deadmau5",
-    # Trance
+    "Nicky Romero", "Hardwell", "Don Diablo", "R3HAB", "KSHMR",
+    "Alesso", "W&W", "Lost Frequencies", "Arty", "Matisse & Sadko",
+    "DubVision", "Blasterjaxx", "Sick Individuals", "Fedde Le Grand", "Laidback Luke",
+    "Dimitri Vegas & Like Mike", "Axwell", "Sebastian Ingrosso",
+    # ── Trance ────────────────────────────────────────────────────
     "Armin van Buuren", "Above & Beyond", "Paul van Dyk", "ATB", "Dash Berlin",
-    # Techno — Peak-Time / Berlin
+    "Ferry Corsten", "Gareth Emery", "Cosmic Gate", "Markus Schulz", "Aly & Fila",
+    "Andrew Rayel", "Giuseppe Ottaviani", "Ruben de Ronde", "MaRLo", "Ben Nicky",
+    "Bryan Kearney", "John O'Callaghan", "Photographer", "Factor B", "Solarstone",
+    "Ilan Bluestone", "Jason Ross", "Spencer Brown", "Sunny Lax", "Genix",
+    "Gouryella", "RAM", "ReOrder", "Sneijder", "Standerwick",
+    # ── Techno — Peak-Time / Berlin ───────────────────────────────
     "Richie Hawtin", "Carl Cox", "Jeff Mills", "Adam Beyer", "Amelie Lens",
     "Charlotte de Witte", "Nina Kraviz", "Ben Klock", "Marcel Dettmann",
     "Pan-Pot", "Chris Liebing", "Sam Paganini", "Len Faki", "Sven Väth",
-    # Techno — Melodic / Progressive
+    "Kobosil", "DVS1", "Helena Hauff", "Oscar Mulero", "Rødhåd",
+    "Dax J", "Blawan", "Paula Temple", "Dasha Rush", "Tham",
+    # ── Techno — Melodic / Progressive ────────────────────────────
     "Tale of Us", "Boris Brejcha", "Anyma", "Laurent Garnier",
     "Maceo Plex", "Enrico Sangiuliano",
-    # Techno — Hard / Industrial
+    "Stephan Bodzin", "Dixon", "Adriatique", "Mind Against",
+    "Colyn", "Kevin de Vries", "Massano", "Afterlife", "Mathame",
+    "Fideles", "Recondite", "Patrice Bäumel", "Joris Voorn", "Sasha",
+    "John Digweed", "Hernan Cattaneo", "Guy J", "Jeremy Olander", "Yotto",
+    # ── Techno — Hard / Industrial ────────────────────────────────
     "Sara Landry", "I Hate Models", "Nico Moreno", "Perc", "Rebekah",
-    # Techno — Weitere
+    "VTSS", "999999999", "Alignment", "AIROD", "Billx",
+    "Brutalismus 3000", "Shlømo", "UVB", "AnD", "Karenn",
+    # ── Techno — Weitere ──────────────────────────────────────────
     "Nicole Moudaber", "Ellen Allien", "ANNA", "Indira Paganotto",
     "Green Velvet", "Speedy J", "Joseph Capriati",
-    # House / Deep House
+    "Deborah De Luca", "Klaudia Gawlas", "Monika Kruse", "Lilly Palmer",
+    "HI-LO", "Reinier Zonneveld", "Wehbba", "Ilario Alicante", "Umek",
+    "Pig&Dan", "Spartaque", "Jay Lumen", "Layton Giordani", "Teenage Mutants",
+    # ── House — Tech House ────────────────────────────────────────
     "Bob Sinclar", "Robin Schulz", "Duke Dumont", "Oliver Heldens",
     "Fisher", "MK", "Faithless",
-    # Drum & Bass
+    "Chris Lake", "Lee Foss", "Hot Since 82", "Patrick Topping", "Solardo",
+    "Dom Dolla", "John Summit", "James Hype", "Vintage Culture", "Cloonee",
+    "Camelphat", "Michael Bibi", "Dennis Cruz", "Eli Brown", "Latmun",
+    "Jamie Jones", "Seth Troxler", "Marco Carola", "Loco Dice", "Luciano",
+    # ── House — Deep / Afro / Organic ─────────────────────────────
+    "Black Coffee", "Themba", "Keinemusik", "&ME", "Rampa",
+    "Adam Port", "Mano Le Tough", "Ame", "Henrik Schwarz",
+    "Bedouin", "Damian Lazarus", "Lee Burridge", "Blond:ish", "Solomun",
+    "WhoMadeWho",
+    # ── House — Classic / UK ──────────────────────────────────────
+    "Frankie Knuckles", "Larry Heard", "Marshall Jefferson", "Kerri Chandler",
+    "Dennis Ferrer", "Louie Vega", "Todd Terry", "David Morales",
+    "Armand Van Helden", "Basement Jaxx", "Groove Armada", "Fatboy Slim",
+    # ── Drum & Bass ───────────────────────────────────────────────
     "Pendulum", "Sub Focus", "Chase & Status", "Netsky", "Goldie",
-    # UK / Melodic / Breaks
+    "Andy C", "Noisia", "Dimension", "Wilkinson", "Camo & Krooked",
+    "Culture Shock", "Metrik", "Friction", "A.M.C", "Hybrid Minds",
+    "Calibre", "London Elektricity", "S.P.Y", "Alix Perez", "dBridge",
+    "Break", "DJ Marky", "High Contrast", "Fred V", "Grafix",
+    "Etherwood", "Maduk", "NCT", "Andromedik", "Kanine",
+    "Buunshin", "Imanu", "Halogenix", "Mefjus", "Phace",
+    "Current Value", "The Upbeats", "Black Sun Empire", "Misanthrop", "Emperor",
+    "Icicle", "Kasra", "Enei", "InsideInfo", "Logistics",
+    # ── UK / Melodic / Breaks ─────────────────────────────────────
     "Bicep", "Fred again..", "The Chemical Brothers", "Underworld",
     "The Prodigy", "Moby", "Daft Punk", "Kraftwerk", "Rüfüs Du Sol",
-    # Ambient / Downtempo
+    "Four Tet", "Jon Hopkins", "Floating Points", "Ross From Friends",
+    "Overmono", "Caribou", "Jamie xx", "SBTRKT", "Moderat",
+    "Apparat", "Nathan Fake", "Daniel Avery", "Tourist", "Lane 8",
+    "Ben Böhmer", "Tinlicker", "Le Youth", "Odesza", "Tycho",
+    # ── Ambient / Downtempo / IDM ─────────────────────────────────
     "Bonobo", "Massive Attack", "Aphex Twin", "Boards of Canada", "Air",
-    # Dubstep — UK Pioneers
+    "Brian Eno", "Nils Frahm", "Ólafur Arnalds", "Kiasmos", "Max Cooper",
+    "Rival Consoles", "Murcof", "Tim Hecker", "Oneohtrix Point Never",
+    "Autechre", "Squarepusher", "Clark", "Plaid", "Amon Tobin",
+    "Telefon Tel Aviv", "Gas", "Stars of the Lid", "Biosphere", "Loscil",
+    # ── Dubstep — UK Pioneers ─────────────────────────────────────
     "Skream", "Benga", "Burial", "Mala", "Kode9",
-    # Dubstep — Modern / Heavy
+    "Digital Mystikz", "Pinch", "Loefah", "Rusko", "Caspa",
+    # ── Dubstep — Modern / Heavy ──────────────────────────────────
     "Excision", "Subtronics", "Zomboy", "Virtual Riot",
-    # Dubstep — Melodic / Bass
+    "SVDDEN DEATH", "Marauda", "Kai Wachi", "Sullivan King", "Kompany",
+    "Midnight Tyrannosaurus", "PhaseOne", "Infekt", "Samplifire",
+    # ── Dubstep — Melodic / Bass ──────────────────────────────────
     "Nero", "Seven Lions", "Flux Pavilion", "Zeds Dead", "SLANDER", "Wooli",
-    # Hardstyle
+    "Illenium", "Said The Sky", "Dabin", "William Black", "Au5",
+    "Crystal Skies", "Trivecta", "Last Heroes", "MitiS",
+    # ── Future Bass / Trap / Bass Music ───────────────────────────
+    "Flume", "What So Not", "RL Grime", "Baauer", "Rustie",
+    "Cashmere Cat", "San Holo", "Louis The Child", "Jai Wolf", "Ekali",
+    "G Jones", "EPROM", "Liquid Stranger", "Space Laces", "Barclay Cray",
+    "1788-L", "Rezz", "Gesaffelstein", "ZHU", "Kaytranada",
+    # ── Hardstyle / Hardcore ──────────────────────────────────────
     "Headhunterz", "Brennan Heart", "Sub Zero Project", "Ran-D",
     "Phuture Noize", "D-Block & S-te-Fan", "Atmozfears", "Wildstylez",
     "Angerfist", "B-Front", "Showtek", "Da Tweekaz",
+    "Sound Rush", "Rebelion", "Warface", "Radical Redemption",
+    "Miss K8", "Dr. Peacock", "Sefa", "Act of Rage",
+    # ── EBM / Synth / Electro ─────────────────────────────────────
+    "The Hacker", "Boys Noize", "Justice", "Kavinsky", "Carpenter Brut",
+    "Perturbator", "Com Truise", "Danger", "Mr. Oizo", "SebastiAn",
+    "Vitalic", "The Bloody Beetroots", "Simian Mobile Disco",
+    # ── Psytrance / Goa ───────────────────────────────────────────
+    "Vini Vici", "Astrix", "Infected Mushroom", "Ace Ventura",
+    "Captain Hook", "Neelix", "Ghost Rider", "Blastoyz",
+    "Liquid Soul", "Coming Soon!!!", "Outsiders", "Avalon",
+    # ── Minimal / Micro House ─────────────────────────────────────
+    "Ricardo Villalobos", "Zip", "Petre Inspirescu", "Rhadoo",
+    "Raresh", "Dan Andrei", "Praslea", "Sonja Moonear",
+    "Fumiya Tanaka", "Akiko Kiyama", "Thomas Melchior",
+    # ── Progressive House / Melodic House ─────────────────────────
+    "Eric Prydz", "Cristoph", "Pryda", "Cirez D",
+    "Eelke Kleijn", "Stan Kolev", "Darin Epsilon",
+    "Henry Saiz", "Nick Warren", "Cid Inc", "GMJ",
 ]
 
 
