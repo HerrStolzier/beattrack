@@ -213,21 +213,28 @@ def extract_and_store(
     }
 
     try:
-        insert_result = sb.table("songs").insert(song_data).execute()
-        if insert_result.data:
-            song = insert_result.data[0]
-            logger.info("Auto-ingest complete: %s — %s (id=%s)", artist, title, song["id"])
+        # Use bulk_import_songs RPC (SECURITY DEFINER) to bypass RLS
+        rpc_result = sb.rpc("bulk_import_songs", {"rows": [song_data]}).execute()
+        logger.info("Auto-ingest complete: %s — %s (deezer_id=%d)", artist, title, deezer_id)
 
+        # Fetch the inserted song to return it
+        fetch_result = (
+            sb.table("songs")
+            .select("id, title, artist, album, bpm, musical_key, duration_sec, deezer_id")
+            .eq("deezer_id", deezer_id)
+            .single()
+            .execute()
+        )
+        song = fetch_result.data
+        if song:
             # 6. Queue neighbor expansion (async)
             if expand_neighbors:
                 _queue_neighbor_expansion(deezer_track, max_neighbors)
-
             return song
     except Exception as exc:
         # Might be a duplicate (deezer_id unique constraint)
         if "duplicate" in str(exc).lower() or "unique" in str(exc).lower():
             logger.info("Song already exists: deezer_id=%d", deezer_id)
-            # Fetch and return the existing song
             try:
                 existing = (
                     sb.table("songs")
