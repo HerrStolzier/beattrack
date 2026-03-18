@@ -15,7 +15,7 @@ from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.limiter import limiter
-from app.routes import songs, similar, feedback, analyze, identify
+from app.routes import songs, similar, feedback, analyze, identify, batch_ingest
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +89,7 @@ app.include_router(similar.router)
 app.include_router(feedback.router)
 app.include_router(analyze.router)
 app.include_router(identify.router)
+app.include_router(batch_ingest.router)
 
 
 @app.get("/health")
