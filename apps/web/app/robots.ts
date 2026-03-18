@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/api/"],
     },
-    sitemap: "https://beattrack.vercel.app/sitemap.xml",
+    sitemap: "https://beattrack.app/sitemap.xml",
   };
 }

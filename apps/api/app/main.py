@@ -19,7 +19,7 @@ from app.routes import songs, similar, feedback, analyze, identify
 
 logger = logging.getLogger(__name__)
 
-_default_origins = ["https://beattrack.vercel.app", "http://localhost:3000"]
+_default_origins = ["https://beattrack.app", "http://localhost:3000"]
 _origins = os.environ.get("CORS_ORIGINS", "").split(",") if os.environ.get("CORS_ORIGINS") else _default_origins
 
 

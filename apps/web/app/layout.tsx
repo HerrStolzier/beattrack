@@ -17,7 +17,7 @@ const dmSans = DM_Sans({
   weight: ["400", "500", "600"],
 });
 
-const baseUrl = "https://beattrack.vercel.app";
+const baseUrl = "https://beattrack.app";
 
 export const metadata: Metadata = {
   title: {

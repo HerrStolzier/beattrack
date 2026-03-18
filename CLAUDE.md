@@ -48,7 +48,7 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 - `DATABASE_URL` — Supabase PostgreSQL Connection String (required)
 - `SUPABASE_URL` + `SUPABASE_ANON_KEY` — Supabase Client (required)
 - `ACOUSTID_API_KEY` — Song-Identifikation via AcoustID (required)
-- `CORS_ORIGINS` — Erlaubte Origins (default: beattrack.vercel.app + localhost:3000)
+- `CORS_ORIGINS` — Erlaubte Origins (default: beattrack.app + localhost:3000)
 - `SUPABASE_DB_URL` — Procrastinate-Connection (port 6543 Supavisor, optional fallback: DATABASE_URL)
 - `SENTRY_DSN` — Error-Tracking (optional)
 
@@ -116,4 +116,4 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - `sitemap.ts` + `robots.ts` im App-Root
 - Open Graph + Twitter Cards in `layout.tsx` Metadata
 - JSON-LD WebApplication Schema
-- Canonical URL: `https://beattrack.vercel.app`
+- Canonical URL: `https://beattrack.app`

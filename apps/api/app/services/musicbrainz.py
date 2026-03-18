@@ -7,7 +7,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 _MB_API_BASE = "https://musicbrainz.org/ws/2"
-_USER_AGENT = "beattrack/0.1.0 (https://beattrack.vercel.app)"
+_USER_AGENT = "beattrack/0.1.0 (https://beattrack.app)"
 _MIN_INTERVAL = 1.0  # max 1 request per second
 _last_call: float = 0.0
 

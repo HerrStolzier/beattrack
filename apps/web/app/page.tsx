@@ -85,7 +85,7 @@ export default function Home() {
           <p className="text-xs text-text-tertiary">Beattrack — Finde deinen nächsten Track</p>
           <div className="flex items-center gap-4">
             <a
-              href="javascript:void(window.open('https://beattrack.vercel.app/?url='+encodeURIComponent(location.href)))"
+              href="javascript:void(window.open('https://beattrack.app/?url='+encodeURIComponent(location.href)))"
               onClick={(e) => e.preventDefault()}
               draggable
               className="rounded-md border border-amber/30 bg-amber/10 px-2 py-0.5 text-xs text-amber-light transition-colors hover:bg-amber/20 cursor-grab"
