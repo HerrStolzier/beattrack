@@ -116,7 +116,7 @@ def main() -> None:
     # Check API is up
     try:
         status = get_status(args.api_url, args.secret)
-        logger.info("API online — current DB size: %d songs", status.get("total_songs", "?"))
+        logger.info("API online — status: %s", status.get("status", "ok"))
     except Exception as exc:
         logger.error("API not reachable: %s", exc)
         sys.exit(1)
@@ -193,12 +193,7 @@ def main() -> None:
     save_checkpoint(processed_ids)
     logger.info("Done! Total: %d succeeded, %d failed out of %d", total_succeeded, total_failed, len(work))
 
-    # Final status
-    try:
-        status = get_status(args.api_url, args.secret)
-        logger.info("Final DB size: %d songs", status.get("total_songs", "?"))
-    except Exception:
-        pass
+    logger.info("Feed complete.")
 
 
 if __name__ == "__main__":
