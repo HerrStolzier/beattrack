@@ -138,11 +138,14 @@ def extract_and_store(
         import subprocess
 
         extract_script = str(Path(__file__).parent.parent / "workers" / "extract.py")
+        model_path = str(Path(__file__).parent.parent.parent / "models" / "msd-musicnn-1.pb")
+        env = {**os.environ, "MUSICNN_MODEL_PATH": model_path}
         result = subprocess.run(
             [sys.executable, extract_script, preview_path],
             capture_output=True,
             text=True,
             timeout=120,
+            env=env,
         )
         if result.returncode != 0:
             # Filter out CUDA warnings from stderr to find real error
