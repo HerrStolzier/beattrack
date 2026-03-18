@@ -145,7 +145,20 @@ def extract_and_store(
             timeout=120,
         )
         if result.returncode != 0:
-            logger.error("Feature extraction failed for deezer_id=%d: %s", deezer_id, result.stderr[:300])
+            # Filter out CUDA warnings from stderr to find real error
+            stderr_lines = [
+                line for line in result.stderr.splitlines()
+                if "libcuda" not in line and "tensorflow" not in line.lower()
+            ]
+            real_stderr = "\n".join(stderr_lines[-5:]) if stderr_lines else result.stderr[:500]
+            logger.error(
+                "Feature extraction failed for deezer_id=%d (exit=%d): %s",
+                deezer_id, result.returncode, real_stderr,
+            )
+            return None
+
+        if not result.stdout.strip():
+            logger.error("Feature extraction returned empty output for deezer_id=%d", deezer_id)
             return None
 
         features = json.loads(result.stdout)

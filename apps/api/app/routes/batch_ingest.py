@@ -5,7 +5,6 @@ Protected by admin secret. Temporary endpoint for bulk DB expansion.
 
 import logging
 import os
-from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
@@ -15,8 +14,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin/ingest", tags=["admin"])
 
 ADMIN_SECRET = os.environ.get("ADMIN_SECRET", "")
-MAX_BATCH_SIZE = 20
-MAX_WORKERS = 2  # Railway has limited CPU — keep low
+MAX_BATCH_SIZE = 10
 
 
 class TrackItem(BaseModel):
@@ -114,23 +112,15 @@ def batch_ingest(
     failed = 0
     errors: list[str] = []
 
-    # Process in parallel
-    track_dicts = [t.model_dump() for t in new_tracks]
-
-    with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        futures = {executor.submit(_ingest_single, td): td for td in track_dicts}
-        for future in as_completed(futures):
-            try:
-                ok, msg = future.result(timeout=180)
-                if ok:
-                    succeeded += 1
-                else:
-                    failed += 1
-                    errors.append(msg)
-            except Exception as exc:
-                failed += 1
-                td = futures[future]
-                errors.append(f"Timeout/crash {td['deezer_id']}: {exc!s:.100}")
+    # Process sequentially (ProcessPoolExecutor causes fork issues in containers)
+    for t in new_tracks:
+        td = t.model_dump()
+        ok, msg = _ingest_single(td)
+        if ok:
+            succeeded += 1
+        else:
+            failed += 1
+            errors.append(msg)
 
     logger.info("Batch ingest: %d/%d succeeded, %d failed", succeeded, len(body.tracks), failed)
     return BatchIngestResponse(
