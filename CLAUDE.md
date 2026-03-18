@@ -23,6 +23,11 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 - `POST /similar/vibe` — Intersection-Search über 2–5 Seeds
 - `POST /songs/features/batch` — Radar-Features für bis zu 30 Songs
 
+## Auto-Ingest
+- Bei Identify-Miss: Deezer-API-Suche → Preview-Download → Essentia-Extraktion → DB-Insert (async via Procrastinate)
+- Neighbor-Expansion: Nach Ingest werden ~10 Top-Tracks des gleichen Artists im Hintergrund ingestiert
+- Procrastinate-Tasks: `ingest_from_deezer`, `ingest_neighbors` (in `app/workers/__init__.py`)
+
 ## Database Schema
 - **songs**: `id`, `title`, `artist`, `album`, `duration_sec`, `bpm`, `musical_key`, `learned_embedding` (vector 200d), `handcrafted_raw` (vector 44d), `handcrafted_norm` (vector 44d), `source`, `genre`, `release_year`, `deezer_id`
 - **config**: Key-Value-Store (`normalization_stats` JSON mit mean/std/dim/n_songs)
@@ -34,8 +39,8 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 ## Data Scope
 - **Genre**: Electronic (Sub-Genres: Techno, House, IDM, Minimal Electronic, Dance, Downtempo, Chill-out, Dubstep, Drum & Bass, Trance, Breakbeat, Ambient, Electronic)
 - **Quelle**: Deezer API — kommerzielle Electronic-Tracks (30s Previews → Essentia-Extraktion)
-- **Crawl-Strategie**: 105 Seed-Artists → Top-Tracks + Related Artists (2 Ebenen) mit Album-Genre-Filter
-- **Aktuell**: ~175K kommerzielle Tracks
+- **Crawl-Strategie**: 424 Seed-Artists → Top-Tracks + Related Artists (Tiefe 2, 25 Related pro Artist) mit Album-Genre-Filter
+- **Aktuell**: ~175K kommerzielle Tracks (Expansion auf ~600K+ läuft)
 - **Legacy (inaktiv)**: FMA-large, MTG-Jamendo — Seeder-Scripts existieren noch in `scripts/`, werden nicht mehr verwendet
 
 ## Deployment
@@ -117,3 +122,8 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - Open Graph + Twitter Cards in `layout.tsx` Metadata
 - JSON-LD WebApplication Schema
 - Canonical URL: `https://beattrack.app`
+
+## Legal
+- **Lizenz**: AGPLv3 (wegen Essentia-Abhängigkeit)
+- **Seiten**: /impressum, /privacy, /nutzungsbedingungen
+- **Domain**: beattrack.app (Vercel, SSL managed)
