@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
-              "font-src 'self' https://fonts.gstatic.com",
+              "font-src 'self'",
               "connect-src 'self' https://beattrack-production.up.railway.app https://*.supabase.co",
               "frame-src https://widget.deezer.com",
               "frame-ancestors 'none'",
