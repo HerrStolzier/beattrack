@@ -26,12 +26,13 @@ export default function ImpressumPage() {
           {/* Angaben gemäß § 5 TMG */}
           <section className="glass rounded-xl p-6">
             <h2 className="font-display mb-3 text-lg font-semibold text-text-primary">
-              Angaben gemäß § 5 TMG
+              Angaben gemäß § 5 DDG
             </h2>
             <div className="space-y-1 text-sm leading-relaxed text-text-secondary">
-              <p className="font-medium text-text-primary">[Vor- und Nachname]</p>
-              <p>[Straße und Hausnummer]</p>
-              <p>[PLZ Ort]</p>
+              <p className="font-medium text-text-primary">Sebastian Claessens</p>
+              <p>c/o IP-Management #9295</p>
+              <p>Ludwig-Erhard-Straße 18</p>
+              <p>20459 Hamburg</p>
               <p>Deutschland</p>
             </div>
           </section>
@@ -45,12 +46,13 @@ export default function ImpressumPage() {
               <p>
                 E-Mail:{" "}
                 <a
-                  href="mailto:[deine@email.de]"
+                  href="mailto:dm-basti@pm.me"
                   className="text-amber transition-colors hover:text-amber-light"
                 >
-                  [deine@email.de]
+                  dm-basti@pm.me
                 </a>
               </p>
+              <p>Telefon: 017655389114</p>
             </div>
           </section>
 
@@ -60,9 +62,10 @@ export default function ImpressumPage() {
               Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV
             </h2>
             <div className="space-y-1 text-sm leading-relaxed text-text-secondary">
-              <p className="font-medium text-text-primary">[Vor- und Nachname]</p>
-              <p>[Straße und Hausnummer]</p>
-              <p>[PLZ Ort]</p>
+              <p className="font-medium text-text-primary">Sebastian Claessens</p>
+              <p>c/o IP-Management #9295</p>
+              <p>Ludwig-Erhard-Straße 18</p>
+              <p>20459 Hamburg</p>
             </div>
           </section>
 
@@ -74,9 +77,9 @@ export default function ImpressumPage() {
             <p className="text-sm leading-relaxed text-text-secondary">
               Die Inhalte dieser Seite wurden mit größter Sorgfalt erstellt. Für die
               Richtigkeit, Vollständigkeit und Aktualität der Inhalte kann jedoch keine
-              Gewähr übernommen werden. Als Diensteanbieter bin ich gemäß § 7 Abs. 1 TMG
+              Gewähr übernommen werden. Als Diensteanbieter bin ich gemäß § 7 Abs. 1 DDG
               für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen
-              verantwortlich. Nach §§ 8 bis 10 TMG bin ich als Diensteanbieter jedoch
+              verantwortlich. Nach §§ 8 bis 10 DDG bin ich als Diensteanbieter jedoch
               nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu
               überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige
               Tätigkeit hinweisen.

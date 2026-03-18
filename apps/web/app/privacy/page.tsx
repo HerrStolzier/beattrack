@@ -39,16 +39,17 @@ export default function PrivacyPage() {
               Verantwortlich im Sinne der DSGVO:
             </p>
             <div className="space-y-1">
-              <p className="font-medium text-text-primary">[Vor- und Nachname]</p>
-              <p>[Straße und Hausnummer]</p>
-              <p>[PLZ Ort]</p>
+              <p className="font-medium text-text-primary">Sebastian Claessens</p>
+              <p>c/o IP-Management #9295</p>
+              <p>Ludwig-Erhard-Straße 18</p>
+              <p>20459 Hamburg</p>
               <p>
                 E-Mail:{" "}
                 <a
-                  href="mailto:[deine@email.de]"
+                  href="mailto:dm-basti@pm.me"
                   className="text-amber transition-colors hover:text-amber-light"
                 >
-                  [deine@email.de]
+                  dm-basti@pm.me
                 </a>
               </p>
             </div>
@@ -167,6 +168,21 @@ export default function PrivacyPage() {
               Album, Genre) und 30-Sekunden-Vorschauen zur einmaligen Feature-Extraktion
               verwendet. Es werden keine Audiodateien dauerhaft gespeichert. Die
               Nutzung erfolgt im Rahmen der Deezer-API-Nutzungsbedingungen.
+            </p>
+          </Section>
+
+          {/* 6a. Deezer-Vorschau-Player */}
+          <Section title="6a. Deezer-Vorschau-Player (Embed)">
+            <p>
+              Für Songs mit Deezer-ID wird ein Vorschau-Widget der{" "}
+              <strong className="text-text-primary">Deezer SA</strong> (24 rue de Calais,
+              75009 Paris, Frankreich) eingebettet. Beim Laden des Widgets wird deine
+              IP-Adresse an Deezer übermittelt.
+            </p>
+            <p>
+              Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an
+              der Bereitstellung einer Vorschau-Funktion). Datenschutzerklärung:{" "}
+              <span className="text-text-tertiary">deezer.com/legal/personal-datas</span>
             </p>
           </Section>
 
