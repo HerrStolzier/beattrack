@@ -62,6 +62,11 @@ def _strip_noise(title: str) -> str:
     return title.strip()
 
 
+def _strip_topic_suffix(name: str) -> str:
+    """Strip YouTube Music ' - Topic' suffix from channel names."""
+    return re.sub(r'\s*-\s*Topic$', '', name, flags=re.IGNORECASE).strip()
+
+
 def parse_title(title: str, author: str) -> tuple[str, str]:
     """Heuristically split a YouTube title into (artist, song_title).
 
@@ -71,8 +76,10 @@ def parse_title(title: str, author: str) -> tuple[str, str]:
       - "Artist | Song Title"
 
     Falls back to (author, title) when no pattern matches.
+    YouTube Music "- Topic" suffixes are always stripped from author names.
     """
     title = _strip_noise(title)
+    author = _strip_topic_suffix(author)
 
     # "Artist - Song Title"
     if " - " in title:
@@ -90,4 +97,4 @@ def parse_title(title: str, author: str) -> tuple[str, str]:
         return by_match.group(2).strip(), by_match.group(1).strip()
 
     # Fallback
-    return author.strip(), title.strip()
+    return author, title.strip()
