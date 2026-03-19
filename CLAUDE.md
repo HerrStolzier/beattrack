@@ -13,7 +13,7 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 - `apps/web/` — Next.js Frontend
 - `apps/api/` — FastAPI Backend
 - `apps/api/scripts/` — Seeding, Import, Normalisierung
-- `supabase/migrations/` — SQL Migrations (001–014)
+- `supabase/migrations/` — SQL Migrations (001–017+)
 - `docs/scaling-plan.md` — Skalierungsstrategie + Kosten
 
 ## API Routes
@@ -31,29 +31,30 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 ## Database Schema
 - **songs**: `id`, `title`, `artist`, `album`, `duration_sec`, `bpm`, `musical_key`, `learned_embedding` (vector 200d), `handcrafted_raw` (vector 44d), `handcrafted_norm` (vector 44d), `source`, `genre`, `release_year`, `deezer_id`
 - **config**: Key-Value-Store (`normalization_stats` JSON mit mean/std/dim/n_songs)
-- **feedback**: Rating (-1/+1), nur Analytics — nicht in Similarity eingebaut
-- **Indexes**: HNSW auf `learned_embedding` + `handcrafted_norm` (cosine_ops, m=16, ef=64), Trigram (gin) auf title+artist, B-tree auf genre
-- **RLS**: Enabled auf allen Tabellen (anon=SELECT, service_role=ALL)
-- **RPC**: `bulk_import_songs(jsonb)` — SECURITY DEFINER, callable mit anon key (Migration 011)
+- **feedback**: Rating (-1/+1), Feedback Learning System geplant (Feature Importance per Genre)
+- **Indexes**: HNSW auf `learned_embedding` (m=24, ef_construction=128, ef_search=200), Trigram (gin) auf title+artist, Unique auf `(lower(title), lower(artist))`
+- **RLS**: Enabled auf allen Tabellen (anon=SELECT+INSERT feedback, service_role=ALL)
+- **RPC**: `bulk_import_songs(jsonb)` — SECURITY DEFINER mit ON CONFLICT upsert, `find_similar_songs` — Subquery-Pattern für HNSW-Index
+- **Supabase Project-ID**: `qpkemujemfnymtgmtkfg` (für MCP-Calls und CLI)
 
 ## Data Scope
 - **Genre**: Electronic (Sub-Genres: Techno, House, IDM, Minimal Electronic, Dance, Downtempo, Chill-out, Dubstep, Drum & Bass, Trance, Breakbeat, Ambient, Electronic)
 - **Quelle**: Deezer API — kommerzielle Electronic-Tracks (30s Previews → Essentia-Extraktion)
 - **Crawl-Strategie**: 424 Seed-Artists → Top-Tracks + Related Artists (Tiefe 2, 25 Related pro Artist) mit Album-Genre-Filter
-- **Aktuell**: ~175K kommerzielle Tracks (Expansion auf ~600K+ läuft)
+- **Aktuell**: ~63K deduplizierte Songs (nach Dedup von 175K), Import neuer Features auf ~120K+ läuft
 - **Legacy (inaktiv)**: FMA-large, MTG-Jamendo — Seeder-Scripts existieren noch in `scripts/`, werden nicht mehr verwendet
 
 ## Deployment
-- Railway: Root Directory `/apps/api`, Config `/apps/api/railway.toml`, Healthcheck `/health` (30s timeout), Restart ON_FAILURE (max 3)
-- Vercel: Auto-deploy von `main`, `NEXT_PUBLIC_API_URL` zeigt auf Railway
-- Supabase: Migrations via MCP oder `supabase db push`
+- Railway: Root Directory `/apps/api`, Config `/apps/api/railway.toml`, Healthcheck `/health` (30s timeout), Restart ON_FAILURE (max 3). CLI: `railway logs`, `railway variables`
+- Vercel: Auto-deploy von `main`, `NEXT_PUBLIC_API_URL` zeigt auf Railway. Cron aktuell deaktiviert (CRON_SECRET Issue)
+- Supabase: Migrations via MCP (`project_id: qpkemujemfnymtgmtkfg`) oder `supabase db push`
 - Deploy-Status prüfen: `/deploy-check` (Config in `.claude/deploy.json`)
 
 ## Environment Variables (Backend)
 - `DATABASE_URL` — Supabase PostgreSQL Connection String (required)
 - `SUPABASE_URL` + `SUPABASE_ANON_KEY` — Supabase Client (required)
 - `ACOUSTID_API_KEY` — Song-Identifikation via AcoustID (required)
-- `CORS_ORIGINS` — Erlaubte Origins (default: beattrack.app + localhost:3000)
+- `CORS_ORIGINS` — Erlaubte Origins (Railway: `beattrack.app,www.beattrack.app,beattrack.vercel.app`)
 - `SUPABASE_DB_URL` — Procrastinate-Connection (port 6543 Supavisor, optional fallback: DATABASE_URL)
 - `SENTRY_DSN` — Error-Tracking (optional)
 
@@ -109,11 +110,16 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - **Dockerfile**: Runtime braucht `ffmpeg` + `libmagic1`
 - **Spotify oEmbed**: Liefert keinen `author_name` — Artist muss via OG-Tag (`og:description`) von der Track-Page gescrapt werden (Pattern: `"Artist · Album · Song · Year"`)
 - **Essentia Extraction**: Kann bei `--workers >1` in Multiprocessing-Deadlock geraten (POSIX Semaphores). Fix: Prozess killen + `--resume`
+- **CORS www**: `CORS_ORIGINS` auf Railway muss BEIDE Varianten enthalten (`beattrack.app` + `www.beattrack.app`). Code auto-appended www wenn nur non-www gesetzt
+- **pgvector HNSW + WHERE**: WHERE-Klauseln in der gleichen Query verhindern Index-Nutzung. Fix: Subquery-Pattern (innere Query = Index, äußere = Filter)
+- **Vercel CRON_SECRET**: Darf kein Whitespace enthalten (inkl. trailing newline). Vercel validiert strikt seit 2026. `printf` statt `echo` beim Setzen
+- **Deezer iframe Autoplay**: Browser blockiert cross-origin autoplay — User muss im Widget selbst auf Play klicken
+- **Supabase MCP Project-ID**: MUSS `qpkemujemfnymtgmtkfg` sein. Bei "permission denied" → `list_projects` zum Verifizieren
 
 ## Security
-- **Rate Limiting**: slowapi auf `/analyze` (10/min), `/identify/*` (20/min), `/feedback` (30/min)
+- **Rate Limiting**: slowapi auf `/analyze` (10/min), `/identify/*` (20/min), `/feedback` (5/min geplant, aktuell 30/min)
 - **HTTP Headers**: CSP, HSTS, X-Frame-Options, X-Content-Type-Options via `next.config.ts`
-- **CORS**: Eingeschränkt auf GET/POST/OPTIONS, explizite Headers
+- **CORS**: Eingeschränkt auf GET/POST/OPTIONS, explizite Headers. `frame-src https://widget.deezer.com` in CSP
 - **SSRF-Schutz**: YouTube URL-Validation via `urlparse` Host-Check (nicht Substring)
 - **RLS**: Enabled auf allen Tabellen (anon=SELECT, service_role=ALL)
 
