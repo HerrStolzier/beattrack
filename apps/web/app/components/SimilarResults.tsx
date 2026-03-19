@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { type Song, type SimilarSong } from "@/lib/api";
+import { type Song, type SimilarSong, trackClick } from "@/lib/api";
 import FeedbackButtons from "./FeedbackButtons";
 import HarmonicBadge from "./HarmonicBadge";
 import RadarChart from "./RadarChart";
@@ -218,7 +218,7 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
                   {/* Play / Preview — primary action, bigger */}
                   {hasDeezer ? (
                     <button
-                      onClick={() => setExpandedId(isExpanded ? null : song.id)}
+                      onClick={() => { setExpandedId(isExpanded ? null : song.id); if (!isExpanded) trackClick("play", { querySongId: querySong.id, resultSongId: song.id, resultRank: index + 1 }); }}
                       className={`group/play flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border py-2.5 transition-all duration-200 ${
                         isExpanded
                           ? "border-amber/30 bg-amber/10 text-amber-light shadow-[0_0_16px_rgba(245,158,11,0.1)]"
@@ -245,14 +245,14 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
 
                   {/* Secondary actions — icon-only, compact */}
                   <button
-                    onClick={() => window.open(searchUrl("spotify", song.artist, song.title), "_blank")}
+                    onClick={() => { trackClick("spotify", { querySongId: querySong.id, resultSongId: song.id, resultRank: index + 1 }); window.open(searchUrl("spotify", song.artist, song.title), "_blank"); }}
                     className="flex cursor-pointer items-center justify-center rounded-xl border border-border-subtle bg-surface-raised/50 px-3 py-2.5 text-emerald/60 transition-all hover:border-emerald/30 hover:bg-emerald/5 hover:text-emerald"
                     title="Auf Spotify suchen"
                   >
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
                   </button>
                   <button
-                    onClick={() => window.open(searchUrl("youtube", song.artist, song.title), "_blank")}
+                    onClick={() => { trackClick("youtube", { querySongId: querySong.id, resultSongId: song.id, resultRank: index + 1 }); window.open(searchUrl("youtube", song.artist, song.title), "_blank"); }}
                     className="flex cursor-pointer items-center justify-center rounded-xl border border-border-subtle bg-surface-raised/50 px-3 py-2.5 text-rose/60 transition-all hover:border-rose/30 hover:bg-rose/5 hover:text-rose"
                     title="Auf YouTube suchen"
                   >
@@ -260,7 +260,7 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
                   </button>
                   {onAddToPlaylist && (
                     <button
-                      onClick={() => onAddToPlaylist(song)}
+                      onClick={() => { trackClick("playlist", { querySongId: querySong.id, resultSongId: song.id, resultRank: index + 1 }); onAddToPlaylist(song); }}
                       className="flex cursor-pointer items-center justify-center rounded-xl border border-border-subtle bg-surface-raised/50 px-3 py-2.5 text-amber-light/60 transition-all hover:border-amber/30 hover:bg-amber/5 hover:text-amber-light"
                       title="Zur Playlist hinzufügen"
                     >

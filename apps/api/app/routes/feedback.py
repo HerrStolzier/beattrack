@@ -25,6 +25,16 @@ class FeedbackRequest(BaseModel):
     result_song_id: str
     rating: Literal[1, -1]
     focus: str | None = None
+    ab_group: str | None = None
+
+
+class ClickEventRequest(BaseModel):
+    session_hash: str
+    query_song_id: str | None = None
+    result_song_id: str | None = None
+    result_rank: int | None = None
+    ab_group: str
+    action: str  # play, spotify, youtube, playlist, similar, feedback_up, feedback_down
 
 
 @router.post("", status_code=201)
@@ -46,10 +56,35 @@ async def submit_feedback(
                 "rating": body.rating,
                 "ip_hash": ip_hash,
                 "focus_active": body.focus,
+                "ab_group": body.ab_group,
             }
         ).execute()
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid song IDs")
+    return Response(status_code=201)
+
+
+@router.post("/click", status_code=201)
+@limiter.limit("60/minute")
+async def track_click(
+    request: Request,
+    body: ClickEventRequest,
+    sb: Client = Depends(get_supabase),
+) -> Response:
+    """Track a user interaction for A/B testing CTR analysis."""
+    try:
+        sb.table("click_events").insert(
+            {
+                "session_hash": body.session_hash,
+                "query_song_id": body.query_song_id,
+                "result_song_id": body.result_song_id,
+                "result_rank": body.result_rank,
+                "ab_group": body.ab_group,
+                "action": body.action,
+            }
+        ).execute()
+    except Exception:
+        pass  # Fire-and-forget — don't block UX on tracking failure
     return Response(status_code=201)
 
 

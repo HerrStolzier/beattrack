@@ -238,9 +238,60 @@ export async function submitFeedback(
       result_song_id: resultSongId,
       rating,
       focus: focus ?? null,
+      ab_group: getAbGroup(),
     }),
   });
   if (!res.ok) throw new ApiError(`submitFeedback failed`, res.status);
+}
+
+// ---------------------------------------------------------------------------
+// A/B Testing & Click Tracking
+// ---------------------------------------------------------------------------
+
+let _sessionHash: string | null = null;
+let _abGroup: string | null = null;
+
+export function getSessionHash(): string {
+  if (_sessionHash) return _sessionHash;
+  if (typeof window !== "undefined") {
+    _sessionHash = sessionStorage.getItem("bt_session");
+    if (!_sessionHash) {
+      _sessionHash = crypto.randomUUID().slice(0, 16);
+      sessionStorage.setItem("bt_session", _sessionHash);
+    }
+  }
+  return _sessionHash || "unknown";
+}
+
+export function getAbGroup(): string {
+  if (_abGroup) return _abGroup;
+  if (typeof window !== "undefined") {
+    _abGroup = sessionStorage.getItem("bt_ab");
+    if (!_abGroup) {
+      _abGroup = Math.random() < 0.5 ? "control" : "treatment";
+      sessionStorage.setItem("bt_ab", _abGroup);
+    }
+  }
+  return _abGroup || "control";
+}
+
+export function trackClick(
+  action: string,
+  opts?: { querySongId?: string; resultSongId?: string; resultRank?: number }
+): void {
+  // Fire-and-forget — never block UI
+  fetch(`${API_URL}/feedback/click`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      session_hash: getSessionHash(),
+      query_song_id: opts?.querySongId ?? null,
+      result_song_id: opts?.resultSongId ?? null,
+      result_rank: opts?.resultRank ?? null,
+      ab_group: getAbGroup(),
+      action,
+    }),
+  }).catch(() => {});
 }
 
 // ---------------------------------------------------------------------------
