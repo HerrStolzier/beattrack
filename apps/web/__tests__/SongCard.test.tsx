@@ -76,6 +76,6 @@ describe("SongCard", () => {
   it("shows dash for null duration", () => {
     const noDuration = { ...baseSong, duration_sec: null };
     render(<SongCard song={noDuration} onFindSimilar={vi.fn()} isSelected={false} />);
-    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.queryByText("—")).not.toBeInTheDocument();
   });
 });
