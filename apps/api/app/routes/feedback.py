@@ -40,8 +40,8 @@ async def submit_feedback(
                 "rating": body.rating,
             }
         ).execute()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid song IDs")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Feedback failed: {exc}")
     return Response(status_code=201)
 
 
