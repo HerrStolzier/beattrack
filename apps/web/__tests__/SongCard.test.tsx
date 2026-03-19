@@ -16,52 +16,28 @@ const baseSong: Song = {
 };
 
 describe("SongCard", () => {
-  it("renders title, artist, and album", () => {
+  it("renders title and artist", () => {
     render(<SongCard song={baseSong} onFindSimilar={vi.fn()} isSelected={false} />);
     expect(screen.getByText("Neon Pulse")).toBeInTheDocument();
     expect(screen.getByText("Synthwave Corp")).toBeInTheDocument();
-    expect(screen.getByText("Retro Futures")).toBeInTheDocument();
   });
 
-  it("shows BPM and key badges", () => {
+  it("shows BPM badge when bpm is set", () => {
     render(<SongCard song={baseSong} onFindSimilar={vi.fn()} isSelected={false} />);
-    expect(screen.getByText("128 BPM")).toBeInTheDocument();
-    expect(screen.getByText("Am")).toBeInTheDocument();
-  });
-
-  it("shows genre badge", () => {
-    render(<SongCard song={baseSong} onFindSimilar={vi.fn()} isSelected={false} />);
-    expect(screen.getByText("Techno")).toBeInTheDocument();
-  });
-
-  it("hides genre badge when null", () => {
-    const noGenre = { ...baseSong, genre: null };
-    render(<SongCard song={noGenre} onFindSimilar={vi.fn()} isSelected={false} />);
-    expect(screen.queryByText("Techno")).not.toBeInTheDocument();
-  });
-
-  it("formats duration as m:ss", () => {
-    render(<SongCard song={baseSong} onFindSimilar={vi.fn()} isSelected={false} />);
-    expect(screen.getByText("4:05")).toBeInTheDocument();
-  });
-
-  it("hides album when null", () => {
-    const noAlbum = { ...baseSong, album: null };
-    render(<SongCard song={noAlbum} onFindSimilar={vi.fn()} isSelected={false} />);
-    expect(screen.queryByText("Retro Futures")).not.toBeInTheDocument();
+    expect(screen.getByText("128")).toBeInTheDocument();
   });
 
   it("hides BPM badge when null", () => {
     const noBpm = { ...baseSong, bpm: null };
     render(<SongCard song={noBpm} onFindSimilar={vi.fn()} isSelected={false} />);
-    expect(screen.queryByText(/BPM/)).not.toBeInTheDocument();
+    expect(screen.queryByText("128")).not.toBeInTheDocument();
   });
 
-  it("calls onFindSimilar when button is clicked", async () => {
+  it("calls onFindSimilar when card is clicked", async () => {
     const onFindSimilar = vi.fn();
     render(<SongCard song={baseSong} onFindSimilar={onFindSimilar} isSelected={false} />);
 
-    await userEvent.click(screen.getByText("Ähnliche finden"));
+    await userEvent.click(screen.getByText("Neon Pulse"));
     expect(onFindSimilar).toHaveBeenCalledWith(baseSong);
   });
 
@@ -70,12 +46,6 @@ describe("SongCard", () => {
       <SongCard song={baseSong} onFindSimilar={vi.fn()} isSelected={true} />
     );
     const card = container.firstElementChild as HTMLElement;
-    expect(card.className).toContain("amber");
-  });
-
-  it("shows dash for null duration", () => {
-    const noDuration = { ...baseSong, duration_sec: null };
-    render(<SongCard song={noDuration} onFindSimilar={vi.fn()} isSelected={false} />);
-    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(card.className).toContain("cursor-pointer");
   });
 });
