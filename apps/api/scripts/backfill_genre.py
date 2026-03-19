@@ -1,12 +1,12 @@
 """Backfill genre for existing songs using Deezer Album API.
 
 Fetches album genre for songs that have deezer_id but genre='Electronic' (hardcoded default).
-Rate-limited to respect Deezer's 50 req/5s limit.
+Loops through batches until all songs are processed or --limit is reached.
 
 Usage:
-    python scripts/backfill_genre.py                  # Dry run (show what would change)
-    python scripts/backfill_genre.py --apply           # Apply changes
-    python scripts/backfill_genre.py --apply --limit 100  # Process first 100 songs
+    python scripts/backfill_genre.py                      # Dry run
+    python scripts/backfill_genre.py --apply               # Apply all
+    python scripts/backfill_genre.py --apply --limit 1000  # Apply first 1000
 """
 
 from __future__ import annotations
@@ -20,16 +20,25 @@ import time
 import urllib.error
 import urllib.request
 
-# Add project root to path
+# Add project root to path and load .env
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.services.genre import DEEZER_GENRE_MAP, resolve_genre_from_album
+from pathlib import Path
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+if _env_path.exists():
+    for line in _env_path.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, _, v = line.partition("=")
+            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+
+from app.services.genre import resolve_genre_from_album
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 DEEZER_API = "https://api.deezer.com"
-API_DELAY = 0.12  # ~8 req/s, well under Deezer's 50/5s limit
+API_DELAY = 0.12
 
 
 def deezer_get(endpoint: str, retries: int = 3) -> dict | None:
@@ -40,7 +49,6 @@ def deezer_get(endpoint: str, retries: int = 3) -> dict | None:
             resp = urllib.request.urlopen(req, timeout=15)  # noqa: S310
             data = json.loads(resp.read().decode("utf-8"))
             if isinstance(data, dict) and "error" in data:
-                logger.warning("Deezer error: %s", data["error"])
                 return None
             return data
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError):
@@ -52,7 +60,6 @@ def deezer_get(endpoint: str, retries: int = 3) -> dict | None:
 
 
 def get_album_id_for_track(deezer_id: int) -> int | None:
-    """Fetch track from Deezer to get album_id."""
     data = deezer_get(f"/track/{deezer_id}")
     if data and isinstance(data, dict):
         return data.get("album", {}).get("id")
@@ -69,75 +76,82 @@ def main() -> None:
     from app.db import get_supabase
     sb = get_supabase()
 
-    # Fetch songs with hardcoded genre
-    query = (
-        sb.table("songs")
-        .select("id, deezer_id, artist, title, genre")
-        .eq("genre", "Electronic")
-        .not_.is_("deezer_id", "null")
-        .order("created_at", desc=False)
-    )
-    if args.limit:
-        query = query.limit(args.limit)
-    else:
-        query = query.limit(args.batch_size)
-
-    result = query.execute()
-    songs = result.data or []
-
-    if not songs:
-        logger.info("No songs to backfill.")
-        return
-
-    logger.info("Processing %d songs (apply=%s)", len(songs), args.apply)
-
-    # Cache: album_id → genre (avoid re-fetching same album)
     album_cache: dict[int, str] = {}
     stats = {"unchanged": 0, "updated": 0, "failed": 0}
-    total = len(songs)
+    processed = 0
+    max_songs = args.limit or float("inf")
+    batch_num = 0
 
-    for i, song in enumerate(songs):
-        deezer_id = song["deezer_id"]
+    while processed < max_songs:
+        # Fetch next batch of songs still tagged 'Electronic'
+        fetch_limit = min(args.batch_size, int(max_songs - processed)) if args.limit else args.batch_size
+        result = (
+            sb.table("songs")
+            .select("id, deezer_id, artist, title, genre")
+            .eq("genre", "Electronic")
+            .not_.is_("deezer_id", "null")
+            .order("created_at", desc=False)
+            .limit(fetch_limit)
+            .execute()
+        )
+        songs = result.data or []
 
-        # 1. Get album_id from track
-        time.sleep(API_DELAY)
-        album_id = get_album_id_for_track(deezer_id)
+        if not songs:
+            logger.info("No more songs to backfill.")
+            break
 
-        if not album_id:
-            stats["failed"] += 1
-            continue
+        batch_num += 1
+        logger.info("=== Batch %d: %d songs (total processed: %d) ===", batch_num, len(songs), processed)
 
-        # 2. Resolve genre (with cache)
-        if album_id in album_cache:
-            genre = album_cache[album_id]
-        else:
+        for song in songs:
+            deezer_id = song["deezer_id"]
+
             time.sleep(API_DELAY)
-            genre = resolve_genre_from_album(album_id, deezer_get=deezer_get)
-            album_cache[album_id] = genre
+            album_id = get_album_id_for_track(deezer_id)
 
-        if genre == "Electronic":
-            stats["unchanged"] += 1
-        else:
-            stats["updated"] += 1
-            if args.apply:
-                try:
-                    sb.table("songs").update({"genre": genre}).eq("id", song["id"]).execute()
-                except Exception as exc:
-                    logger.error("Failed to update %s: %s", song["id"], exc)
-                    stats["failed"] += 1
-                    stats["updated"] -= 1
+            if not album_id:
+                stats["failed"] += 1
+                processed += 1
+                continue
 
-            logger.info(
-                "[%d/%d] %s — %s: %s → %s",
-                i + 1, total, song["artist"], song["title"], song["genre"], genre,
-            )
+            if album_id in album_cache:
+                genre = album_cache[album_id]
+            else:
+                time.sleep(API_DELAY)
+                genre = resolve_genre_from_album(album_id, deezer_get=deezer_get)
+                album_cache[album_id] = genre
 
-        if (i + 1) % 100 == 0:
-            logger.info("Progress: %d/%d | updated=%d unchanged=%d failed=%d",
-                        i + 1, total, stats["updated"], stats["unchanged"], stats["failed"])
+            if genre == "Electronic":
+                stats["unchanged"] += 1
+            else:
+                stats["updated"] += 1
+                if args.apply:
+                    try:
+                        sb.rpc("update_song_genre", {
+                            "song_id": song["id"],
+                            "new_genre": genre,
+                        }).execute()
+                    except Exception as exc:
+                        logger.error("Failed to update %s: %s", song["id"], exc)
+                        stats["failed"] += 1
+                        stats["updated"] -= 1
 
-    logger.info("Done! updated=%d unchanged=%d failed=%d cached_albums=%d",
-                stats["updated"], stats["unchanged"], stats["failed"], len(album_cache))
+                logger.info(
+                    "[%d] %s — %s: %s → %s",
+                    processed + 1, song["artist"], song["title"], song["genre"], genre,
+                )
+
+            processed += 1
+            if (processed) % 100 == 0:
+                logger.info(
+                    "Progress: %d | updated=%d unchanged=%d failed=%d cached=%d",
+                    processed, stats["updated"], stats["unchanged"], stats["failed"], len(album_cache),
+                )
+
+    logger.info(
+        "Done! processed=%d updated=%d unchanged=%d failed=%d cached_albums=%d",
+        processed, stats["updated"], stats["unchanged"], stats["failed"], len(album_cache),
+    )
 
 
 if __name__ == "__main__":
