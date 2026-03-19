@@ -1,4 +1,6 @@
 import hashlib
+import logging
+from enum import Enum
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -7,6 +9,8 @@ from supabase import Client
 
 from app.db import get_supabase
 from app.limiter import limiter
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
@@ -28,13 +32,23 @@ class FeedbackRequest(BaseModel):
     ab_group: str | None = None
 
 
+class ClickAction(str, Enum):
+    PLAY = "play"
+    SPOTIFY = "spotify"
+    YOUTUBE = "youtube"
+    PLAYLIST = "playlist"
+    SIMILAR = "similar"
+    FEEDBACK_UP = "feedback_up"
+    FEEDBACK_DOWN = "feedback_down"
+
+
 class ClickEventRequest(BaseModel):
     session_hash: str
     query_song_id: str | None = None
     result_song_id: str | None = None
     result_rank: int | None = None
     ab_group: str
-    action: str  # play, spotify, youtube, playlist, similar, feedback_up, feedback_down
+    action: ClickAction
 
 
 @router.post("", status_code=201)
@@ -59,7 +73,8 @@ async def submit_feedback(
                 "ab_group": body.ab_group,
             }
         ).execute()
-    except Exception:
+    except Exception as exc:
+        logger.error("Feedback insert failed: %s", exc)
         raise HTTPException(status_code=400, detail="Invalid song IDs")
     return Response(status_code=201)
 
@@ -83,8 +98,8 @@ async def track_click(
                 "action": body.action,
             }
         ).execute()
-    except Exception:
-        pass  # Fire-and-forget — don't block UX on tracking failure
+    except Exception as exc:
+        logger.debug("Click tracking failed (non-blocking): %s", exc)
     return Response(status_code=201)
 
 

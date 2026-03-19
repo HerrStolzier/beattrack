@@ -218,7 +218,7 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
     } finally {
       setFocusLoading(false);
     }
-  }, [result]);
+  }, [result, visitedIds]);
 
   const handleAddToPlaylist = useCallback((song: Song) => {
     setPlaylist((prev) => {

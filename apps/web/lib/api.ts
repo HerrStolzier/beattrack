@@ -291,7 +291,9 @@ export function trackClick(
       ab_group: getAbGroup(),
       action,
     }),
-  }).catch(() => {});
+  }).catch((err) => {
+    if (typeof console !== "undefined") console.debug("[trackClick]", err);
+  });
 }
 
 // ---------------------------------------------------------------------------

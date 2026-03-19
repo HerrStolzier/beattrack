@@ -1,4 +1,5 @@
 import logging
+import threading
 import time
 
 import numpy as np
@@ -15,6 +16,7 @@ MIN_SIMILARITY = 0.3
 # ---------------------------------------------------------------------------
 # Genre-specific focus weights cache (Phase 1: Feature Importance Learning)
 # ---------------------------------------------------------------------------
+_genre_weights_lock = threading.Lock()
 _genre_weights_cache: dict[str, dict[str, float]] = {}
 _genre_weights_ts: float = 0
 _GENRE_WEIGHTS_TTL = 300  # 5 minutes
@@ -29,21 +31,24 @@ def _get_genre_weights(sb: Client, genre: str | None) -> dict[str, float] | None
 
     now = time.time()
     if now - _genre_weights_ts > _GENRE_WEIGHTS_TTL:
-        try:
-            result = sb.table("genre_focus_weights").select("*").execute()
-            new_cache: dict[str, dict[str, float]] = {}
-            for row in result.data or []:
-                g = row["genre"]
-                if g not in new_cache:
-                    new_cache[g] = {}
-                new_cache[g][row["focus_category"]] = float(row["weight"])
-            _genre_weights_cache = new_cache
-            _genre_weights_ts = now
-            if new_cache:
-                logger.info("Loaded genre focus weights for %d genres", len(new_cache))
-        except Exception as exc:
-            logger.debug("Could not load genre_focus_weights: %s", exc)
-            _genre_weights_ts = now  # don't retry immediately
+        with _genre_weights_lock:
+            # Double-checked locking: another thread may have updated while we waited
+            if now - _genre_weights_ts > _GENRE_WEIGHTS_TTL:
+                try:
+                    result = sb.table("genre_focus_weights").select("*").execute()
+                    new_cache: dict[str, dict[str, float]] = {}
+                    for row in result.data or []:
+                        g = row["genre"]
+                        if g not in new_cache:
+                            new_cache[g] = {}
+                        new_cache[g][row["focus_category"]] = float(row["weight"])
+                    _genre_weights_cache = new_cache
+                    _genre_weights_ts = now
+                    if new_cache:
+                        logger.info("Loaded genre focus weights for %d genres", len(new_cache))
+                except Exception as exc:
+                    logger.debug("Could not load genre_focus_weights: %s", exc)
+                    _genre_weights_ts = now  # don't retry immediately
 
     return _genre_weights_cache.get(genre)
 
@@ -73,6 +78,13 @@ class SimilarRequest(BaseModel):
     max_bpm: float | None = None
     exclude_ids: list[str] = []
     focus: str | None = None
+
+    @field_validator("focus")
+    @classmethod
+    def validate_focus(cls, v: str | None) -> str | None:
+        if v is not None and v not in VALID_FOCUS_CATEGORIES:
+            raise ValueError(f"Invalid focus: {v}. Valid: {', '.join(sorted(VALID_FOCUS_CATEGORIES))}")
+        return v
 
 
 class SimilarSong(BaseModel):
@@ -228,10 +240,7 @@ async def find_similar(
         results = [r for r in results if str(r["id"]) not in exclude_set]
     results = results[: body.limit]
 
-    # Validate focus parameter
     focus = body.focus
-    if focus and focus not in VALID_FOCUS_CATEGORIES:
-        raise HTTPException(status_code=422, detail=f"Invalid focus: {focus}. Valid: {', '.join(sorted(VALID_FOCUS_CATEGORIES))}")
 
     # 3. Late fusion with handcrafted features
     query_handcrafted: list[float] | None = query_song.get("handcrafted_norm")
