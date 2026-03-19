@@ -1,3 +1,4 @@
+import hashlib
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -23,25 +24,32 @@ class FeedbackRequest(BaseModel):
     query_song_id: str
     result_song_id: str
     rating: Literal[1, -1]
+    focus: str | None = None
 
 
 @router.post("", status_code=201)
-@limiter.limit("30/minute")
+@limiter.limit("5/minute")
 async def submit_feedback(
     request: Request,
     body: FeedbackRequest,
     sb: Client = Depends(get_supabase),
 ) -> Response:
+    # DSGVO-konform: SHA256-Hash, nur erste 16 Zeichen (nicht re-identifizierbar)
+    ip = request.client.host if request.client else "unknown"
+    ip_hash = hashlib.sha256(ip.encode()).hexdigest()[:16]
+
     try:
         sb.table("feedback").insert(
             {
                 "query_song_id": body.query_song_id,
                 "result_song_id": body.result_song_id,
                 "rating": body.rating,
+                "ip_hash": ip_hash,
+                "focus_active": body.focus,
             }
         ).execute()
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Feedback failed: {exc}")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid song IDs")
     return Response(status_code=201)
 
 

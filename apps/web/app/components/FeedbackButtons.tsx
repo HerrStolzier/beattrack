@@ -7,6 +7,7 @@ import { submitFeedback } from "@/lib/api";
 interface FeedbackButtonsProps {
   querySongId: string;
   resultSongId: string;
+  focusActive?: string | null;
   onFeedback?: (rating: 1 | -1) => void;
 }
 
@@ -36,6 +37,7 @@ function ParticleBurst({ color }: { color: string }) {
 export default function FeedbackButtons({
   querySongId,
   resultSongId,
+  focusActive,
   onFeedback,
 }: FeedbackButtonsProps) {
   const [selected, setSelected] = useState<1 | -1 | null>(null);
@@ -49,7 +51,7 @@ export default function FeedbackButtons({
     setError(false);
     setBurst(rating);
     try {
-      await submitFeedback(querySongId, resultSongId, rating);
+      await submitFeedback(querySongId, resultSongId, rating, focusActive);
       setSelected(rating);
       onFeedback?.(rating);
     } catch {

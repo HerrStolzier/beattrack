@@ -1,5 +1,4 @@
 import logging
-import os
 
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,9 +9,6 @@ from app.db import get_supabase
 
 logger = logging.getLogger(__name__)
 
-FEEDBACK_BOOST_ENABLED = os.getenv("FEEDBACK_BOOST", "").lower() in ("true", "1", "yes")
-POSITIVE_BOOST = 0.05
-NEGATIVE_PENALTY = 0.03
 MIN_SIMILARITY = 0.3
 
 router = APIRouter(prefix="/similar", tags=["similar"])
@@ -120,36 +116,6 @@ def _apply_late_fusion(
     return fused
 
 
-def _apply_feedback_boost(
-    results: list[dict],
-    query_song_id: str,
-    sb: Client,
-) -> list[dict]:
-    """Adjust similarity scores based on user feedback."""
-    result_ids = [str(r["id"]) for r in results]
-    fb_result = (
-        sb.table("feedback_stats")
-        .select("result_song_id, net_score")
-        .eq("query_song_id", query_song_id)
-        .in_("result_song_id", result_ids)
-        .execute()
-    )
-    fb_map: dict[str, int] = {
-        str(row["result_song_id"]): row["net_score"]
-        for row in (fb_result.data or [])
-    }
-
-    for r in results:
-        net = fb_map.get(str(r["id"]), 0)
-        if net > 0:
-            r["similarity"] = min(1.0, r["similarity"] + POSITIVE_BOOST)
-        elif net < 0:
-            r["similarity"] = max(0.0, r["similarity"] - NEGATIVE_PENALTY)
-
-    results.sort(key=lambda x: x["similarity"], reverse=True)
-    return results
-
-
 @router.post("", response_model=list[SimilarSong])
 async def find_similar(
     body: SimilarRequest,
@@ -209,13 +175,6 @@ async def find_similar(
             results = _apply_late_fusion(results, query_handcrafted, sb, focus=focus)
         except Exception as exc:
             logger.warning("Late fusion failed, returning learned-only results: %s", exc)
-
-    # 4. Optional feedback-based score adjustment
-    if FEEDBACK_BOOST_ENABLED and results:
-        try:
-            results = _apply_feedback_boost(results, body.song_id, sb)
-        except Exception as exc:
-            logger.warning("Feedback boost failed: %s", exc)
 
     return _to_similar_songs(results)
 

@@ -274,6 +274,7 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
                   <FeedbackButtons
                     querySongId={querySong.id}
                     resultSongId={song.id}
+                    focusActive={focus}
                     onFeedback={(rating) => onFeedback?.(querySong.id, song.id, rating)}
                   />
                 </div>

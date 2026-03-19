@@ -227,7 +227,8 @@ export async function findVibe(
 export async function submitFeedback(
   querySongId: string,
   resultSongId: string,
-  rating: 1 | -1
+  rating: 1 | -1,
+  focus?: string | null
 ): Promise<void> {
   const res = await fetchWithRetry(`${API_URL}/feedback`, {
     method: "POST",
@@ -236,6 +237,7 @@ export async function submitFeedback(
       query_song_id: querySongId,
       result_song_id: resultSongId,
       rating,
+      focus: focus ?? null,
     }),
   });
   if (!res.ok) throw new ApiError(`submitFeedback failed`, res.status);
