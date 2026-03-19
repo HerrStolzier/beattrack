@@ -187,10 +187,31 @@ async def find_similar(
 
     try:
         rpc_result = sb.rpc("find_similar_songs", rpc_params).execute()
+        results = rpc_result.data or []
     except Exception as exc:
-        logger.error("Similarity search failed: %s", exc)
-        raise HTTPException(status_code=502, detail="Similarity search failed")
-    results = rpc_result.data or []
+        logger.error("Similarity RPC failed: %s", exc)
+        # Fallback: direct table query with pgvector distance
+        try:
+            fallback = (
+                sb.table("songs")
+                .select("id, title, artist, album, bpm, musical_key, duration_sec, genre, deezer_id")
+                .neq("id", body.song_id)
+                .limit(body.limit + overfetch)
+                .execute()
+            )
+            # Can't do vector search without RPC — return error with details
+            logger.error("RPC unavailable, cannot perform vector similarity")
+            raise HTTPException(
+                status_code=502,
+                detail=f"Similarity search failed: {exc}",
+            )
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Similarity search failed: {exc}",
+            )
 
     # Filter out excluded IDs (for chain discovery / journey mode)
     if exclude_set:
@@ -287,7 +308,7 @@ async def find_blend(
         rpc_result = sb.rpc("find_similar_songs", rpc_params).execute()
     except Exception as exc:
         logger.error("Blend search failed: %s", exc)
-        raise HTTPException(status_code=502, detail="Blend search failed")
+        raise HTTPException(status_code=502, detail=f"Blend search failed: {exc}")
 
     results = rpc_result.data or []
     # Exclude the two seed songs
