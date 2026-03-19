@@ -36,7 +36,7 @@ export default function DeezerEmbed({ deezerId, compact = true, autoplay = false
           width="100%"
           height={80}
           style={{ border: 0, borderRadius: 12 }}
-          allow="encrypted-media"
+          allow="autoplay; encrypted-media"
           loading="lazy"
           title="Deezer Preview"
         />
