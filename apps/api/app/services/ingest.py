@@ -194,7 +194,13 @@ def extract_and_store(
     except Exception as exc:
         logger.warning("Could not normalize handcrafted features: %s", exc)
 
-    # 5. Insert into DB
+    # 5. Resolve genre from Deezer album
+    from app.services.genre import resolve_genre_from_album
+
+    album_id = deezer_track.get("album", {}).get("id")
+    genre = resolve_genre_from_album(album_id, deezer_get=_deezer_get)
+
+    # 6. Insert into DB
     song_data = {
         "title": title,
         "artist": artist,
@@ -208,7 +214,7 @@ def extract_and_store(
         "source": "deezer",
         "embedding_type": "real",
         "metadata_status": "complete",
-        "genre": "Electronic",
+        "genre": genre,
         "deezer_id": deezer_id,
     }
 

@@ -176,12 +176,16 @@ def _apply_late_fusion(
             hc_sim = _cosine_similarity(query_vec, result_vec)
         elif genre_weights:
             # Genre-weighted: per-category similarity, weighted by feedback
+            # Normalize weights to sum to 1.0 to prevent score inflation
+            default_w = 1.0 / len(FOCUS_DIMENSIONS)
+            raw_weights = {cat: genre_weights.get(cat, default_w) for cat in FOCUS_DIMENSIONS}
+            total_w = sum(raw_weights.values())
+            norm_weights = {cat: w / total_w for cat, w in raw_weights.items()} if total_w > 0 else raw_weights
             hc_sim = 0.0
             for cat, cat_dims in FOCUS_DIMENSIONS.items():
-                cat_weight = genre_weights.get(cat, 1.0 / len(FOCUS_DIMENSIONS))
                 q_sub = _extract_dims(query_handcrafted, cat_dims)
                 r_sub = _extract_dims(hc_vec, cat_dims)
-                hc_sim += cat_weight * _cosine_similarity(q_sub, r_sub)
+                hc_sim += norm_weights[cat] * _cosine_similarity(q_sub, r_sub)
         else:
             # Flat: full-vector comparison
             hc_sim = _cosine_similarity(query_vec, hc_vec)
