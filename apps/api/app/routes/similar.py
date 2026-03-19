@@ -14,8 +14,11 @@ logger = logging.getLogger(__name__)
 
 MIN_SIMILARITY = 0.3
 
-# Overfetch factor to compensate for deduplication of remix/version variants
-_DEDUP_OVERFETCH = 1.5
+# Overfetch factor: dedup + MMR need a larger candidate pool
+_OVERFETCH_FACTOR = 3.0
+
+# MMR diversity parameter: 1.0 = pure relevance, 0.0 = pure diversity
+_MMR_LAMBDA = 0.7
 
 # Regex to extract base title by stripping (...), [...], and common suffixes
 _STRIP_PARENS = re.compile(r"\s*[\(\[].*?[\)\]]\s*")
@@ -237,6 +240,66 @@ def _deduplicate_versions(results: list[dict]) -> list[dict]:
     return deduped
 
 
+def _apply_mmr(
+    results: list[dict],
+    embeddings: dict[str, list[float]],
+    limit: int,
+    lambda_: float = _MMR_LAMBDA,
+) -> list[dict]:
+    """Re-rank results using Maximal Marginal Relevance for diversity.
+
+    MMR(d) = λ * Sim(query, d) - (1-λ) * max(Sim(d, d_already_selected))
+
+    This ensures results are both relevant AND diverse — avoids returning
+    5 songs that all sound identical to each other.
+    """
+    if len(results) <= limit or not embeddings:
+        return results[:limit]
+
+    # Precompute normalized embedding vectors for fast cosine
+    emb_cache: dict[str, np.ndarray] = {}
+    for r in results:
+        rid = str(r["id"])
+        emb = embeddings.get(rid)
+        if emb is not None:
+            vec = np.asarray(emb, dtype=np.float64)
+            norm = np.linalg.norm(vec)
+            emb_cache[rid] = vec / norm if norm > 0 else vec
+
+    # Start with the highest-scoring result
+    selected: list[dict] = [results[0]]
+    candidates = list(results[1:])
+
+    while len(selected) < limit and candidates:
+        best_score = -float("inf")
+        best_idx = 0
+
+        for i, cand in enumerate(candidates):
+            cid = str(cand["id"])
+            relevance = float(cand.get("similarity", 0))
+
+            # Max similarity to any already-selected result
+            cand_emb = emb_cache.get(cid)
+            if cand_emb is not None:
+                max_sim_to_selected = max(
+                    (float(np.dot(cand_emb, emb_cache[str(s["id"])]))
+                     for s in selected if str(s["id"]) in emb_cache),
+                    default=0.0,
+                )
+            else:
+                max_sim_to_selected = 0.0
+
+            mmr_score = lambda_ * relevance - (1 - lambda_) * max_sim_to_selected
+
+            if mmr_score > best_score:
+                best_score = mmr_score
+                best_idx = i
+
+        selected.append(candidates.pop(best_idx))
+
+    return selected
+
+
 @router.post("", response_model=list[SimilarSong])
 async def find_similar(
     body: SimilarRequest,
@@ -259,13 +322,13 @@ async def find_similar(
         raise HTTPException(status_code=422, detail="Song has no embedding")
 
     # 2. Vector similarity search via RPC
-    # Overfetch to compensate for exclude_ids + deduplication of remix variants
+    # Overfetch 3x to feed dedup + MMR diversity re-ranking
     exclude_set = set(body.exclude_ids)
     exclude_extra = min(len(exclude_set), 50)
-    dedup_extra = int(body.limit * _DEDUP_OVERFETCH) - body.limit
+    fetch_count = int(body.limit * _OVERFETCH_FACTOR) + exclude_extra
     rpc_params: dict = {
         "query_embedding": str(embedding),
-        "match_count": body.limit + exclude_extra + dedup_extra,
+        "match_count": fetch_count,
         "exclude_id": body.song_id,
     }
     if body.min_bpm is not None:
@@ -296,7 +359,24 @@ async def find_similar(
 
     # 4. Deduplicate remix/version variants (keep best per base track)
     results = _deduplicate_versions(results)
-    results = results[: body.limit]
+
+    # 5. MMR diversity re-ranking (use learned embeddings for inter-result distance)
+    if len(results) > body.limit:
+        result_ids = [str(r["id"]) for r in results]
+        emb_result = (
+            sb.table("songs")
+            .select("id, learned_embedding")
+            .in_("id", result_ids)
+            .execute()
+        )
+        emb_map = {
+            str(row["id"]): row["learned_embedding"]
+            for row in (emb_result.data or [])
+            if row.get("learned_embedding")
+        }
+        results = _apply_mmr(results, emb_map, body.limit)
+    else:
+        results = results[: body.limit]
 
     return _to_similar_songs(results)
 
@@ -362,7 +442,7 @@ async def find_blend(
 
     rpc_params: dict = {
         "query_embedding": str(centroid),
-        "match_count": int(body.limit * _DEDUP_OVERFETCH) + 2,  # overfetch for seeds + dedup
+        "match_count": int(body.limit * _OVERFETCH_FACTOR) + 2,  # overfetch for seeds + dedup + MMR
     }
     try:
         rpc_result = sb.rpc("find_similar_songs", rpc_params).execute()
@@ -373,7 +453,7 @@ async def find_blend(
     results = rpc_result.data or []
     # Exclude the two seed songs
     seed_ids = {body.song_id_a, body.song_id_b}
-    results = [r for r in results if str(r["id"]) not in seed_ids][: body.limit]
+    results = [r for r in results if str(r["id"]) not in seed_ids]
 
     # Late fusion with centroid of handcrafted features
     if hc_a and hc_b and results:
