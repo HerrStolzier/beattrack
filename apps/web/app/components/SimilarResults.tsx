@@ -118,43 +118,42 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
                 <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-amber/50 to-transparent" />
               )}
 
-              <div className="p-4">
+              <div className="p-5">
                 {/* Header: Rank + Title + Score */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0 flex-1">
                     {/* Rank — glowing for top 3 */}
                     <motion.span
-                      className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-lg font-mono text-xs font-bold ${
+                      className={`shrink-0 flex h-9 w-9 items-center justify-center rounded-lg font-mono text-sm font-black ${
                         isTop3
-                          ? "bg-amber/10 text-amber-light border border-amber/20"
-                          : "bg-surface-raised text-text-tertiary"
+                          ? "bg-gradient-to-br from-amber/15 to-gold/10 text-amber-light border border-amber/25 shadow-[0_0_10px_rgba(245,158,11,0.08)]"
+                          : "bg-surface-raised text-text-tertiary/70"
                       }`}
-                      initial={{ scale: 0.8, opacity: 0 }}
+                      initial={{ scale: 0.6, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      transition={{ delay: index * 0.05 }}
+                      transition={{ delay: index * 0.04, type: "spring", stiffness: 500 }}
                     >
                       {index + 1}
                     </motion.span>
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-text-primary">
+                      <p className="truncate font-display text-base font-semibold tracking-tight text-white">
                         {song.title}
                       </p>
-                      <div className="mt-0.5 flex items-center gap-2 text-[11px]">
-                        <span className="truncate text-text-secondary">{song.artist}</span>
+                      <p className="mt-0.5 truncate text-[13px] text-text-secondary">
+                        {song.artist}
+                      </p>
+                      <div className="mt-1.5 flex items-center gap-2">
                         {song.bpm != null && (
-                          <>
-                            <span className="text-border-glass">·</span>
-                            <span className="shrink-0 font-mono text-amber-light/60">
-                              {Math.round(song.bpm)}
-                            </span>
-                          </>
+                          <span className="inline-flex items-center gap-1 rounded-md bg-amber/8 px-2 py-0.5 font-mono text-[11px] font-medium text-amber-light">
+                            {Math.round(song.bpm)}
+                            <span className="text-[9px] font-normal text-amber-light/50">BPM</span>
+                          </span>
                         )}
                         {song.genre && (
-                          <>
-                            <span className="text-border-glass">·</span>
-                            <span className="shrink-0 text-text-tertiary">{song.genre}</span>
-                          </>
+                          <span className="rounded-md bg-surface-elevated px-2 py-0.5 text-[11px] text-text-tertiary">
+                            {song.genre}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -167,12 +166,12 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.2 + index * 0.05, type: "spring", stiffness: 400 }}
                   >
-                    <span className={`text-lg font-bold tabular-nums ${
+                    <span className={`font-display text-xl font-bold tabular-nums tracking-tight ${
                       pct >= 90 ? "text-amber animate-glow-pulse" : pct >= 70 ? "text-amber-light" : "text-text-secondary"
                     }`}>
-                      {pct}%
+                      {pct}<span className="text-sm">%</span>
                     </span>
-                    <p className="text-[10px] text-text-tertiary">{similarityLabel(song.similarity)}</p>
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary/70">{similarityLabel(song.similarity)}</p>
                   </motion.div>
                 </div>
 
