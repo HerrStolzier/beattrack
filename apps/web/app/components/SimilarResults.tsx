@@ -283,7 +283,7 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
                   >
                     {song.deezer_id && (
                       <div onClick={(e) => e.stopPropagation()}>
-                        <DeezerEmbed deezerId={song.deezer_id} compact={false} />
+                        <DeezerEmbed deezerId={song.deezer_id} compact={false} autoplay />
                       </div>
                     )}
                     <RadarChart querySongId={querySong.id} resultSongId={song.id} />

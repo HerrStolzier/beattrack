@@ -5,9 +5,10 @@ import { useRef, useEffect, useState } from "react";
 interface DeezerEmbedProps {
   deezerId: number;
   compact?: boolean;
+  autoplay?: boolean;
 }
 
-export default function DeezerEmbed({ deezerId, compact = true }: DeezerEmbedProps) {
+export default function DeezerEmbed({ deezerId, compact = true, autoplay = false }: DeezerEmbedProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -31,7 +32,7 @@ export default function DeezerEmbed({ deezerId, compact = true }: DeezerEmbedPro
     <div ref={ref} className="mt-2">
       {isVisible ? (
         <iframe
-          src={`https://widget.deezer.com/widget/dark/track/${deezerId}?autoplay=false&radius=true&tracklist=false`}
+          src={`https://widget.deezer.com/widget/dark/track/${deezerId}?autoplay=${autoplay}&radius=true&tracklist=false`}
           width="100%"
           height={80}
           style={{ border: 0, borderRadius: 12 }}
