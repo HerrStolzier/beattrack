@@ -34,13 +34,6 @@ function similarityLabel(score: number): string {
   return "Entfernt";
 }
 
-function formatDuration(sec: number | null | undefined): string {
-  if (sec == null) return "";
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
 function searchUrl(platform: "spotify" | "youtube", artist: string, title: string): string {
   const q = encodeURIComponent(`${artist} ${title}`);
   if (platform === "spotify") {
@@ -154,39 +147,24 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
                 </div>
               )}
 
-              {/* Metadata row: genre + tags */}
-              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
-                {song.genre && (
-                  <span
-                    className="genre-badge"
-                    style={{
-                      color: genreColor,
-                      background: `color-mix(in srgb, ${genreColor} 15%, transparent)`,
-                    }}
-                  >
-                    {song.genre}
-                  </span>
-                )}
+              {/* Metadata — minimal, inline */}
+              <div className="mt-2 flex items-center gap-2 text-[11px]">
                 {song.bpm != null && (
-                  <span className="rounded-full bg-amber-dim px-2.5 py-0.5 font-mono text-amber-light">
-                    {Math.round(song.bpm)} BPM
+                  <span className="font-mono text-amber-light/70">
+                    {Math.round(song.bpm)} <span className="text-[9px] text-text-tertiary">BPM</span>
                   </span>
                 )}
-                {song.musical_key && (
-                  <span className="rounded-full bg-violet-dim px-2.5 py-0.5 font-mono text-violet">
-                    {song.musical_key}
-                  </span>
+                {song.bpm != null && song.genre && (
+                  <span className="text-border-glass">·</span>
                 )}
-                {song.duration_sec != null && song.duration_sec > 0 && (
-                  <span className="rounded-full bg-surface-raised px-2.5 py-0.5 font-mono text-text-tertiary">
-                    {formatDuration(song.duration_sec)}
-                  </span>
+                {song.genre && (
+                  <span className="text-text-tertiary">{song.genre}</span>
                 )}
               </div>
 
-              {/* Animated similarity bar */}
+              {/* Animated similarity bar — thin with glow */}
               <div
-                className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-surface-raised"
+                className="mt-2 h-[3px] w-full overflow-hidden rounded-full bg-surface-raised"
                 role="progressbar"
                 aria-valuenow={pct}
                 aria-valuemin={0}
@@ -195,18 +173,12 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
               >
                 <motion.div
                   className={`h-full rounded-full bg-gradient-to-r ${similarityColor(song.similarity)}`}
+                  style={{ boxShadow: song.similarity >= 0.7 ? "0 0 8px var(--color-amber-glow)" : "none" }}
                   initial={{ width: 0 }}
                   animate={{ width: `${pct}%` }}
                   transition={{ delay: 0.3, duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
                 />
               </div>
-
-              {/* Low score explanation */}
-              {song.similarity < 0.3 && (
-                <p className="mt-1 text-[10px] text-text-tertiary">
-                  Niedrige Ähnlichkeit — der Katalog enthält möglicherweise keine engeren Matches.
-                </p>
-              )}
 
               {/* Action tiles */}
               <div className="mt-3 grid grid-cols-3 sm:grid-cols-5 gap-2">
@@ -255,8 +227,8 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
                 </button>
               </div>
 
-              {/* Feedback */}
-              <div className="mt-2 flex justify-end">
+              {/* Feedback — full width CTA */}
+              <div className="mt-3 border-t border-border-subtle pt-3">
                 <FeedbackButtons
                   querySongId={querySong.id}
                   resultSongId={song.id}
