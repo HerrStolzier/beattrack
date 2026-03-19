@@ -20,7 +20,11 @@ from app.routes import songs, similar, feedback, analyze, identify, batch_ingest
 logger = logging.getLogger(__name__)
 
 _default_origins = ["https://beattrack.app", "https://www.beattrack.app", "http://localhost:3000"]
-_origins = os.environ.get("CORS_ORIGINS", "").split(",") if os.environ.get("CORS_ORIGINS") else _default_origins
+_env_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
+# Always include www variant
+_origins = _env_origins if _env_origins else _default_origins
+if "https://beattrack.app" in _origins and "https://www.beattrack.app" not in _origins:
+    _origins.append("https://www.beattrack.app")
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
