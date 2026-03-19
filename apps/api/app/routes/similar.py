@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 import threading
@@ -260,8 +261,9 @@ def _apply_mmr(
     emb_cache: dict[str, np.ndarray] = {}
     for r in results:
         rid = str(r["id"])
-        emb = embeddings.get(rid)
-        if emb is not None:
+        raw = embeddings.get(rid)
+        if raw is not None:
+            emb = json.loads(raw) if isinstance(raw, str) else raw
             vec = np.asarray(emb, dtype=np.float64)
             norm = np.linalg.norm(vec)
             emb_cache[rid] = vec / norm if norm > 0 else vec
