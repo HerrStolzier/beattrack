@@ -53,6 +53,26 @@ async def submit_feedback(
     return Response(status_code=201)
 
 
+class GenreFocusWeight(BaseModel):
+    genre: str
+    focus_category: str
+    weight: float
+    vote_count: int
+
+
+@router.get("/weights", response_model=list[GenreFocusWeight])
+async def get_genre_weights(
+    genre: str | None = None,
+    sb: Client = Depends(get_supabase),
+) -> list[GenreFocusWeight]:
+    """Get learned genre-specific focus weights from feedback data."""
+    query = sb.table("genre_focus_weights").select("*")
+    if genre:
+        query = query.eq("genre", genre)
+    result = query.order("genre").order("weight", desc=True).execute()
+    return [GenreFocusWeight(**row) for row in (result.data or [])]
+
+
 @router.get("/stats", response_model=list[FeedbackStatsItem])
 async def get_feedback_stats(
     type: Literal["top", "flop"] = "top",

@@ -1,4 +1,5 @@
 import logging
+import time
 
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,6 +11,41 @@ from app.db import get_supabase
 logger = logging.getLogger(__name__)
 
 MIN_SIMILARITY = 0.3
+
+# ---------------------------------------------------------------------------
+# Genre-specific focus weights cache (Phase 1: Feature Importance Learning)
+# ---------------------------------------------------------------------------
+_genre_weights_cache: dict[str, dict[str, float]] = {}
+_genre_weights_ts: float = 0
+_GENRE_WEIGHTS_TTL = 300  # 5 minutes
+
+
+def _get_genre_weights(sb: Client, genre: str | None) -> dict[str, float] | None:
+    """Load genre-specific focus weights from materialized view (cached 5 min)."""
+    global _genre_weights_cache, _genre_weights_ts
+
+    if genre is None:
+        return None
+
+    now = time.time()
+    if now - _genre_weights_ts > _GENRE_WEIGHTS_TTL:
+        try:
+            result = sb.table("genre_focus_weights").select("*").execute()
+            new_cache: dict[str, dict[str, float]] = {}
+            for row in result.data or []:
+                g = row["genre"]
+                if g not in new_cache:
+                    new_cache[g] = {}
+                new_cache[g][row["focus_category"]] = float(row["weight"])
+            _genre_weights_cache = new_cache
+            _genre_weights_ts = now
+            if new_cache:
+                logger.info("Loaded genre focus weights for %d genres", len(new_cache))
+        except Exception as exc:
+            logger.debug("Could not load genre_focus_weights: %s", exc)
+            _genre_weights_ts = now  # don't retry immediately
+
+    return _genre_weights_cache.get(genre)
 
 router = APIRouter(prefix="/similar", tags=["similar"])
 
@@ -71,11 +107,14 @@ def _apply_late_fusion(
     query_handcrafted: list[float],
     sb: Client,
     focus: str | None = None,
+    query_genre: str | None = None,
 ) -> list[dict]:
     """Blend learned_similarity with handcrafted cosine similarity.
 
-    Default: 80/20 fusion.
-    With focus: 60/40 fusion using only the focused feature dimensions.
+    Priority order:
+    1. Explicit focus → 60/40 on focused dimensions only
+    2. Genre weights from feedback → weighted per-category fusion (adaptive 20-40% hc)
+    3. Default → 80/20 flat fusion
     """
     result_ids = [str(r["id"]) for r in results]
     hc_result = (
@@ -90,26 +129,52 @@ def _apply_late_fusion(
         if row.get("handcrafted_norm")
     }
 
-    # Determine fusion weights and dimensions
+    # --- Determine fusion strategy ---
+    genre_weights = None
     if focus and focus in FOCUS_DIMENSIONS:
+        # Strategy 1: Explicit focus → 60/40 on subset
         learned_weight, hc_weight = 0.6, 0.4
         focus_dims = FOCUS_DIMENSIONS[focus]
         query_vec = _extract_dims(query_handcrafted, focus_dims)
     else:
-        learned_weight, hc_weight = 0.8, 0.2
-        query_vec = query_handcrafted
         focus_dims = None
+        query_vec = query_handcrafted
+        # Strategy 2: Genre-learned weights (Phase 1 Feature Importance)
+        genre_weights = _get_genre_weights(sb, query_genre)
+        if genre_weights:
+            # Confidence: more votes → trust handcrafted more (20-40%)
+            confidence = min(1.0, sum(genre_weights.values()) * 2)
+            hc_weight = 0.2 + (0.2 * confidence)
+            learned_weight = 1.0 - hc_weight
+        else:
+            # Strategy 3: Default flat fusion
+            learned_weight, hc_weight = 0.8, 0.2
 
     fused: list[dict] = []
     for row in results:
         learned_sim: float = row.get("similarity", 0.0)
         hc_vec = hc_map.get(str(row["id"]))
-        if hc_vec:
-            result_vec = _extract_dims(hc_vec, focus_dims) if focus_dims else hc_vec
+        if not hc_vec:
+            fused.append({**row, "similarity": learned_sim})
+            continue
+
+        if focus_dims:
+            # Single-focus: compare only focused dimensions
+            result_vec = _extract_dims(hc_vec, focus_dims)
             hc_sim = _cosine_similarity(query_vec, result_vec)
-            fused_score = learned_weight * learned_sim + hc_weight * hc_sim
+        elif genre_weights:
+            # Genre-weighted: per-category similarity, weighted by feedback
+            hc_sim = 0.0
+            for cat, cat_dims in FOCUS_DIMENSIONS.items():
+                cat_weight = genre_weights.get(cat, 1.0 / len(FOCUS_DIMENSIONS))
+                q_sub = _extract_dims(query_handcrafted, cat_dims)
+                r_sub = _extract_dims(hc_vec, cat_dims)
+                hc_sim += cat_weight * _cosine_similarity(q_sub, r_sub)
         else:
-            fused_score = learned_sim
+            # Flat: full-vector comparison
+            hc_sim = _cosine_similarity(query_vec, hc_vec)
+
+        fused_score = learned_weight * learned_sim + hc_weight * hc_sim
         fused.append({**row, "similarity": fused_score})
 
     fused.sort(key=lambda x: x["similarity"], reverse=True)
@@ -124,7 +189,7 @@ async def find_similar(
     # 1. Fetch query song
     song_result = (
         sb.table("songs")
-        .select("id, learned_embedding, handcrafted_norm")
+        .select("id, learned_embedding, handcrafted_norm, genre")
         .eq("id", body.song_id)
         .single()
         .execute()
@@ -172,7 +237,7 @@ async def find_similar(
     query_handcrafted: list[float] | None = query_song.get("handcrafted_norm")
     if query_handcrafted and results:
         try:
-            results = _apply_late_fusion(results, query_handcrafted, sb, focus=focus)
+            results = _apply_late_fusion(results, query_handcrafted, sb, focus=focus, query_genre=query_song.get("genre"))
         except Exception as exc:
             logger.warning("Late fusion failed, returning learned-only results: %s", exc)
 
