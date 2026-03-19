@@ -34,6 +34,7 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
   const [focus, setFocus] = useState<FocusCategory | null>(null);
   const [focusLoading, setFocusLoading] = useState(false);
   const [multiLabel, setMultiLabel] = useState<string>("");
+  const [visitedIds, setVisitedIds] = useState<string[]>([]);
   const [playlist, setPlaylist] = useState<Song[]>(() => {
     if (typeof window === "undefined") return [];
     try {
@@ -119,13 +120,19 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
     if (identifyResult.matched && identifyResult.song) {
       ingestRetryCount.current = 0;
       try {
-        const similar = await findSimilar(identifyResult.song.id);
+        setVisitedIds((prev) => prev.includes(identifyResult.song!.id) ? prev : [...prev, identifyResult.song!.id]);
+        const similar = await findSimilar(identifyResult.song.id, { excludeIds: visitedIds });
         setResult({
           song_id: identifyResult.song.id,
           bpm: identifyResult.song.bpm || 0,
           key: identifyResult.song.musical_key || "",
           duration: identifyResult.song.duration_sec || 0,
           similar_songs: similar,
+        });
+        // Track result song IDs as visited
+        setVisitedIds((prev) => {
+          const newIds = similar.map((s) => s.id).filter((id) => !prev.includes(id));
+          return [...prev, ...newIds].slice(-200);
         });
       } catch {
         // Similar search failed, but YouTube match still valid
@@ -193,6 +200,7 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
     setYtResult(null);
     setUploadedFileName("");
     setFocus(null);
+    setVisitedIds([]);
   }, []);
 
   const handleFocusChange = useCallback(async (newFocus: FocusCategory | null) => {
@@ -202,6 +210,7 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
     try {
       const similar = await findSimilar(result.song_id, {
         focus: newFocus ?? undefined,
+        excludeIds: visitedIds,
       });
       setResult((prev) => prev ? { ...prev, similar_songs: similar } : prev);
     } catch {
