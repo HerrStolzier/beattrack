@@ -528,16 +528,22 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
         <>
           {/* Floating action button */}
           {!playlistOpen && (
-            <button
+            <motion.button
               onClick={() => setPlaylistOpen(true)}
-              className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-amber/90 text-bg-primary shadow-lg transition-transform hover:scale-105"
+              className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber to-gold text-bg-primary shadow-[0_4px_24px_rgba(245,158,11,0.3)] transition-all hover:shadow-[0_4px_32px_rgba(245,158,11,0.5)]"
               title="Playlist öffnen"
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.95 }}
             >
-              <span className="text-lg">♫</span>
-              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-cyan text-[10px] font-bold text-bg-primary">
+              <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18V5l12-2v13" />
+                <circle cx="6" cy="18" r="3" fill="currentColor" stroke="none" />
+                <circle cx="18" cy="16" r="3" fill="currentColor" stroke="none" />
+              </svg>
+              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-neon-cyan text-[10px] font-bold text-bg-primary shadow-[0_0_8px_var(--color-neon-cyan-dim)]">
                 {playlist.length}
               </span>
-            </button>
+            </motion.button>
           )}
 
           {/* Slide-in panel */}

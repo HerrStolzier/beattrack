@@ -126,8 +126,8 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
                     <motion.span
                       className={`shrink-0 flex h-9 w-9 items-center justify-center rounded-lg font-mono text-sm font-black ${
                         isTop3
-                          ? "bg-gradient-to-br from-amber/15 to-gold/10 text-amber-light border border-amber/25 shadow-[0_0_10px_rgba(245,158,11,0.08)]"
-                          : "bg-surface-raised text-text-tertiary/70"
+                          ? "bg-gradient-to-br from-amber/25 to-gold/15 text-amber-light border border-amber/30 shadow-[0_0_10px_rgba(245,158,11,0.12)]"
+                          : "bg-surface-elevated text-text-secondary"
                       }`}
                       initial={{ scale: 0.6, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -166,12 +166,15 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.2 + index * 0.05, type: "spring", stiffness: 400 }}
                   >
-                    <span className={`font-display text-xl font-bold tabular-nums tracking-tight ${
-                      pct >= 90 ? "text-amber animate-glow-pulse" : pct >= 70 ? "text-amber-light" : "text-text-secondary"
-                    }`}>
+                    <span
+                      className={`font-display text-xl font-bold tabular-nums tracking-tight ${
+                        pct >= 90 ? "text-amber" : pct >= 70 ? "text-amber-light" : "text-text-secondary"
+                      }`}
+                      style={pct >= 90 ? { textShadow: "0 0 12px var(--color-amber-glow), 0 0 4px var(--color-amber-dim)" } : undefined}
+                    >
                       {pct}<span className="text-sm">%</span>
                     </span>
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary/70">{similarityLabel(song.similarity)}</p>
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">{similarityLabel(song.similarity)}</p>
                   </motion.div>
                 </div>
 
