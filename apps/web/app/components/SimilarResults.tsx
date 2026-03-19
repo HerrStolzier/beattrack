@@ -67,14 +67,19 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
         </h2>
         <button
           onClick={() => setDjMode(!djMode)}
-          className={`cursor-pointer rounded-lg px-2.5 py-1 text-[10px] font-medium transition-colors ${
+          className={`cursor-pointer flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
             djMode
-              ? "bg-cyan/15 text-cyan border border-cyan/30"
-              : "text-text-tertiary hover:text-text-secondary hover:bg-surface-elevated"
+              ? "bg-cyan/15 text-cyan border border-cyan/30 shadow-[0_0_12px_var(--color-neon-cyan-dim)]"
+              : "border border-border-subtle text-text-tertiary hover:text-cyan hover:border-cyan/20 hover:bg-cyan/5"
           }`}
           title={djMode ? "DJ-Modus aus" : "DJ-Modus an — zeigt harmonische Kompatibilität"}
         >
-          DJ
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 2v3M12 19v3" />
+          </svg>
+          DJ-Modus
         </button>
       </div>
 

@@ -41,12 +41,13 @@ export default function HarmonicBadge({ queryKey, queryBpm, resultKey, resultBpm
 
       {/* BPM diff */}
       {bpmDiff != null && bpmDiff !== 0 && (
-        <span className={`font-mono ${
+        <span className={`flex items-center gap-1 rounded-full bg-surface-raised px-2 py-0.5 font-mono ${
           bpmMatch === "exact" ? "text-emerald-400" :
           bpmMatch === "close" ? "text-amber-400" :
           "text-text-tertiary"
         }`}>
           {bpmDiff > 0 ? "+" : ""}{bpmDiff}
+          <span className="text-[8px] font-normal opacity-60">BPM</span>
         </span>
       )}
     </div>
