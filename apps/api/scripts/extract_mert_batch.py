@@ -62,8 +62,14 @@ def main() -> None:
     parser.add_argument("--checkpoint", type=str, default="mert_checkpoint.json", help="Checkpoint file")
     args = parser.parse_args()
 
-    # Import MERT worker (loads model lazily)
-    from app.workers.mert import extract_from_preview_url
+    # Import MERT worker directly (avoid workers/__init__.py procrastinate dep)
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "mert", os.path.join(os.path.dirname(__file__), "..", "app", "workers", "mert.py")
+    )
+    mert_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mert_module)
+    extract_from_preview_url = mert_module.extract_from_preview_url
 
     from app.db import get_supabase
     sb = get_supabase()
