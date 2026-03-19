@@ -1,4 +1,5 @@
 import logging
+import re
 import threading
 import time
 
@@ -12,6 +13,18 @@ from app.db import get_supabase
 logger = logging.getLogger(__name__)
 
 MIN_SIMILARITY = 0.3
+
+# Overfetch factor to compensate for deduplication of remix/version variants
+_DEDUP_OVERFETCH = 1.5
+
+# Regex to extract base title by stripping (...), [...], and common suffixes
+_STRIP_PARENS = re.compile(r"\s*[\(\[].*?[\)\]]\s*")
+_STRIP_SUFFIXES = re.compile(
+    r"\s*[-–—]\s*(?:radio edit|extended|remix|original mix|club mix|dub mix|"
+    r"instrumental|acoustic|live|remaster(?:ed)?|slowed|sped up|mix cut|mixed|"
+    r"feat\..*|ft\..*)$",
+    re.IGNORECASE,
+)
 
 # ---------------------------------------------------------------------------
 # Genre-specific focus weights cache (Phase 1: Feature Importance Learning)
@@ -197,6 +210,33 @@ def _apply_late_fusion(
     return fused
 
 
+def _base_title(title: str) -> str:
+    """Strip remix/version suffixes to get the canonical base title."""
+    t = _STRIP_PARENS.sub("", title)
+    t = _STRIP_SUFFIXES.sub("", t)
+    return t.strip().lower()
+
+
+def _deduplicate_versions(results: list[dict]) -> list[dict]:
+    """Keep only the highest-scoring version per base track (artist + base title).
+
+    Remix variants like "Café Del Mar (Deadmau5 Remix)" and "Café Del Mar (Orbital Remix)"
+    collapse to a single entry — the one with the best similarity score.
+    Results must be pre-sorted by similarity descending.
+    """
+    seen: dict[str, dict] = {}  # key: "artist||base_title" → best result
+    deduped: list[dict] = []
+
+    for r in results:
+        key = f"{r['artist'].lower()}||{_base_title(r['title'])}"
+        if key not in seen:
+            seen[key] = r
+            deduped.append(r)
+        # else: skip — first occurrence has highest score (pre-sorted)
+
+    return deduped
+
+
 @router.post("", response_model=list[SimilarSong])
 async def find_similar(
     body: SimilarRequest,
@@ -219,12 +259,13 @@ async def find_similar(
         raise HTTPException(status_code=422, detail="Song has no embedding")
 
     # 2. Vector similarity search via RPC
-    # Fetch extra results to compensate for exclude_ids filtering
+    # Overfetch to compensate for exclude_ids + deduplication of remix variants
     exclude_set = set(body.exclude_ids)
-    overfetch = min(len(exclude_set), 50)  # cap to avoid excessive queries
+    exclude_extra = min(len(exclude_set), 50)
+    dedup_extra = int(body.limit * _DEDUP_OVERFETCH) - body.limit
     rpc_params: dict = {
         "query_embedding": str(embedding),
-        "match_count": body.limit + overfetch,
+        "match_count": body.limit + exclude_extra + dedup_extra,
         "exclude_id": body.song_id,
     }
     if body.min_bpm is not None:
@@ -242,7 +283,6 @@ async def find_similar(
     # Filter out excluded IDs (for chain discovery / journey mode)
     if exclude_set:
         results = [r for r in results if str(r["id"]) not in exclude_set]
-    results = results[: body.limit]
 
     focus = body.focus
 
@@ -253,6 +293,10 @@ async def find_similar(
             results = _apply_late_fusion(results, query_handcrafted, sb, focus=focus, query_genre=query_song.get("genre"))
         except Exception as exc:
             logger.warning("Late fusion failed, returning learned-only results: %s", exc)
+
+    # 4. Deduplicate remix/version variants (keep best per base track)
+    results = _deduplicate_versions(results)
+    results = results[: body.limit]
 
     return _to_similar_songs(results)
 
@@ -318,7 +362,7 @@ async def find_blend(
 
     rpc_params: dict = {
         "query_embedding": str(centroid),
-        "match_count": body.limit + 2,  # overfetch to exclude seeds
+        "match_count": int(body.limit * _DEDUP_OVERFETCH) + 2,  # overfetch for seeds + dedup
     }
     try:
         rpc_result = sb.rpc("find_similar_songs", rpc_params).execute()
@@ -339,7 +383,8 @@ async def find_blend(
         except Exception as exc:
             logger.warning("Blend late fusion failed: %s", exc)
 
-    return _to_similar_songs(results)
+    results = _deduplicate_versions(results)
+    return _to_similar_songs(results[: body.limit])
 
 
 # ---------------------------------------------------------------------------
@@ -432,4 +477,5 @@ async def find_vibe(
         except Exception as exc:
             logger.warning("Vibe centroid fallback failed: %s", exc)
 
+    candidates = _deduplicate_versions(candidates)
     return _to_similar_songs(candidates[: body.limit])
