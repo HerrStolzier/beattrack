@@ -140,7 +140,7 @@ def test_identify_soundcloud_no_match(client):
     data = resp.json()
     assert data["matched"] is False
     assert data["song"] is None
-    assert "Kein Match" in data["message"]
+    assert "nicht in der Datenbank gefunden" in data["message"]
 
 
 def test_identify_soundcloud_oembed_failure(client):

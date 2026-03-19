@@ -22,6 +22,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.4.0",
+    "pytest-asyncio>=0.24.0",
     "httpx>=0.28.0",
     "pip-audit>=2.7.0",
 ]
@@ -37,6 +38,7 @@ build-backend = "hatchling.build"
 dev = [
     "httpx>=0.28.1",
     "pytest>=9.0.2",
+    "pytest-asyncio>=0.24.0",
     "ruff>=0.11.0",
     "mypy>=1.15.0",
 ]

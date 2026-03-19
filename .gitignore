@@ -12,7 +12,6 @@ data/
 
 # Phase 0 data (large files)
 phase0/data/
-phase0/fixtures/
 phase0/models/
 phase0/embeddings/
 

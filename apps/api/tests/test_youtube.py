@@ -154,7 +154,7 @@ def test_identify_youtube_no_match(client):
     data = resp.json()
     assert data["matched"] is False
     assert data["song"] is None
-    assert "Kein Match" in data["message"]
+    assert "nicht in der Datenbank gefunden" in data["message"]
 
 
 def test_identify_youtube_oembed_failure(client):
