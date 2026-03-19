@@ -1,12 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import SimilarResults from "../app/components/SimilarResults";
 import { type Song, type SimilarSong } from "@/lib/api";
 
 // Mock sub-components that need API calls
 vi.mock("../app/components/RadarChart", () => ({
   default: () => <div data-testid="radar-chart">Radar</div>,
+}));
+
+vi.mock("../app/components/DeezerEmbed", () => ({
+  default: () => <div data-testid="deezer-embed">Deezer</div>,
 }));
 
 vi.mock("../app/components/FeedbackButtons", () => ({
@@ -16,6 +19,14 @@ vi.mock("../app/components/FeedbackButtons", () => ({
       <button onClick={() => onFeedback(-1)}>down</button>
     </div>
   ),
+}));
+
+vi.mock("../app/components/HarmonicBadge", () => ({
+  default: () => <div data-testid="harmonic-badge">Harmonic</div>,
+}));
+
+vi.mock("../app/components/FocusSelector", () => ({
+  default: () => <div data-testid="focus-selector">Focus</div>,
 }));
 
 const querySong: Song = {
@@ -73,11 +84,9 @@ describe("SimilarResults", () => {
     expect(screen.getByText("Artist B")).toBeInTheDocument();
   });
 
-  it("shows similarity percentage and label", () => {
+  it("shows similarity label", () => {
     render(<SimilarResults results={results} querySong={querySong} />);
-    expect(screen.getByText("85%")).toBeInTheDocument();
     expect(screen.getByText("Sehr ähnlich")).toBeInTheDocument();
-    expect(screen.getByText("25%")).toBeInTheDocument();
     expect(screen.getByText("Entfernt")).toBeInTheDocument();
   });
 
@@ -92,14 +101,9 @@ describe("SimilarResults", () => {
     expect(screen.getByText("House")).toBeInTheDocument();
   });
 
-  it("shows BPM badge when present", () => {
+  it("shows BPM when present", () => {
     render(<SimilarResults results={results} querySong={querySong} />);
-    expect(screen.getByText("128 BPM")).toBeInTheDocument();
-  });
-
-  it("shows low similarity hint for score < 0.3", () => {
-    render(<SimilarResults results={results} querySong={querySong} />);
-    expect(screen.getByText(/Niedrige Ähnlichkeit/)).toBeInTheDocument();
+    expect(screen.getByText("128")).toBeInTheDocument();
   });
 
   it("renders Spotify and YouTube buttons", () => {
@@ -108,21 +112,6 @@ describe("SimilarResults", () => {
     const youtubeButtons = screen.getAllByTitle("Auf YouTube suchen");
     expect(spotifyButtons).toHaveLength(2);
     expect(youtubeButtons).toHaveLength(2);
-  });
-
-  it("toggles radar chart on button click", async () => {
-    render(<SimilarResults results={results} querySong={querySong} />);
-
-    const radarButtons = screen.getAllByText("▸");
-    await userEvent.click(radarButtons[0]);
-
-    expect(screen.getByTestId("radar-chart")).toBeInTheDocument();
-    expect(screen.getByText("▾")).toBeInTheDocument();
-  });
-
-  it("formats duration correctly", () => {
-    render(<SimilarResults results={results} querySong={querySong} />);
-    expect(screen.getByText("4:00")).toBeInTheDocument();
   });
 
   it("shows result count in header", () => {

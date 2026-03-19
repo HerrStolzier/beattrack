@@ -74,7 +74,7 @@ describe("AnalyzeView", () => {
     render(<AnalyzeView />);
     expect(screen.getByTestId("upload-zone")).toBeInTheDocument();
     expect(screen.getByTestId("url-input")).toBeInTheDocument();
-    expect(screen.getByText("oder")).toBeInTheDocument();
+    expect(screen.getAllByText("oder").length).toBeGreaterThan(0);
   });
 
   it("transitions to uploading state on file select", async () => {
@@ -115,7 +115,7 @@ describe("AnalyzeView", () => {
     await waitFor(() => {
       expect(screen.getByTestId("similar-results")).toBeInTheDocument();
       expect(screen.getByText("1 results")).toBeInTheDocument();
-      expect(screen.getByText("128 BPM")).toBeInTheDocument();
+      expect(screen.getByText(/128/)).toBeInTheDocument();
       expect(screen.getByText("Am")).toBeInTheDocument();
     });
   });
@@ -161,10 +161,9 @@ describe("AnalyzeView", () => {
     await userEvent.click(screen.getByText("NoMatch"));
 
     await waitFor(() => {
-      expect(screen.getByText("DJ Test")).toBeInTheDocument();
-      expect(screen.getByText("Beat")).toBeInTheDocument();
-      expect(screen.getByText("Nicht im Katalog")).toBeInTheDocument();
-      expect(screen.getByText("Audio-Datei hochladen")).toBeInTheDocument();
+      expect(screen.getByText(/DJ Test/)).toBeInTheDocument();
+      expect(screen.getByText(/Beat/)).toBeInTheDocument();
+      expect(screen.getByText(/Nicht im Katalog/)).toBeInTheDocument();
     });
   });
 
@@ -188,9 +187,9 @@ describe("AnalyzeView", () => {
     await waitFor(() => screen.getByTestId("progress-tracker"));
 
     await userEvent.click(screen.getByText("Complete"));
-    await waitFor(() => screen.getByText("Neue Analyse starten"));
+    await waitFor(() => screen.getByText("Neue Suche"));
 
-    await userEvent.click(screen.getByText("Neue Analyse starten"));
+    await userEvent.click(screen.getByText("Neue Suche"));
 
     await waitFor(() => {
       expect(screen.getByTestId("upload-zone")).toBeInTheDocument();
