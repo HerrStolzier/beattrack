@@ -131,69 +131,105 @@ def _extract_dims(vec: list[float], dims: list[int]) -> list[float]:
     return [vec[i] for i in dims if i < len(vec)]
 
 
+def _parse_vector(raw) -> list[float] | None:
+    """Parse a vector that may come as string from Supabase."""
+    if raw is None:
+        return None
+    if isinstance(raw, str):
+        return json.loads(raw)
+    return raw
+
+
 def _apply_late_fusion(
     results: list[dict],
     query_handcrafted: list[float],
     sb: Client,
     focus: str | None = None,
     query_genre: str | None = None,
+    query_mert: list[float] | None = None,
 ) -> list[dict]:
-    """Blend learned_similarity with handcrafted cosine similarity.
+    """Blend learned, handcrafted, and MERT similarities.
 
-    Priority order:
-    1. Explicit focus → 60/40 on focused dimensions only
-    2. Genre weights from feedback → weighted per-category fusion (adaptive 20-40% hc)
-    3. Default → 80/20 flat fusion
+    Tri-signal fusion when MERT is available:
+      score = 0.65·MusiCNN + 0.15·MERT + 0.20·Handcrafted
+
+    Falls back to dual fusion (80/20) when MERT is unavailable.
+
+    Priority order for handcrafted strategy:
+    1. Explicit focus → 55/15/30 on focused dimensions only
+    2. Genre weights from feedback → weighted per-category fusion
+    3. Default → tri-signal or dual flat fusion
     """
     result_ids = [str(r["id"]) for r in results]
-    hc_result = (
+
+    # Fetch handcrafted + MERT embeddings in one query
+    select_cols = "id, handcrafted_norm, mert_embedding"
+    vec_result = (
         sb.table("songs")
-        .select("id, handcrafted_norm")
+        .select(select_cols)
         .in_("id", result_ids)
         .execute()
     )
-    hc_map: dict[str, list[float]] = {
-        str(row["id"]): row["handcrafted_norm"]
-        for row in (hc_result.data or [])
-        if row.get("handcrafted_norm")
-    }
+    hc_map: dict[str, list[float]] = {}
+    mert_map: dict[str, list[float]] = {}
+    for row in vec_result.data or []:
+        rid = str(row["id"])
+        hc = _parse_vector(row.get("handcrafted_norm"))
+        if hc:
+            hc_map[rid] = hc
+        mert = _parse_vector(row.get("mert_embedding"))
+        if mert:
+            mert_map[rid] = mert
+
+    has_mert = bool(query_mert and mert_map)
 
     # --- Determine fusion strategy ---
     genre_weights = None
     if focus and focus in FOCUS_DIMENSIONS:
-        # Strategy 1: Explicit focus → 60/40 on subset
-        learned_weight, hc_weight = 0.6, 0.4
+        # Strategy 1: Explicit focus
         focus_dims = FOCUS_DIMENSIONS[focus]
         query_vec = _extract_dims(query_handcrafted, focus_dims)
+        if has_mert:
+            learned_weight, mert_weight, hc_weight = 0.55, 0.15, 0.30
+        else:
+            learned_weight, mert_weight, hc_weight = 0.60, 0.0, 0.40
     else:
         focus_dims = None
         query_vec = query_handcrafted
-        # Strategy 2: Genre-learned weights (Phase 1 Feature Importance)
+        # Strategy 2: Genre-learned weights
         genre_weights = _get_genre_weights(sb, query_genre)
         if genre_weights:
-            # Confidence: more votes → trust handcrafted more (20-40%)
             confidence = min(1.0, sum(genre_weights.values()) * 2)
-            hc_weight = 0.2 + (0.2 * confidence)
-            learned_weight = 1.0 - hc_weight
+            if has_mert:
+                hc_weight = 0.15 + (0.15 * confidence)
+                mert_weight = 0.15
+                learned_weight = 1.0 - hc_weight - mert_weight
+            else:
+                hc_weight = 0.2 + (0.2 * confidence)
+                mert_weight = 0.0
+                learned_weight = 1.0 - hc_weight
         else:
             # Strategy 3: Default flat fusion
-            learned_weight, hc_weight = 0.8, 0.2
+            if has_mert:
+                learned_weight, mert_weight, hc_weight = 0.65, 0.15, 0.20
+            else:
+                learned_weight, mert_weight, hc_weight = 0.80, 0.0, 0.20
 
     fused: list[dict] = []
     for row in results:
         learned_sim: float = row.get("similarity", 0.0)
-        hc_vec = hc_map.get(str(row["id"]))
+        rid = str(row["id"])
+        hc_vec = hc_map.get(rid)
+
         if not hc_vec:
             fused.append({**row, "similarity": learned_sim})
             continue
 
+        # Handcrafted similarity
         if focus_dims:
-            # Single-focus: compare only focused dimensions
             result_vec = _extract_dims(hc_vec, focus_dims)
             hc_sim = _cosine_similarity(query_vec, result_vec)
         elif genre_weights:
-            # Genre-weighted: per-category similarity, weighted by feedback
-            # Normalize weights to sum to 1.0 to prevent score inflation
             default_w = 1.0 / len(FOCUS_DIMENSIONS)
             raw_weights = {cat: genre_weights.get(cat, default_w) for cat in FOCUS_DIMENSIONS}
             total_w = sum(raw_weights.values())
@@ -204,10 +240,16 @@ def _apply_late_fusion(
                 r_sub = _extract_dims(hc_vec, cat_dims)
                 hc_sim += norm_weights[cat] * _cosine_similarity(q_sub, r_sub)
         else:
-            # Flat: full-vector comparison
             hc_sim = _cosine_similarity(query_vec, hc_vec)
 
-        fused_score = learned_weight * learned_sim + hc_weight * hc_sim
+        # MERT similarity (if available for both query and result)
+        mert_sim = 0.0
+        if has_mert:
+            result_mert = mert_map.get(rid)
+            if result_mert and query_mert:
+                mert_sim = _cosine_similarity(query_mert, result_mert)
+
+        fused_score = learned_weight * learned_sim + mert_weight * mert_sim + hc_weight * hc_sim
         fused.append({**row, "similarity": fused_score})
 
     fused.sort(key=lambda x: x["similarity"], reverse=True)
@@ -307,10 +349,10 @@ async def find_similar(
     body: SimilarRequest,
     sb: Client = Depends(get_supabase),
 ) -> list[SimilarSong]:
-    # 1. Fetch query song
+    # 1. Fetch query song (including MERT embedding if available)
     song_result = (
         sb.table("songs")
-        .select("id, learned_embedding, handcrafted_norm, genre")
+        .select("id, learned_embedding, handcrafted_norm, mert_embedding, genre")
         .eq("id", body.song_id)
         .single()
         .execute()
@@ -351,11 +393,16 @@ async def find_similar(
 
     focus = body.focus
 
-    # 3. Late fusion with handcrafted features
+    # 3. Late fusion with handcrafted + MERT features
     query_handcrafted: list[float] | None = query_song.get("handcrafted_norm")
+    query_mert = _parse_vector(query_song.get("mert_embedding"))
     if query_handcrafted and results:
         try:
-            results = _apply_late_fusion(results, query_handcrafted, sb, focus=focus, query_genre=query_song.get("genre"))
+            results = _apply_late_fusion(
+                results, query_handcrafted, sb,
+                focus=focus, query_genre=query_song.get("genre"),
+                query_mert=query_mert,
+            )
         except Exception as exc:
             logger.warning("Late fusion failed, returning learned-only results: %s", exc)
 

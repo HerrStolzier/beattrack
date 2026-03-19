@@ -66,16 +66,20 @@ def download_preview(url: str, dest: str) -> bool:
 
 
 def load_audio(path: str, target_sr: int = 24000) -> np.ndarray:
-    """Load audio file and resample to target sample rate."""
-    import torchaudio
+    """Load audio file via ffmpeg and resample to target sample rate."""
+    import subprocess
 
-    waveform, sr = torchaudio.load(path)
-    if waveform.shape[0] > 1:
-        waveform = waveform.mean(dim=0, keepdim=True)
-    if sr != target_sr:
-        resampler = torchaudio.transforms.Resample(sr, target_sr)
-        waveform = resampler(waveform)
-    return waveform.squeeze().numpy()
+    cmd = [
+        "ffmpeg", "-i", path,
+        "-f", "f32le", "-acodec", "pcm_f32le",
+        "-ar", str(target_sr), "-ac", "1",
+        "-v", "quiet", "-"
+    ]
+    result = subprocess.run(cmd, capture_output=True, timeout=30)
+    if result.returncode != 0:
+        raise RuntimeError(f"ffmpeg failed: {result.stderr[:200]}")
+    audio = np.frombuffer(result.stdout, dtype=np.float32)
+    return audio
 
 
 def extract_mert_embedding(
@@ -228,7 +232,7 @@ def main() -> None:
     from sklearn.decomposition import PCA
 
     mert_matrix = np.array([mert_embeddings[sid] for sid in common_ids])
-    pca = PCA(n_components=min(50, mert_matrix.shape[1]))
+    pca = PCA(n_components=min(50, mert_matrix.shape[0] - 1, mert_matrix.shape[1]))
     pca.fit(mert_matrix)
     cum_var = np.cumsum(pca.explained_variance_ratio_)
     n_90 = int(np.searchsorted(cum_var, 0.90)) + 1
