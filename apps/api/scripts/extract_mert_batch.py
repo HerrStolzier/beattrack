@@ -216,6 +216,15 @@ def main() -> None:
                                     artist=s["artist"], title=s["title"]))
 
             if not jobs:
+                # All songs in this batch are in checkpoint but still NULL in DB.
+                # These are permanent failures (no preview, extraction error).
+                # Remove them from checkpoint so the query can advance past them
+                # on next run. They'll be re-attempted once, then re-added.
+                stale = {str(s["id"]) for s in songs} & processed_ids
+                if stale:
+                    processed_ids -= stale
+                    logger.info("Cleared %d stale checkpoint entries, retrying...", len(stale))
+                    checkpoint_path.write_text(json.dumps(list(processed_ids)))
                 continue
 
             logger.info("=== Batch: %d jobs (total: %d) ===", len(jobs), total_processed)
