@@ -38,6 +38,7 @@ const querySong: Song = {
   musical_key: "Cm",
   duration_sec: 300,
   genre: "Techno",
+  deezer_id: null,
 };
 
 const results: SimilarSong[] = [
@@ -50,6 +51,7 @@ const results: SimilarSong[] = [
     musical_key: "Am",
     duration_sec: 240,
     genre: "House",
+    deezer_id: null,
     similarity: 0.85,
   },
   {
@@ -61,6 +63,7 @@ const results: SimilarSong[] = [
     musical_key: null,
     duration_sec: null,
     genre: null,
+    deezer_id: null,
     similarity: 0.25,
   },
 ];

@@ -65,7 +65,7 @@ describe("SearchBar", () => {
 
   it("debounces search on typing", async () => {
     const onResults = vi.fn();
-    const fakeSongs = [{ id: "1", title: "Test", artist: "A", album: null, bpm: 120, musical_key: null, duration_sec: 200, genre: null }];
+    const fakeSongs = [{ id: "1", title: "Test", artist: "A", album: null, bpm: 120, musical_key: null, duration_sec: 200, genre: null, deezer_id: null }];
     mockSearch.mockResolvedValue(fakeSongs);
 
     render(<SearchBar onResults={onResults} />);

@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import AnalyzeView from "./components/AnalyzeView";
 import ApiStatus from "./components/ApiStatus";
 import AudioWaveform from "./components/AudioWaveform";
@@ -44,12 +45,12 @@ export default function Home() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
               >
-                <a
+                <Link
                   href="/"
                   className="bg-gradient-to-r from-amber via-gold to-amber-light bg-[length:200%_auto] bg-clip-text text-transparent animate-gradient-shift transition-opacity hover:opacity-80"
                 >
                   Beattrack
-                </a>
+                </Link>
               </motion.h1>
               <motion.p
                 className="mt-2 text-base text-text-secondary"

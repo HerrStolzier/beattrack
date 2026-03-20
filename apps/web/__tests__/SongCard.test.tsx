@@ -13,6 +13,7 @@ const baseSong: Song = {
   musical_key: "Am",
   duration_sec: 245,
   genre: "Techno",
+  deezer_id: null,
 };
 
 describe("SongCard", () => {

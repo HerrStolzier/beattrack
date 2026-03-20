@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
 
@@ -120,16 +121,20 @@ function Toast({ item, onClose }: ToastProps) {
 const MAX_TOASTS = 3;
 const AUTO_DISMISS_MS = 5000;
 
+const subscribe = () => () => {};
+const getSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
-    setMounted(true);
+    const currentTimers = timers.current;
     return () => {
       // Clear all timers on unmount
-      timers.current.forEach((t) => clearTimeout(t));
+      currentTimers.forEach((t) => clearTimeout(t));
     };
   }, []);
 

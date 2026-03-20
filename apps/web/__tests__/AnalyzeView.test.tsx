@@ -36,7 +36,7 @@ vi.mock("../app/components/ProgressTracker", () => ({
         key: "Am",
         duration: 240,
         similar_songs: [
-          { id: "s1", title: "Similar", artist: "Art", album: null, bpm: 130, musical_key: "Cm", duration_sec: 200, genre: "Electronic", similarity: 0.8 },
+          { id: "s1", title: "Similar", artist: "Art", album: null, bpm: 130, musical_key: "Cm", duration_sec: 200, genre: "Electronic", deezer_id: null, similarity: 0.8 },
         ],
       })}>
         Complete

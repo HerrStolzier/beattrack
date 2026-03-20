@@ -41,11 +41,17 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("compare");
+  const [prevQueryId, setPrevQueryId] = useState(querySongId);
+  const [prevResultId, setPrevResultId] = useState(resultSongId);
 
-  useEffect(() => {
+  if (querySongId !== prevQueryId || resultSongId !== prevResultId) {
+    setPrevQueryId(querySongId);
+    setPrevResultId(resultSongId);
     setLoading(true);
     setError(false);
+  }
 
+  useEffect(() => {
     Promise.all([
       getSongFeatures(querySongId).catch(() => null),
       getSongFeatures(resultSongId).catch(() => null),
