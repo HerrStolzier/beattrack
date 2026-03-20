@@ -52,7 +52,7 @@ class ClickEventRequest(BaseModel):
 
 
 @router.post("", status_code=201)
-@limiter.limit("5/minute")
+@limiter.limit("30/minute")
 async def submit_feedback(
     request: Request,
     body: FeedbackRequest,

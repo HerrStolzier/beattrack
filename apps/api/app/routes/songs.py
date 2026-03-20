@@ -62,7 +62,8 @@ async def list_songs(
         "id, title, artist, album, bpm, musical_key, duration_sec, genre, deezer_id"
     )
     if q:
-        query = query.ilike("title", f"%{_escape_like(q)}%")
+        escaped = _escape_like(q)
+        query = query.or_(f"title.ilike.%{escaped}%,artist.ilike.%{escaped}%")
     if genre:
         query = query.eq("genre", genre)
     result = query.range(offset, offset + limit - 1).execute()

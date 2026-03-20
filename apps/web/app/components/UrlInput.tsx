@@ -28,7 +28,7 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
     if (!trimmed) return;
 
     if (!detected) {
-      setError("Ungültige URL. Unterstützt: YouTube, SoundCloud, Spotify, Apple Music.");
+      setError("Bitte eine YouTube, SoundCloud, Spotify oder Apple Music URL eingeben.");
       return;
     }
 

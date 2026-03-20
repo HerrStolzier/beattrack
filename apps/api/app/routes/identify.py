@@ -80,6 +80,21 @@ def _match_in_db(artist: str, title: str, sb: Client) -> dict | None:
     return None
 
 
+def _clean_title(title: str) -> str:
+    """Strip common YouTube noise from a title before DB matching."""
+    # Remove parenthesized and bracketed noise labels (case insensitive)
+    noise = (
+        r'official\s+music\s+video', r'official\s+audio', r'official\s+video',
+        r'lyric\s+video', r'lyrics', r'visualizer', r'audio', r'video', r'hd', r'hq',
+    )
+    pattern = r'[\(\[]\s*(?:' + '|'.join(noise) + r')\s*[\)\]]'
+    title = re.sub(pattern, '', title, flags=re.IGNORECASE)
+    # Normalize "ft." / "ft" / "featuring" → "feat."
+    title = re.sub(r'\bfeaturing\b', 'feat.', title, flags=re.IGNORECASE)
+    title = re.sub(r'\bft\.?\s+', 'feat. ', title, flags=re.IGNORECASE)
+    return title.strip()
+
+
 def _clean_artist(name: str) -> str:
     """Normalize artist name for comparison. Strips ' - Topic' suffix from YouTube Music."""
     name = re.sub(r'\s*-\s*Topic$', '', name, flags=re.IGNORECASE)
@@ -133,7 +148,9 @@ async def _identify_platform(
         raise HTTPException(status_code=502, detail=f"Could not fetch {platform_name} metadata")
 
     artist, title = title_parser(meta.get("title", ""), meta.get("author_name", ""))
-    match = _match_in_db(artist, title, sb)
+    clean_artist = _clean_artist(artist)
+    clean_title = _clean_title(title)
+    match = _match_in_db(clean_artist, clean_title, sb)
 
     if match:
         return IdentifyResponse(
@@ -144,8 +161,8 @@ async def _identify_platform(
             message=f"Match: {match['artist']} — {match['title']}",
         )
 
-    # No match — try auto-ingest via Deezer
-    ingesting = _try_auto_ingest(artist, title)
+    # No match — try auto-ingest via Deezer (use cleaned values)
+    ingesting = _try_auto_ingest(clean_artist, clean_title)
 
     return IdentifyResponse(
         matched=False,

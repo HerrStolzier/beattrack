@@ -15,6 +15,9 @@ _ALLOWED_MIME_TYPES = {
     "audio/flac",
     "audio/ogg",
     "audio/x-flac",
+    "audio/aac",
+    "audio/mp4",
+    "audio/x-m4a",
 }
 
 _MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB in bytes
@@ -71,7 +74,7 @@ async def validate_upload(file: UploadFile) -> None:
             status_code=400,
             detail=(
                 f"Unsupported file type '{detected_mime}'. "
-                "Accepted types: MP3, WAV, FLAC, OGG."
+                "Accepted types: MP3, WAV, FLAC, OGG, AAC, M4A."
             ),
         )
 
