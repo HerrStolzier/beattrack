@@ -165,20 +165,41 @@ def main() -> None:
     download_pool = ThreadPoolExecutor(max_workers=args.workers)
     upload_pool = ThreadPoolExecutor(max_workers=args.workers)
 
+    consecutive_errors = 0
+    MAX_CONSECUTIVE_ERRORS = 5
+
     try:
         while total_processed < max_songs:
-            # Fetch batch from DB
+            # Fetch batch from DB (with retry)
             fetch_limit = min(args.db_batch, int(max_songs - total_processed)) if args.limit else args.db_batch
-            result = (
-                sb.table("songs")
-                .select("id, deezer_id, artist, title")
-                .is_("mert_embedding", "null")
-                .not_.is_("deezer_id", "null")
-                .order("created_at", desc=False)
-                .limit(fetch_limit)
-                .execute()
-            )
-            songs = result.data or []
+            songs = None
+            for retry in range(3):
+                try:
+                    result = (
+                        sb.table("songs")
+                        .select("id, deezer_id, artist, title")
+                        .is_("mert_embedding", "null")
+                        .not_.is_("deezer_id", "null")
+                        .order("created_at", desc=False)
+                        .limit(fetch_limit)
+                        .execute()
+                    )
+                    songs = result.data or []
+                    consecutive_errors = 0
+                    break
+                except Exception as exc:
+                    wait = 30 * (retry + 1)
+                    logger.warning("DB fetch failed (attempt %d/3), retry in %ds: %s", retry + 1, wait, exc)
+                    time.sleep(wait)
+
+            if songs is None:
+                consecutive_errors += 1
+                logger.error("DB fetch failed 3 times (%d/%d consecutive)", consecutive_errors, MAX_CONSECUTIVE_ERRORS)
+                if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                    logger.error("Too many consecutive DB errors, stopping.")
+                    break
+                continue
+
             if not songs:
                 logger.info("No more songs to process.")
                 break

@@ -85,16 +85,26 @@ def main() -> None:
     while processed < max_songs:
         # Fetch next batch of songs still tagged 'Electronic'
         fetch_limit = min(args.batch_size, int(max_songs - processed)) if args.limit else args.batch_size
-        result = (
-            sb.table("songs")
-            .select("id, deezer_id, artist, title, genre")
-            .eq("genre", "Electronic")
-            .not_.is_("deezer_id", "null")
-            .order("created_at", desc=False)
-            .limit(fetch_limit)
-            .execute()
-        )
-        songs = result.data or []
+        for retry in range(3):
+            try:
+                result = (
+                    sb.table("songs")
+                    .select("id, deezer_id, artist, title, genre")
+                    .eq("genre", "Electronic")
+                    .not_.is_("deezer_id", "null")
+                    .order("created_at", desc=False)
+                    .limit(fetch_limit)
+                    .execute()
+                )
+                songs = result.data or []
+                break
+            except Exception as exc:
+                wait = 30 * (retry + 1)
+                logger.warning("DB fetch failed (attempt %d/3), retry in %ds: %s", retry + 1, wait, exc)
+                time.sleep(wait)
+        else:
+            logger.error("DB fetch failed 3 times, stopping.")
+            break
 
         if not songs:
             logger.info("No more songs to backfill.")
@@ -126,15 +136,20 @@ def main() -> None:
             else:
                 stats["updated"] += 1
                 if args.apply:
-                    try:
-                        sb.rpc("update_song_genre", {
-                            "song_id": song["id"],
-                            "new_genre": genre,
-                        }).execute()
-                    except Exception as exc:
-                        logger.error("Failed to update %s: %s", song["id"], exc)
-                        stats["failed"] += 1
-                        stats["updated"] -= 1
+                    for retry in range(3):
+                        try:
+                            sb.rpc("update_song_genre", {
+                                "song_id": song["id"],
+                                "new_genre": genre,
+                            }).execute()
+                            break
+                        except Exception as exc:
+                            if retry < 2:
+                                time.sleep(5 * (retry + 1))
+                            else:
+                                logger.error("Failed to update %s after 3 tries: %s", song["id"], exc)
+                                stats["failed"] += 1
+                                stats["updated"] -= 1
 
                 logger.info(
                     "[%d] %s — %s: %s → %s",
