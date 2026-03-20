@@ -257,7 +257,6 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
                     placeholder="URL einfügen oder Titel suchen..."
                     disabled={identifying}
                     className="flex-1 bg-transparent text-sm text-text-primary placeholder-text-tertiary outline-none disabled:opacity-50"
-                    // eslint-disable-next-line jsx-a11y/no-autofocus
                     autoFocus
                   />
                   {(searching || identifying) && (

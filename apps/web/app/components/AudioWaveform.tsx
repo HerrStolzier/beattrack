@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 // Deterministic pseudo-random based on index
 function seededRandom(seed: number): number {
@@ -15,8 +15,7 @@ const BARS = Array.from({ length: 40 }, (_, i) => ({
 }));
 
 export default function AudioWaveform({ className = "" }: { className?: string }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
 
   if (!mounted) return <div className={`h-12 ${className}`} aria-hidden="true" />;
 

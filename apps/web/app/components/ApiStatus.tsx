@@ -10,10 +10,11 @@ const DOWN_THRESHOLD_MS = 60_000;
 
 export default function ApiStatus() {
   const [state, setState] = useState<ApiState>("checking");
-  const startRef = useRef<number>(Date.now());
+  const startRef = useRef<number>(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    startRef.current = Date.now();
     let cancelled = false;
 
     async function check() {

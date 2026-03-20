@@ -117,7 +117,7 @@ export default function PlaylistBuilder({ songs, onRemove, onReorder, onClear }:
     return (
       <div className="glass rounded-xl p-4 text-center">
         <p className="text-xs text-text-tertiary">
-          Noch keine Songs in der Playlist. Klicke bei Ergebnissen auf "+", um Songs hinzuzufügen.
+          Noch keine Songs in der Playlist. Klicke bei Ergebnissen auf &ldquo;+&rdquo;, um Songs hinzuzufügen.
         </p>
       </div>
     );

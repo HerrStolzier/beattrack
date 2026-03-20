@@ -181,7 +181,7 @@ export default function AnalyzeView({ initialUrl }: AnalyzeViewProps) {
         }, 15_000); // 15s between retries
       }
     }
-  }, []);
+  }, [visitedIds]);
 
   // Cleanup ingest retry on unmount
   useEffect(() => {
