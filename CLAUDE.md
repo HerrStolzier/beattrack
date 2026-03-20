@@ -13,7 +13,7 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 - `apps/web/` — Next.js Frontend
 - `apps/api/` — FastAPI Backend
 - `apps/api/scripts/` — Seeding, Import, Normalisierung
-- `supabase/migrations/` — SQL Migrations (001–017+)
+- `supabase/migrations/` — SQL Migrations (001–022+)
 - `docs/scaling-plan.md` — Skalierungsstrategie + Kosten
 
 ## API Routes
@@ -29,19 +29,20 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 - Procrastinate-Tasks: `ingest_from_deezer`, `ingest_neighbors` (in `app/workers/__init__.py`)
 
 ## Database Schema
-- **songs**: `id`, `title`, `artist`, `album`, `duration_sec`, `bpm`, `musical_key`, `learned_embedding` (vector 200d), `handcrafted_raw` (vector 44d), `handcrafted_norm` (vector 44d), `source`, `genre`, `release_year`, `deezer_id`
+- **songs**: `id`, `title`, `artist`, `album`, `duration_sec`, `bpm`, `musical_key`, `learned_embedding` (vector 200d), `handcrafted_raw` (vector 44d), `handcrafted_norm` (vector 44d), `mert_embedding` (vector 768d), `source`, `genre`, `release_year`, `deezer_id`
 - **config**: Key-Value-Store (`normalization_stats` JSON mit mean/std/dim/n_songs)
-- **feedback**: Rating (-1/+1), Feedback Learning System geplant (Feature Importance per Genre)
+- **feedback**: Rating (-1/+1), Feedback Learning System (Feature Importance per Genre)
+- **click_events**: CTR-Tracking für A/B-Testing (action, result_rank, ab_group)
 - **Indexes**: HNSW auf `learned_embedding` (m=24, ef_construction=128, ef_search=200), Trigram (gin) auf title+artist, Unique auf `(lower(title), lower(artist))`
 - **RLS**: Enabled auf allen Tabellen (anon=SELECT+INSERT feedback, service_role=ALL)
-- **RPC**: `bulk_import_songs(jsonb)` — SECURITY DEFINER mit ON CONFLICT upsert, `find_similar_songs` — Subquery-Pattern für HNSW-Index
+- **RPC**: `bulk_import_songs`, `find_similar_songs`, `update_song_genre`, `update_song_mert`, `sample_embeddings` — alle SECURITY DEFINER
 - **Supabase Project-ID**: `qpkemujemfnymtgmtkfg` (für MCP-Calls und CLI)
 
 ## Data Scope
 - **Genre**: Electronic (Sub-Genres: Techno, House, IDM, Minimal Electronic, Dance, Downtempo, Chill-out, Dubstep, Drum & Bass, Trance, Breakbeat, Ambient, Electronic)
 - **Quelle**: Deezer API — kommerzielle Electronic-Tracks (30s Previews → Essentia-Extraktion)
 - **Crawl-Strategie**: 424 Seed-Artists → Top-Tracks + Related Artists (Tiefe 2, 25 Related pro Artist) mit Album-Genre-Filter
-- **Aktuell**: ~63K deduplizierte Songs (nach Dedup von 175K), Import neuer Features auf ~120K+ läuft
+- **Aktuell**: ~121K Songs. Genre-Backfill von Deezer Album API + MERT-Embedding-Extraction laufend
 - **Legacy (inaktiv)**: FMA-large, MTG-Jamendo — Seeder-Scripts existieren noch in `scripts/`, werden nicht mehr verwendet
 
 ## Deployment
@@ -64,6 +65,13 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 - Backend-Tests: `cd apps/api && pytest`
 - Frontend-Tests: `cd apps/web && bun test` (Vitest, nicht Jest)
 
+## Batch Scripts (langlebig)
+- Scripts in `apps/api/scripts/` für DB-Operationen: `backfill_genre.py`, `extract_mert_batch.py`
+- Ausführen: `.venv/bin/python scripts/xxx.py --apply` (Envvars SUPABASE_URL + SUPABASE_ANON_KEY nötig)
+- Langlebige Jobs mit `nohup ... >> /tmp/xxx.log 2>&1 &` starten
+- Haben Checkpoint/Resume-Support und Retry-Logic (3x mit Backoff, max 5 consecutive errors)
+- MERT-Worker: `app/workers/mert.py` — direkt importieren, NICHT via `app/workers/__init__.py` (Procrastinate-Dep)
+
 ## Seeding & Maintenance Scripts
 Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - **seed_deezer.py** — Deezer Electronic-Crawl + Essentia-Extraktion (`--crawl-only`, `--tracks-json`, `--resume`, `--workers`)
@@ -73,7 +81,11 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - **seed_fma.py** / **seed_jamendo.py** — Legacy-Seeder (nicht mehr aktiv)
 
 ## Similarity Engine
-- **Dual Embeddings**: MusiCNN 200d (learned) + 44d handcrafted, Late Fusion (80/20 Default)
+- **Tri-Signal Fusion**: MusiCNN 200d (HNSW-Index) + MERT 768d (re-ranking) + 44d handcrafted. Weights: 65/15/20 (with MERT) or 80/20 fallback
+- **Pipeline**: HNSW → exclude → Late Fusion → Dedup → MMR → limit
+- **MMR Diversity**: λ=0.7, re-ranks candidates to maximize inter-result embedding distance
+- **Remix Dedup**: Strips (...), [...] and common suffixes to group versions, keeps best per base track
+- **Genre-aware Fusion**: Feedback-learned per-genre weights (materialized view, 5min cache)
 - **Handcrafted 44-dim Layout**: MFCC mean [0:13], MFCC stdev [13:26], HPCP [26:38], Spectral Centroid [38], Spectral Rolloff [39], BPM [40], ZCR [41], Avg Loudness [42], Danceability [43]
 - **5 Radar-Kategorien**: Timbre (dims 0–25), Harmony (dims 26–37), Rhythm (dims 40,43), Brightness (dims 38,39), Intensity (dims 41,42)
 - **Focus-Mode**: Gewichtung verschiebt sich auf 60/40 (learned/handcrafted) für gewählte Kategorie
@@ -114,6 +126,12 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - **pgvector HNSW + WHERE**: WHERE-Klauseln in der gleichen Query verhindern Index-Nutzung. Fix: Subquery-Pattern (innere Query = Index, äußere = Filter)
 - **Vercel CRON_SECRET**: Darf kein Whitespace enthalten (inkl. trailing newline). Vercel validiert strikt seit 2026. `printf` statt `echo` beim Setzen
 - **Deezer iframe Autoplay**: Browser blockiert cross-origin autoplay — User muss im Widget selbst auf Play klicken
+- **Supabase Vektoren als Strings**: RPC/REST gibt `vector`-Spalten als JSON-String zurück (`"[0.1,...]"`) — `json.loads()` vor numpy nötig
+- **RLS blockiert UPDATEs**: Anon-Key kann nur SELECT+INSERT. Für Updates SECURITY DEFINER RPCs nutzen
+- **DB-Timeouts bei Batch-Jobs**: Supabase free-tier hat Statement-Timeout. Scripts brauchen Retry-Logic
+- **MERT Batch-Inference**: Variable Audio-Längen verhindern echtes Batching — einzeln inferieren, I/O parallelisieren
+- **workers/__init__.py**: Importiert Procrastinate global. Scripts die nur MERT brauchen: `importlib.util` direkt auf `mert.py`
+- **Package Manager**: `uv pip install ... --python .venv/bin/python` (kein pip im venv)
 - **Supabase MCP Project-ID**: MUSS `qpkemujemfnymtgmtkfg` sein. Bei "permission denied" → `list_projects` zum Verifizieren
 
 ## Security
@@ -128,6 +146,11 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - Open Graph + Twitter Cards in `layout.tsx` Metadata
 - JSON-LD WebApplication Schema
 - Canonical URL: `https://beattrack.app`
+
+## Embedding-Space Analyse (Referenz)
+- **MusiCNN**: Effective dim 11.3/200, 90% variance in 12 PCs. Cosine mean 0.59, std 0.24 (gut gespreizt)
+- **MERT-v1-95M**: Effective dim 18.9/768, komplementär zu MusiCNN (Spearman ρ=0.035)
+- **Genre Silhouette**: -0.13 (Genres nicht im Embedding separiert — codiert Klang, nicht Genre)
 
 ## Legal
 - **Lizenz**: AGPLv3 (wegen Essentia-Abhängigkeit)
