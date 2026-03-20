@@ -3,6 +3,7 @@ import logging
 import re
 import threading
 import time
+from dataclasses import dataclass
 
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
@@ -140,6 +141,66 @@ def _parse_vector(raw) -> list[float] | None:
     return raw
 
 
+@dataclass
+class _FusionWeights:
+    learned: float
+    mert: float
+    hc: float
+
+
+def _determine_weights(
+    focus: str | None,
+    has_mert: bool,
+    genre_weights: dict[str, float] | None,
+) -> _FusionWeights:
+    """Select fusion weights based on strategy priority."""
+    if focus and focus in FOCUS_DIMENSIONS:
+        if has_mert:
+            return _FusionWeights(0.55, 0.15, 0.30)
+        return _FusionWeights(0.60, 0.0, 0.40)
+
+    if genre_weights:
+        confidence = min(1.0, sum(genre_weights.values()) * 2)
+        if has_mert:
+            hc = 0.15 + (0.15 * confidence)
+            return _FusionWeights(1.0 - hc - 0.15, 0.15, hc)
+        hc = 0.2 + (0.2 * confidence)
+        return _FusionWeights(1.0 - hc, 0.0, hc)
+
+    if has_mert:
+        return _FusionWeights(0.65, 0.15, 0.20)
+    return _FusionWeights(0.80, 0.0, 0.20)
+
+
+def _compute_hc_similarity(
+    query_hc: list[float],
+    result_hc: list[float],
+    focus_dims: list[int] | None,
+    genre_weights: dict[str, float] | None,
+) -> float:
+    """Compute handcrafted similarity using the appropriate strategy."""
+    if focus_dims:
+        return _cosine_similarity(
+            _extract_dims(query_hc, focus_dims),
+            _extract_dims(result_hc, focus_dims),
+        )
+
+    if genre_weights:
+        default_w = 1.0 / len(FOCUS_DIMENSIONS)
+        raw = {cat: genre_weights.get(cat, default_w) for cat in FOCUS_DIMENSIONS}
+        total = sum(raw.values())
+        norm = {cat: w / total for cat, w in raw.items()} if total > 0 else raw
+        sim = 0.0
+        for cat, dims in FOCUS_DIMENSIONS.items():
+            sim += norm[cat] * _cosine_similarity(
+                _extract_dims(query_hc, dims),
+                _extract_dims(result_hc, dims),
+            )
+        return sim
+
+    return _cosine_similarity(query_hc, result_hc)
+
+
 def _apply_late_fusion(
     results: list[dict],
     query_handcrafted: list[float],
@@ -150,23 +211,15 @@ def _apply_late_fusion(
 ) -> list[dict]:
     """Blend learned, handcrafted, and MERT similarities.
 
-    Tri-signal fusion when MERT is available:
-      score = 0.65·MusiCNN + 0.15·MERT + 0.20·Handcrafted
-
-    Falls back to dual fusion (80/20) when MERT is unavailable.
-
-    Priority order for handcrafted strategy:
-    1. Explicit focus → 55/15/30 on focused dimensions only
-    2. Genre weights from feedback → weighted per-category fusion
-    3. Default → tri-signal or dual flat fusion
+    Tri-signal fusion: score = α·MusiCNN + β·MERT + γ·Handcrafted
+    Falls back to dual fusion when MERT is unavailable.
     """
     result_ids = [str(r["id"]) for r in results]
 
     # Fetch handcrafted + MERT embeddings in one query
-    select_cols = "id, handcrafted_norm, mert_embedding"
     vec_result = (
         sb.table("songs")
-        .select(select_cols)
+        .select("id, handcrafted_norm, mert_embedding")
         .in_("id", result_ids)
         .execute()
     )
@@ -182,74 +235,29 @@ def _apply_late_fusion(
             mert_map[rid] = mert
 
     has_mert = bool(query_mert and mert_map)
-
-    # --- Determine fusion strategy ---
-    genre_weights = None
-    if focus and focus in FOCUS_DIMENSIONS:
-        # Strategy 1: Explicit focus
-        focus_dims = FOCUS_DIMENSIONS[focus]
-        query_vec = _extract_dims(query_handcrafted, focus_dims)
-        if has_mert:
-            learned_weight, mert_weight, hc_weight = 0.55, 0.15, 0.30
-        else:
-            learned_weight, mert_weight, hc_weight = 0.60, 0.0, 0.40
-    else:
-        focus_dims = None
-        query_vec = query_handcrafted
-        # Strategy 2: Genre-learned weights
-        genre_weights = _get_genre_weights(sb, query_genre)
-        if genre_weights:
-            confidence = min(1.0, sum(genre_weights.values()) * 2)
-            if has_mert:
-                hc_weight = 0.15 + (0.15 * confidence)
-                mert_weight = 0.15
-                learned_weight = 1.0 - hc_weight - mert_weight
-            else:
-                hc_weight = 0.2 + (0.2 * confidence)
-                mert_weight = 0.0
-                learned_weight = 1.0 - hc_weight
-        else:
-            # Strategy 3: Default flat fusion
-            if has_mert:
-                learned_weight, mert_weight, hc_weight = 0.65, 0.15, 0.20
-            else:
-                learned_weight, mert_weight, hc_weight = 0.80, 0.0, 0.20
+    genre_weights = _get_genre_weights(sb, query_genre) if not focus else None
+    weights = _determine_weights(focus, has_mert, genre_weights)
+    focus_dims = FOCUS_DIMENSIONS.get(focus) if focus else None
 
     fused: list[dict] = []
     for row in results:
-        learned_sim: float = row.get("similarity", 0.0)
         rid = str(row["id"])
+        learned_sim: float = row.get("similarity", 0.0)
         hc_vec = hc_map.get(rid)
 
         if not hc_vec:
             fused.append({**row, "similarity": learned_sim})
             continue
 
-        # Handcrafted similarity
-        if focus_dims:
-            result_vec = _extract_dims(hc_vec, focus_dims)
-            hc_sim = _cosine_similarity(query_vec, result_vec)
-        elif genre_weights:
-            default_w = 1.0 / len(FOCUS_DIMENSIONS)
-            raw_weights = {cat: genre_weights.get(cat, default_w) for cat in FOCUS_DIMENSIONS}
-            total_w = sum(raw_weights.values())
-            norm_weights = {cat: w / total_w for cat, w in raw_weights.items()} if total_w > 0 else raw_weights
-            hc_sim = 0.0
-            for cat, cat_dims in FOCUS_DIMENSIONS.items():
-                q_sub = _extract_dims(query_handcrafted, cat_dims)
-                r_sub = _extract_dims(hc_vec, cat_dims)
-                hc_sim += norm_weights[cat] * _cosine_similarity(q_sub, r_sub)
-        else:
-            hc_sim = _cosine_similarity(query_vec, hc_vec)
+        hc_sim = _compute_hc_similarity(query_handcrafted, hc_vec, focus_dims, genre_weights)
 
-        # MERT similarity (if available for both query and result)
         mert_sim = 0.0
         if has_mert:
             result_mert = mert_map.get(rid)
             if result_mert and query_mert:
                 mert_sim = _cosine_similarity(query_mert, result_mert)
 
-        fused_score = learned_weight * learned_sim + mert_weight * mert_sim + hc_weight * hc_sim
+        fused_score = weights.learned * learned_sim + weights.mert * mert_sim + weights.hc * hc_sim
         fused.append({**row, "similarity": fused_score})
 
     fused.sort(key=lambda x: x["similarity"], reverse=True)
