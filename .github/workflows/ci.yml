@@ -34,7 +34,7 @@ jobs:
         run: uv run pip-audit
 
       - name: Run tests
-        run: uv run pytest tests/ -v
+        run: uv run pytest tests/ -v --cov=app --cov-report=xml
 
   frontend:
     name: Frontend (vitest + build)
@@ -54,8 +54,14 @@ jobs:
           cd ../..
           bun install
 
+      - name: Lint
+        run: bun run lint
+
+      - name: Type check
+        run: bunx tsc --noEmit
+
       - name: Build
         run: bun run build
 
       - name: Run tests
-        run: bun run test --run
+        run: bun run test --run --coverage

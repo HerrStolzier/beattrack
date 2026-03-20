@@ -1,5 +1,13 @@
 {
   "name": "beattrack",
   "private": true,
-  "workspaces": ["apps/*"]
+  "workspaces": ["apps/*"],
+  "description": "Find songs that sound alike — sonic similarity search powered by audio fingerprinting and vector embeddings",
+  "author": "HerrStolzier",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HerrStolzier/beattrack.git"
+  },
+  "keywords": ["audio-fingerprinting", "music-similarity", "vector-embeddings", "sonic-search", "chromaprint"]
 }
