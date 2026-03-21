@@ -77,6 +77,7 @@ const itemVariants = {
 interface ResultCardProps {
   song: SimilarSong;
   index: number;
+  displayPct: number;
   expandedId: string | null;
   setExpandedId: (id: string | null) => void;
   djMode: boolean;
@@ -86,8 +87,8 @@ interface ResultCardProps {
   focus?: FocusCategory | null;
 }
 
-function ResultCard({ song, index, expandedId, setExpandedId, djMode, querySong, onFeedback, onAddToPlaylist, focus }: ResultCardProps) {
-  const pct = Math.round(song.similarity * 100);
+function ResultCard({ song, index, displayPct, expandedId, setExpandedId, djMode, querySong, onFeedback, onAddToPlaylist, focus }: ResultCardProps) {
+  const pct = displayPct;
   const animatedPct = useCountUp(pct);
   const isExpanded = expandedId === song.id;
   const isTop3 = index < 3;
@@ -367,11 +368,22 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
           initial="hidden"
           animate="visible"
         >
-          {results.map((song, index) => (
+          {(() => {
+            const rawScores = results.map((r) => r.similarity);
+            const minScore = Math.min(...rawScores);
+            const maxScore = Math.max(...rawScores);
+            const range = maxScore - minScore;
+            return results.map((song, index) => {
+              // Rescale to 60-99% range so differences are visible
+              const displayPct = range > 0.001
+                ? Math.round(60 + ((song.similarity - minScore) / range) * 39)
+                : Math.round(song.similarity * 100);
+              return (
             <ResultCard
               key={song.id}
               song={song}
               index={index}
+              displayPct={displayPct}
               expandedId={expandedId}
               setExpandedId={setExpandedId}
               djMode={djMode}
@@ -380,7 +392,9 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
               onAddToPlaylist={onAddToPlaylist}
               focus={focus}
             />
-          ))}
+              );
+            });
+          })()}
         </motion.ul>
       </AnimatePresence>
     </div>
