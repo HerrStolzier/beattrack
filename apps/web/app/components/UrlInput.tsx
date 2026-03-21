@@ -85,7 +85,7 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
           animate={
             isFocused
               ? {
-                  boxShadow: "0 0 20px rgba(245, 158, 11, 0.15), 0 0 0 1px rgba(245, 158, 11, 0.3)",
+                  boxShadow: "0 0 20px rgba(245, 158, 11, 0.12), 0 0 40px rgba(245, 158, 11, 0.04)",
                 }
               : {
                   boxShadow: "0 0 0px rgba(245, 158, 11, 0)",
