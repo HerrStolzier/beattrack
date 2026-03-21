@@ -1,7 +1,22 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen } from "@testing-library/react";
 import SimilarResults from "../app/components/SimilarResults";
 import { type Song, type SimilarSong } from "@/lib/api";
+
+// Mock window.matchMedia for usePrefersReducedMotion
+beforeAll(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+});
 
 // Mock sub-components that need API calls
 vi.mock("../app/components/RadarChart", () => ({
@@ -89,14 +104,18 @@ describe("SimilarResults", () => {
 
   it("shows similarity label", () => {
     render(<SimilarResults results={results} querySong={querySong} />);
-    expect(screen.getByText("Sehr ähnlich")).toBeInTheDocument();
+    // similarity 0.85 → "Ähnlich" (>= 0.7), similarity 0.25 → "Entfernt" (< 0.7)
+    expect(screen.getByText("Ähnlich")).toBeInTheDocument();
     expect(screen.getByText("Entfernt")).toBeInTheDocument();
   });
 
   it("shows rank numbers", () => {
     render(<SimilarResults results={results} querySong={querySong} />);
-    expect(screen.getByText("1")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
+    // Rank badges render index+1 inside a circular span
+    const rankBadges = screen.getAllByText(/^[12]$/, { selector: "span" });
+    const rankTexts = rankBadges.map((el) => el.textContent);
+    expect(rankTexts).toContain("1");
+    expect(rankTexts).toContain("2");
   });
 
   it("shows genre badge when present", () => {
@@ -119,6 +138,9 @@ describe("SimilarResults", () => {
 
   it("shows result count in header", () => {
     render(<SimilarResults results={results} querySong={querySong} />);
-    expect(screen.getByText("2 Treffer")).toBeInTheDocument();
+    // The h2 header contains "{count} Treffer" split across child nodes
+    const heading = screen.getByRole("heading", { level: 2 });
+    expect(heading.textContent).toContain("2");
+    expect(heading.textContent).toContain("Treffer");
   });
 });
