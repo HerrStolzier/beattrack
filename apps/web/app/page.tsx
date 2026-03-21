@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -24,6 +24,14 @@ const fadeInUp = {
 };
 
 export default function Home() {
+  const bookmarkletRef = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    if (bookmarkletRef.current) {
+      bookmarkletRef.current.href =
+        "javascript:void(window.open('https://beattrack.app/?url='+encodeURIComponent(location.href)))";
+    }
+  }, []);
+
   return (
     <main className="ambient-glow flex min-h-screen flex-col font-sans text-text-primary">
       <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
@@ -86,7 +94,8 @@ export default function Home() {
           <p className="text-xs text-text-tertiary">beattrack — Finde deinen nächsten Track</p>
           <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
             <a
-              href="javascript:void(window.open('https://beattrack.app/?url='+encodeURIComponent(location.href)))"
+              ref={bookmarkletRef}
+              href="#"
               onClick={(e) => e.preventDefault()}
               draggable
               className="badge-pulse hidden rounded-md border border-amber/30 bg-amber/10 px-2 py-0.5 text-xs text-amber-light transition-colors hover:bg-amber/20 cursor-grab sm:inline-block"
