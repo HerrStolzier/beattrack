@@ -10,6 +10,7 @@ from app.db import get_supabase
 from app.limiter import limiter
 from app.services import parse_title
 from app.services.apple_music import parse_apple_music_url, fetch_metadata as am_fetch_metadata
+from app.services.deezer import parse_deezer_url, fetch_metadata as dz_fetch_metadata
 from app.services.soundcloud import parse_soundcloud_url, fetch_oembed as sc_fetch_oembed
 from app.services.spotify import parse_spotify_url, fetch_oembed as sp_fetch_oembed
 from app.services.youtube import fetch_oembed as yt_fetch_oembed, parse_title as yt_parse_title, parse_youtube_url
@@ -284,4 +285,17 @@ async def identify_apple_music(
         validate_url=parse_apple_music_url,
         fetch_meta=am_fetch_metadata,
         platform_name="Apple Music",
+    )
+
+
+@router.post("/deezer", response_model=IdentifyResponse)
+@limiter.limit("20/minute")
+async def identify_deezer(
+    request: Request, body: IdentifyRequest, sb: Client = Depends(get_supabase),
+):
+    return await _identify_platform(
+        body.url, sb,
+        validate_url=parse_deezer_url,
+        fetch_meta=dz_fetch_metadata,
+        platform_name="Deezer",
     )

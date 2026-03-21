@@ -427,13 +427,14 @@ export type IdentifyResponse = {
   ingesting?: boolean;
 };
 
-type Platform = "youtube" | "soundcloud" | "spotify" | "apple_music" | null;
+type Platform = "youtube" | "soundcloud" | "spotify" | "apple_music" | "deezer" | null;
 
 export function detectPlatform(url: string): Platform {
   if (/youtube\.com|youtu\.be/.test(url)) return "youtube";
   if (/soundcloud\.com|on\.soundcloud\.com/.test(url)) return "soundcloud";
   if (/open\.spotify\.com\/track/.test(url)) return "spotify";
   if (/music\.apple\.com\/.+\/(album|song)/.test(url)) return "apple_music";
+  if (/deezer\.com|link\.deezer\.com/.test(url)) return "deezer";
   return null;
 }
 
@@ -453,7 +454,7 @@ async function identifyPlatform(platform: string, url: string): Promise<Identify
 export async function identifyUrl(url: string): Promise<IdentifyResponse> {
   const platform = detectPlatform(url);
   if (!platform) {
-    throw new ApiError("Ungültige URL. Unterstützt: YouTube, SoundCloud, Spotify, Apple Music.", 400);
+    throw new ApiError("Ungültige URL. Unterstützt: YouTube, SoundCloud, Spotify, Apple Music, Deezer.", 400);
   }
   return identifyPlatform(platform, url);
 }

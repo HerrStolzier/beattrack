@@ -37,6 +37,12 @@ const platformLabels: Record<
     bg: "bg-pink-500/20",
     brandColor: "#FC3C44",
   },
+  deezer: {
+    name: "Deezer",
+    color: "text-purple-400",
+    bg: "bg-purple-500/20",
+    brandColor: "#A238FF",
+  },
 };
 
 export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
@@ -53,7 +59,7 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
     if (!trimmed) return;
 
     if (!detected) {
-      setError("Bitte eine YouTube, SoundCloud, Spotify oder Apple Music URL eingeben.");
+      setError("Bitte eine YouTube, SoundCloud, Spotify, Apple Music oder Deezer URL eingeben.");
       return;
     }
 
@@ -101,7 +107,7 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
             }}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            placeholder="YouTube, SoundCloud, Spotify oder Apple Music URL..."
+            placeholder="YouTube, SoundCloud, Spotify, Apple Music oder Deezer URL..."
             className="glass w-full rounded-xl border border-border-glass px-4 py-3 text-sm text-text-primary placeholder-text-tertiary outline-none transition-colors duration-300 focus:border-amber/30"
             disabled={disabled || loading}
             data-testid="url-input"
@@ -157,7 +163,7 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
       {/* Supported platforms */}
       <div className="flex items-center gap-2 pt-1">
         <span className="text-xs text-text-tertiary">Unterstützt:</span>
-        {(["youtube", "soundcloud", "spotify", "apple_music"] as const).map((p) => {
+        {(["youtube", "soundcloud", "spotify", "apple_music", "deezer"] as const).map((p) => {
           const isActive = detected === p;
           return (
             <motion.span
@@ -203,6 +209,11 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
               {p === "apple_music" && (
                 <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M23.994 6.124a9.23 9.23 0 0 0-.24-2.19c-.317-1.31-1.062-2.31-2.18-3.043a5.022 5.022 0 0 0-1.877-.726 10.496 10.496 0 0 0-1.564-.15c-.073-.004-.148-.01-.224-.013H6.09c-.076.003-.152.01-.228.013-.487.04-.98.112-1.46.258C3.25.633 2.37 1.29 1.717 2.31A5.006 5.006 0 0 0 .972 3.89a9.334 9.334 0 0 0-.218 1.768c-.004.078-.01.15-.014.224V18.12c.004.074.01.148.014.224.035.498.103.99.246 1.47.318 1.07.893 1.95 1.76 2.63.482.378 1.024.66 1.616.826.44.124.89.19 1.347.224.238.02.478.03.716.03h11.15c.238 0 .476-.01.712-.03.484-.035.958-.112 1.422-.27.944-.322 1.72-.89 2.31-1.69.358-.48.62-1.014.79-1.592.124-.44.19-.89.223-1.345.017-.23.028-.462.03-.694V6.124Zm-6.29 5.01c-.006 3.442-.007 6.884.004 10.326 0 .356-.045.704-.18 1.033-.232.564-.637.893-1.228 1.023-.263.058-.53.088-.8.098-.426.016-.855.005-1.264-.12-.626-.19-1.02-.59-1.148-1.236-.108-.54-.033-1.06.26-1.52.333-.524.828-.813 1.416-.947.326-.074.66-.11.994-.136.388-.03.777-.046 1.156-.122.275-.054.465-.2.56-.47.058-.164.08-.338.08-.514V8.676c0-.12-.023-.237-.08-.347-.086-.166-.222-.26-.403-.288-.125-.02-.252-.022-.378-.004-.252.036-.503.084-.753.132l-4.14.814c-.357.07-.712.146-1.067.222-.168.036-.302.123-.385.282-.055.105-.082.22-.085.34-.01.33-.005.66-.005.99v7.5c.003.392-.003.785.005 1.177.008.404-.037.8-.186 1.178-.225.572-.636.904-1.228 1.04-.264.06-.532.093-.803.103-.425.015-.855.01-1.264-.113-.633-.188-1.034-.59-1.163-1.242-.1-.497-.045-.98.198-1.43.31-.575.827-.878 1.44-1.02.32-.074.647-.112.975-.136.392-.028.785-.044 1.168-.122.296-.06.494-.218.586-.512.046-.145.063-.3.063-.455V7.298c0-.254.055-.49.228-.687.14-.16.317-.252.516-.3.146-.035.294-.063.442-.09l5.346-1.057c.39-.076.78-.157 1.172-.228.23-.042.463-.058.696-.016.353.064.587.275.656.633.027.14.036.285.036.428.001 1.72 0 3.44-.002 5.16Z" />
+                </svg>
+              )}
+              {p === "deezer" && (
+                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.81 4.16v3.03H24V4.16h-5.19zM6.27 8.38v3.027h5.19V8.38H6.27zm12.54 0v3.027H24V8.38h-5.19zM6.27 12.594v3.027h5.19v-3.027H6.27zm6.27 0v3.027h5.19v-3.027h-5.19zm6.27 0v3.027H24v-3.027h-5.19zM0 16.81v3.029h5.19v-3.03H0zm6.27 0v3.029h5.19v-3.03H6.27zm6.27 0v3.029h5.19v-3.03h-5.19zm6.27 0v3.029H24v-3.03h-5.19z" />
                 </svg>
               )}
               {platformLabels[p].name}
