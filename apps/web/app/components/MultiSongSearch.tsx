@@ -49,6 +49,35 @@ const Spinner = ({ className = "h-4 w-4" }: { className?: string }) => (
   </svg>
 );
 
+// Subtle waveform SVG background for input cards
+const WaveformBg = () => (
+  <svg
+    className="pointer-events-none absolute inset-0 h-full w-full"
+    preserveAspectRatio="none"
+    aria-hidden="true"
+  >
+    {/* Repeating vertical bars mimicking an audio waveform */}
+    {Array.from({ length: 28 }).map((_, i) => {
+      const heights = [30, 55, 75, 45, 90, 60, 35, 80, 50, 40, 70, 85, 45, 65, 30, 75, 50, 90, 40, 60, 80, 35, 70, 55, 45, 85, 30, 65];
+      const h = heights[i % heights.length];
+      const x = (i / 27) * 100;
+      return (
+        <rect
+          key={i}
+          x={`${x}%`}
+          y={`${50 - h / 2}%`}
+          width="2"
+          height={`${h}%`}
+          rx="1"
+          fill="currentColor"
+          className="text-amber"
+          opacity={0.04}
+        />
+      );
+    })}
+  </svg>
+);
+
 export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSongSearchProps) {
   const config = MODE_CONFIG[mode];
   const [selectedSongs, setSelectedSongs] = useState<Song[]>([]);
@@ -178,7 +207,17 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
   const nextSlotIndex = selectedSongs.length;
 
   return (
-    <div className="space-y-4">
+    // Container with pulsing amber border glow when loading is in progress
+    <motion.div
+      className="space-y-4"
+      animate={
+        loading
+          ? { boxShadow: ["0 0 0px rgba(245,158,11,0)", "0 0 20px rgba(245,158,11,0.3)", "0 0 0px rgba(245,158,11,0)"] }
+          : { boxShadow: "0 0 0px rgba(245,158,11,0)" }
+      }
+      transition={loading ? { duration: 1.4, repeat: Infinity, ease: "easeInOut" } : { duration: 0.4 }}
+      style={{ borderRadius: 16 }}
+    >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -205,20 +244,23 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
             return (
               <motion.div
                 key={song.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-3 rounded-xl border border-amber/30 bg-amber/10 px-4 py-2.5"
+                initial={{ opacity: 0, scale: 0.95, y: -6 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 400, damping: 28, delay: i * 0.04 }}
+                className="relative flex items-center gap-3 overflow-hidden rounded-xl border border-amber/30 bg-amber/10 px-4 py-2.5"
               >
-                <span className="shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-amber/20 text-[10px] font-bold text-amber-light">
+                {/* Subtle waveform background */}
+                <WaveformBg />
+                <span className="relative shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-amber/20 text-[10px] font-bold text-amber-light">
                   {slotLabels[i].slice(-1)}
                 </span>
-                <div className="min-w-0 flex-1">
+                <div className="relative min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-text-primary">{song.title}</p>
                   <p className="truncate text-[11px] text-text-secondary">{song.artist}</p>
                 </div>
                 <button
                   onClick={() => handleRemoveSong(song.id)}
-                  className="shrink-0 text-text-tertiary hover:text-error transition-colors"
+                  className="relative shrink-0 text-text-tertiary hover:text-error transition-colors"
                   aria-label={`${song.title} entfernen`}
                 >
                   ×
@@ -230,12 +272,14 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
           if (isNext) {
             return (
               <div key={`slot-${i}`} className="relative">
-                <div className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 ${
+                <div className={`relative flex items-center gap-3 overflow-hidden rounded-xl border px-4 py-2.5 ${
                   identifying
                     ? "border-amber/40 bg-amber/5"
                     : "border-border-glass border-dashed bg-surface-raised/50"
                 }`}>
-                  <span className={`shrink-0 flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold ${
+                  {/* Subtle waveform background on active input slot */}
+                  <WaveformBg />
+                  <span className={`relative shrink-0 flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold ${
                     identifying
                       ? "bg-amber/20 text-amber-light"
                       : "border border-border-glass text-text-tertiary"
@@ -256,11 +300,11 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
                     }}
                     placeholder="URL einfügen oder Titel suchen..."
                     disabled={identifying}
-                    className="flex-1 bg-transparent text-sm text-text-primary placeholder-text-tertiary outline-none disabled:opacity-50"
+                    className="relative flex-1 bg-transparent text-sm text-text-primary placeholder-text-tertiary outline-none disabled:opacity-50"
                     autoFocus
                   />
                   {(searching || identifying) && (
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="relative flex items-center gap-2 shrink-0">
                       <Spinner className="h-4 w-4 text-text-tertiary" />
                       {identifying && (
                         <span className="text-[11px] text-amber-light">Identifiziere...</span>
@@ -292,8 +336,13 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
                       exit={{ opacity: 0, y: -4 }}
                       className="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-xl border border-border-glass bg-surface-elevated shadow-lg"
                     >
-                      {searchResults.map((s) => (
-                        <li key={s.id}>
+                      {searchResults.map((s, idx) => (
+                        <motion.li
+                          key={s.id}
+                          initial={{ opacity: 0, x: -6 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.035, duration: 0.2 }}
+                        >
                           <button
                             onClick={() => addSong(s)}
                             className="w-full px-4 py-2 text-left text-sm hover:bg-surface-raised transition-colors cursor-pointer"
@@ -301,7 +350,7 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
                             <span className="font-medium text-text-primary">{s.title}</span>
                             <span className="ml-2 text-xs text-text-secondary">{s.artist}</span>
                           </button>
-                        </li>
+                        </motion.li>
                       ))}
                     </motion.ul>
                   )}
@@ -341,11 +390,25 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
       )}
 
       {/* Submit button */}
-      <button
+      <motion.button
         onClick={handleSubmit}
         disabled={!canSubmit}
-        className="w-full rounded-xl bg-amber/20 px-5 py-3 text-sm font-medium text-amber-light transition-colors hover:bg-amber/30 disabled:cursor-not-allowed disabled:opacity-50"
+        className="relative w-full overflow-hidden rounded-xl bg-amber/20 px-5 py-3 text-sm font-medium text-amber-light transition-colors hover:bg-amber/30 disabled:cursor-not-allowed disabled:opacity-50"
+        whileTap={canSubmit ? { scale: 0.98 } : undefined}
       >
+        {/* Animated shimmer stripe when loading */}
+        <AnimatePresence>
+          {loading && (
+            <motion.div
+              className="absolute inset-0 -translate-x-full"
+              animate={{ translateX: ["−100%", "200%"] }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+              style={{
+                background: "linear-gradient(90deg, transparent, rgba(251,191,36,0.15), transparent)",
+              }}
+            />
+          )}
+        </AnimatePresence>
         {loading ? (
           <span className="flex items-center justify-center gap-2">
             <Spinner />
@@ -354,7 +417,7 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
         ) : (
           config.cta
         )}
-      </button>
+      </motion.button>
 
       {/* Hint for blend results */}
       {mode === "blend" && selectedSongs.length === 2 && (
@@ -362,6 +425,6 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
           Findet Songs in der N\u00e4he beider Tracks — nicht unbedingt eine klangliche Mischung.
         </p>
       )}
-    </div>
+    </motion.div>
   );
 }

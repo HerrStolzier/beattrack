@@ -15,14 +15,41 @@ const ACCENT = "var(--color-amber)";
 
 export default function SongCard({ song, onFindSimilar, isSelected }: SongCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const [shinePos, setShinePos] = useState({ x: 50, y: 50 });
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    setTilt({ x: y * -8, y: x * 8 }); // max 8 degrees
+    // Shine position follows mouse (0-100%)
+    setShinePos({
+      x: ((e.clientX - rect.left) / rect.width) * 100,
+      y: ((e.clientY - rect.top) / rect.height) * 100,
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setTilt({ x: 0, y: 0 });
+    setShinePos({ x: 50, y: 50 });
+  };
 
   return (
     <motion.div
-      className="group relative cursor-pointer"
+      className="group relative cursor-pointer noise-texture"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
       onClick={() => onFindSimilar(song)}
-      whileHover={{ y: -4, transition: { type: "spring", stiffness: 400, damping: 25 } }}
+      animate={{
+        rotateX: tilt.x,
+        rotateY: tilt.y,
+        y: isHovered ? -4 : 0,
+      }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      style={{ transformStyle: "preserve-3d", perspective: 1000 }}
       whileTap={{ scale: 0.98 }}
     >
       {/* Glow behind card */}
@@ -65,6 +92,16 @@ export default function SongCard({ song, onFindSimilar, isSelected }: SongCardPr
           style={{ background: `linear-gradient(90deg, transparent, ${ACCENT}, transparent)` }}
           animate={{ opacity: isSelected ? 1 : isHovered ? 0.8 : 0.3 }}
           transition={{ duration: 0.3 }}
+        />
+
+        {/* Shine/reflection overlay that follows tilt */}
+        <motion.div
+          className="pointer-events-none absolute inset-0 rounded-2xl"
+          animate={{ opacity: isHovered ? 1 : 0 }}
+          transition={{ duration: 0.3 }}
+          style={{
+            background: `radial-gradient(ellipse 60% 40% at ${shinePos.x}% ${shinePos.y}%, rgba(255,255,255,0.07), transparent 70%)`,
+          }}
         />
 
         {/* Content */}

@@ -47,13 +47,13 @@ export default function Home() {
               >
                 <Link
                   href="/"
-                  className="bg-gradient-to-r from-amber via-gold to-amber-light bg-[length:200%_auto] bg-clip-text text-transparent animate-gradient-shift transition-opacity hover:opacity-80"
+                  className="text-shimmer text-glow transition-opacity hover:opacity-80"
                 >
-                  Beattrack
+                  beattrack
                 </Link>
               </motion.h1>
               <motion.p
-                className="mt-2 text-base text-text-secondary"
+                className="mt-2 text-lg tracking-wide text-text-secondary"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
@@ -66,7 +66,7 @@ export default function Home() {
         </motion.header>
 
         {/* Gradient divider */}
-        <div className="mb-8 h-px bg-gradient-to-r from-transparent via-amber/30 to-transparent" />
+        <div className="mb-8 h-px bg-gradient-to-r from-transparent via-amber/50 to-transparent opacity-80 blur-[0.5px]" />
 
         {/* Main content — URL identify + file upload */}
         <motion.div
@@ -81,15 +81,15 @@ export default function Home() {
       </div>
 
       <footer className="mx-auto mt-auto w-full max-w-6xl px-4 py-8">
-        <div className="h-px bg-gradient-to-r from-transparent via-border-glass to-transparent" />
-        <div className="flex flex-col items-center gap-3 pt-6 sm:flex-row sm:justify-between">
-          <p className="text-xs text-text-tertiary">Beattrack — Finde deinen nächsten Track</p>
+        <div className="h-px bg-gradient-to-r from-transparent via-amber/40 to-transparent" />
+        <div className="glass-premium-noise mt-px flex flex-col items-center gap-3 rounded-b-xl px-4 pt-6 pb-4 sm:flex-row sm:justify-between">
+          <p className="text-xs text-text-tertiary">beattrack — Finde deinen nächsten Track</p>
           <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
             <a
               href="javascript:void(window.open('https://beattrack.app/?url='+encodeURIComponent(location.href)))"
               onClick={(e) => e.preventDefault()}
               draggable
-              className="hidden rounded-md border border-amber/30 bg-amber/10 px-2 py-0.5 text-xs text-amber-light transition-colors hover:bg-amber/20 cursor-grab sm:inline-block"
+              className="badge-pulse hidden rounded-md border border-amber/30 bg-amber/10 px-2 py-0.5 text-xs text-amber-light transition-colors hover:bg-amber/20 cursor-grab sm:inline-block"
               title="Ziehe diesen Button in deine Lesezeichenleiste"
             >
               Ähnliche finden
