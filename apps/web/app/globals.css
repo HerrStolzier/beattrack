@@ -526,3 +526,17 @@ body > * {
 .badge-pulse {
   animation: pulse-glow 3s ease-in-out infinite;
 }
+
+/* ── Resonant Noir: Similarity Animations ──── */
+@keyframes similarity-bar-fill {
+  from { width: 0%; }
+}
+
+.similarity-bar {
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, var(--color-amber), var(--color-amber-light));
+  animation: similarity-bar-fill 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation-delay: var(--bar-delay, 0.3s);
+  width: 0;
+}

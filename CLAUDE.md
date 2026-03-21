@@ -67,7 +67,7 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 
 ## Batch Scripts (langlebig)
 - Scripts in `apps/api/scripts/` für DB-Operationen: `backfill_genre.py`, `extract_mert_batch.py`
-- Ausführen: `.venv/bin/python scripts/xxx.py --apply` (Envvars SUPABASE_URL + SUPABASE_ANON_KEY nötig)
+- Ausführen: `.venv/bin/python scripts/xxx.py --apply` (Envvars SUPABASE_URL + SUPABASE_ANON_KEY nötig — ACHTUNG: SUPABASE_ANON_KEY braucht den **service_role** Key als Wert, nicht den Anon Key, weil die Scripts via RPC schreiben)
 - Langlebige Jobs mit `nohup ... >> /tmp/xxx.log 2>&1 &` starten
 - Haben Checkpoint/Resume-Support und Retry-Logic (3x mit Backoff, max 5 consecutive errors)
 - MERT-Worker: `app/workers/mert.py` — direkt importieren, NICHT via `app/workers/__init__.py` (Procrastinate-Dep)
@@ -105,10 +105,18 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 ## Konventionen
 - Essentia läuft in isoliertem Subprocess (Crash-Schutz)
 - Normalisierung via Z-Score aus `config`-Tabelle
-- URL-Identify: YouTube oEmbed, SoundCloud oEmbed, Spotify oEmbed+OG-Scraping, Apple Music iTunes API
+- URL-Identify: YouTube oEmbed, SoundCloud oEmbed, Spotify oEmbed+OG-Scraping, Apple Music iTunes API, Deezer API (`/identify/deezer` — resolves share links via redirect)
 - Commit-Messages auf Englisch, UI-Texte auf Deutsch
 
+## CI/CD & Quality
+- GitHub Actions: Lint + Type-Check + Build (Frontend), pytest + pip-audit (Backend)
+- Pre-commit hook: `.husky/pre-commit` → `bun run lint` in apps/web
+- Frontend-Lint läuft nur in CI (lokal broken wegen Bun-Workspace-Hoisting von @next/eslint-plugin-next)
+
 ## Gotchas
+- **React 19 ESLint Rules**: `react-hooks/set-state-in-effect`, `refs`, `purity`, `immutability` — viel strikter als React 18. Patterns: `useSyncExternalStore` statt `useState(false)+useEffect(setTrue)`, Ref-Updates in `useEffect` statt Render, `useCallback` entfernen (Compiler macht das)
+- **javascript: URLs**: React blockiert `href="javascript:..."` — Bookmarklets via `useRef` + `useEffect` setzen
+- **`next lint` deprecated**: Next.js 15+ — ESLint CLI direkt verwenden
 - **Tailwind v4**: Config komplett in `globals.css` via `@theme` — kein `tailwind.config.ts`
 - **ESLint**: Beim Build disabled (`next.config.ts`) wegen Workspace-Hoisting
 - **API Concurrency**: Upload-Semaphore (max 3), SSE-Limiter (max 50 Connections)
@@ -133,6 +141,7 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - **workers/__init__.py**: Importiert Procrastinate global. Scripts die nur MERT brauchen: `importlib.util` direkt auf `mert.py`
 - **Package Manager**: `uv pip install ... --python .venv/bin/python` (kein pip im venv)
 - **Supabase MCP Project-ID**: MUSS `qpkemujemfnymtgmtkfg` sein. Bei "permission denied" → `list_projects` zum Verifizieren
+- **Externe SSD Ownership**: Projekt liegt auf `/Volumes/1TB-SSD/`. Bei Permission-Errors nach Standby/Reboot: `sudo diskutil enableOwnership /Volumes/1TB-SSD` (einmalig)
 
 ## Security
 - **Rate Limiting**: slowapi auf `/analyze` (10/min), `/identify/*` (20/min), `/feedback` (5/min geplant, aktuell 30/min)

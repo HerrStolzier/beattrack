@@ -25,14 +25,15 @@ export default function FocusSelector({ selected, onSelect, disabled }: FocusSel
       {FOCUS_OPTIONS.map(({ key, label }) => {
         const isActive = selected === key;
         return (
-          <button
+          <motion.button
             key={label}
             onClick={() => onSelect(key)}
             disabled={disabled}
-            className={`relative rounded-full px-3 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 ${
+            whileTap={{ scale: 0.95 }}
+            className={`relative cursor-pointer rounded-full px-3 py-1 text-[11px] font-medium transition-all duration-200 disabled:opacity-50 ${
               isActive
-                ? "text-amber-light"
-                : "text-text-secondary hover:text-text-primary hover:bg-surface-elevated"
+                ? "border border-amber/40 bg-amber/15 text-amber shadow-[inset_0_1px_8px_rgba(245,158,11,0.12)]"
+                : "border border-transparent text-text-tertiary hover:border-amber/15 hover:bg-amber/5 hover:text-amber-light/80"
             }`}
           >
             {isActive && (
@@ -43,7 +44,7 @@ export default function FocusSelector({ selected, onSelect, disabled }: FocusSel
               />
             )}
             <span className="relative">{label}</span>
-          </button>
+          </motion.button>
         );
       })}
     </div>

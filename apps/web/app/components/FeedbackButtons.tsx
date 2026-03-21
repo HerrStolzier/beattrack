@@ -107,7 +107,7 @@ export default function FeedbackButtons({
         disabled={loading}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.92 }}
-        className="group relative flex cursor-pointer items-center gap-2.5 overflow-hidden rounded-xl border border-emerald/20 bg-emerald/5 px-5 py-2.5 text-xs font-semibold text-emerald/80 transition-all duration-200 hover:border-emerald/40 hover:bg-emerald/10 hover:text-emerald hover:shadow-[0_0_24px_rgba(52,211,153,0.15)] disabled:opacity-40"
+        className="group relative flex cursor-pointer items-center gap-2.5 overflow-hidden rounded-full border border-emerald-500/40 bg-emerald/5 px-5 py-2.5 text-xs font-semibold text-emerald-400 transition-all duration-200 hover:bg-emerald-500/10 hover:shadow-[0_0_20px_rgba(52,211,153,0.12)] disabled:opacity-40"
         title="Passend"
       >
         <AnimatePresence>
@@ -124,7 +124,7 @@ export default function FeedbackButtons({
         disabled={loading}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.92 }}
-        className="group relative flex cursor-pointer items-center gap-2.5 overflow-hidden rounded-xl border border-rose/20 bg-rose/5 px-5 py-2.5 text-xs font-semibold text-rose/80 transition-all duration-200 hover:border-rose/40 hover:bg-rose/10 hover:text-rose hover:shadow-[0_0_24px_rgba(251,113,133,0.15)] disabled:opacity-40"
+        className="group relative flex cursor-pointer items-center gap-2.5 overflow-hidden rounded-full border border-red-500/40 bg-rose/5 px-5 py-2.5 text-xs font-semibold text-red-400 transition-all duration-200 hover:bg-red-500/10 hover:shadow-[0_0_20px_rgba(251,113,133,0.12)] disabled:opacity-40"
         title="Unpassend"
       >
         <AnimatePresence>

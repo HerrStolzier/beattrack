@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Syne, DM_Sans } from "next/font/google";
+import { Syne, DM_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "./components/Toast";
 import MouseGlow from "./components/MouseGlow";
@@ -15,6 +15,12 @@ const dmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-dm-sans",
   weight: ["400", "500", "600"],
+});
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  weight: ["400", "500", "700"],
 });
 
 const baseUrl = "https://beattrack.app";
@@ -69,7 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
       </head>
-      <body className={`${syne.variable} ${dmSans.variable} font-sans antialiased`}>
+      <body className={`${syne.variable} ${dmSans.variable} ${geistMono.variable} font-sans antialiased`}>
         <MeshGradient />
         <MouseGlow />
         <ToastProvider>{children}</ToastProvider>
