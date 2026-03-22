@@ -54,7 +54,7 @@ export default function LensDistortion() {
 
       const displacement = svg.querySelector('#lensDisplacement') as SVGFEDisplacementMapElement;
       if (displacement) {
-        const scale = 20 + Math.sin(timeRef.current * 0.5) * 5;
+        const scale = 8 + Math.sin(timeRef.current * 0.5) * 3;
         displacement.setAttribute('scale', scale.toString());
       }
 
@@ -99,9 +99,9 @@ export default function LensDistortion() {
       ref={containerRef}
       className="fixed inset-0 pointer-events-none"
       style={{
-        opacity: 0.15,
+        opacity: 1,
         zIndex: 1,
-        mixBlendMode: "soft-light",
+        mixBlendMode: "screen",
       }}
     >
       <svg
@@ -113,8 +113,8 @@ export default function LensDistortion() {
         <defs>
           {/* Radial gradient centered on cursor for focus */}
           <radialGradient id="lensGradient" r="30%">
-            <stop offset="0%" stopColor="rgba(245, 158, 11, 0.8)" stopOpacity="0.8" />
-            <stop offset="50%" stopColor="rgba(167, 139, 250, 0.4)" stopOpacity="0.4" />
+            <stop offset="0%" stopColor="rgba(245, 158, 11, 0.12)" stopOpacity="0.12" />
+            <stop offset="50%" stopColor="rgba(167, 139, 250, 0.06)" stopOpacity="0.06" />
             <stop offset="100%" stopColor="rgba(34, 211, 238, 0)" stopOpacity="0" />
           </radialGradient>
 
@@ -165,7 +165,7 @@ export default function LensDistortion() {
               id="lensDisplacement"
               in="SourceGraphic"
               in2="noise"
-              scale="20"
+              scale="8"
               xChannelSelector="R"
               yChannelSelector="G"
             />
@@ -178,14 +178,14 @@ export default function LensDistortion() {
           height="100%"
           fill="url(#lensGradient)"
           filter="url(#lensDistortion)"
-          opacity="0.9"
+          opacity="0.3"
         />
 
         {/* Subtle vignette with chromatic aberration for depth */}
         <defs>
           <radialGradient id="vignetteGradient" r="60%">
             <stop offset="0%" stopColor="rgba(0, 0, 0, 0)" stopOpacity="0" />
-            <stop offset="100%" stopColor="rgba(0, 0, 0, 0.15)" stopOpacity="0.15" />
+            <stop offset="100%" stopColor="rgba(0, 0, 0, 0.05)" stopOpacity="0.05" />
           </radialGradient>
         </defs>
         <rect
@@ -193,7 +193,7 @@ export default function LensDistortion() {
           height="100%"
           fill="url(#vignetteGradient)"
           filter="url(#chromaticAberration)"
-          opacity="0.5"
+          opacity="0.15"
         />
       </svg>
     </div>
