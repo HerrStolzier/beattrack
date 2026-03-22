@@ -1,14 +1,12 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export default function LensDistortion() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const mousePos = useRef({ x: 0, y: 0 });
-  const smoothPos = useRef({ x: 0, y: 0 });
-  const animationFrameId = useRef<number | undefined>(undefined);
-  const timeRef = useRef(0);
+  const [pos, setPos] = useState({ x: 50, y: 50 });
+  const rafRef = useRef<number | undefined>(undefined);
+  const mouseRef = useRef({ x: 50, y: 50 });
+  const smoothRef = useRef({ x: 50, y: 50 });
 
   useEffect(() => {
     if (
@@ -19,116 +17,45 @@ export default function LensDistortion() {
       return;
     }
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const updateSize = () => {
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
-      ctx.scale(dpr, dpr);
-    };
-    updateSize();
-
     const handleMouseMove = (e: MouseEvent) => {
-      mousePos.current = { x: e.clientX, y: e.clientY };
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length > 0) {
-        mousePos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      }
+      mouseRef.current = {
+        x: (e.clientX / window.innerWidth) * 100,
+        y: (e.clientY / window.innerHeight) * 100,
+      };
     };
 
     const animate = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      smoothRef.current.x += (mouseRef.current.x - smoothRef.current.x) * 0.06;
+      smoothRef.current.y += (mouseRef.current.y - smoothRef.current.y) * 0.06;
 
-      // Smooth cursor follow
-      smoothPos.current.x += (mousePos.current.x - smoothPos.current.x) * 0.06;
-      smoothPos.current.y += (mousePos.current.y - smoothPos.current.y) * 0.06;
+      setPos({
+        x: Math.round(smoothRef.current.x * 10) / 10,
+        y: Math.round(smoothRef.current.y * 10) / 10,
+      });
 
-      timeRef.current += 0.003;
-
-      ctx.resetTransform();
-      const dpr = window.devicePixelRatio || 1;
-      ctx.scale(dpr, dpr);
-      ctx.clearRect(0, 0, w, h);
-
-      const cx = smoothPos.current.x || w / 2;
-      const cy = smoothPos.current.y || h / 2;
-
-      // DEBUG: bright yellow circle that MUST be visible
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.beginPath();
-      ctx.arc(cx, cy, 80, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(245, 158, 11, 0.8)';
-      ctx.fill();
-
-      // Chromatic aberration: offset colored radial gradients around cursor
-      const radius = 300 + Math.sin(timeRef.current * 0.5) * 40;
-      const offset = 12 + Math.sin(timeRef.current * 0.3) * 6;
-
-      ctx.globalCompositeOperation = 'screen';
-
-      // Red/amber channel — shifted right
-      const redGrad = ctx.createRadialGradient(cx + offset, cy, 0, cx + offset, cy, radius);
-      redGrad.addColorStop(0, 'rgba(245, 158, 11, 0.5)');
-      redGrad.addColorStop(0.3, 'rgba(245, 80, 20, 0.25)');
-      redGrad.addColorStop(0.7, 'rgba(245, 80, 20, 0.05)');
-      redGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = redGrad;
-      ctx.fillRect(0, 0, w, h);
-
-      // Blue/violet channel — shifted left
-      const blueGrad = ctx.createRadialGradient(cx - offset, cy, 0, cx - offset, cy, radius);
-      blueGrad.addColorStop(0, 'rgba(167, 139, 250, 0.4)');
-      blueGrad.addColorStop(0.3, 'rgba(34, 211, 238, 0.15)');
-      blueGrad.addColorStop(0.7, 'rgba(34, 211, 238, 0.03)');
-      blueGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = blueGrad;
-      ctx.fillRect(0, 0, w, h);
-
-      // Center amber glow
-      const centerGrad = ctx.createRadialGradient(cx, cy - offset * 0.3, 0, cx, cy - offset * 0.3, radius * 0.6);
-      centerGrad.addColorStop(0, 'rgba(240, 165, 0, 0.35)');
-      centerGrad.addColorStop(0.5, 'rgba(240, 165, 0, 0.1)');
-      centerGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = centerGrad;
-      ctx.fillRect(0, 0, w, h);
-
-      ctx.globalCompositeOperation = 'source-over';
-
-      animationFrameId.current = requestAnimationFrame(animate);
+      rafRef.current = requestAnimationFrame(animate);
     };
 
     window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('touchmove', handleTouchMove);
-    window.addEventListener('resize', updateSize);
-
-    animationFrameId.current = requestAnimationFrame(animate);
+    rafRef.current = requestAnimationFrame(animate);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('resize', updateSize);
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-      }
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
+    <div
       className="fixed inset-0 pointer-events-none"
       style={{
-        zIndex: 10,
-        width: '100%',
-        height: '100%',
+        zIndex: 1,
+        mixBlendMode: 'screen',
+        background: [
+          `radial-gradient(ellipse 500px 400px at calc(${pos.x}% + 12px) ${pos.y}%, rgba(245, 158, 11, 0.18), rgba(245, 80, 20, 0.06) 40%, transparent 70%)`,
+          `radial-gradient(ellipse 500px 400px at calc(${pos.x}% - 12px) ${pos.y}%, rgba(167, 139, 250, 0.14), rgba(34, 211, 238, 0.04) 40%, transparent 70%)`,
+          `radial-gradient(ellipse 350px 300px at ${pos.x}% calc(${pos.y}% - 5px), rgba(240, 165, 0, 0.1), transparent 60%)`,
+        ].join(', '),
       }}
     />
   );
