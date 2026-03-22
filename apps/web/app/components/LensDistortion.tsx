@@ -49,7 +49,7 @@ export default function LensDistortion() {
     <div
       className="fixed inset-0 pointer-events-none"
       style={{
-        zIndex: 9999,
+        zIndex: 2,
         background: [
           `radial-gradient(ellipse 600px 500px at calc(${pos.x}% + 18px) ${pos.y}%, rgba(245, 158, 11, 0.35), rgba(245, 80, 20, 0.12) 50%, transparent 80%)`,
           `radial-gradient(ellipse 600px 500px at calc(${pos.x}% - 18px) ${pos.y}%, rgba(167, 139, 250, 0.25), rgba(34, 211, 238, 0.08) 50%, transparent 80%)`,
