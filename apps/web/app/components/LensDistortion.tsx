@@ -3,23 +3,35 @@
 import { useEffect, useRef } from 'react';
 
 export default function LensDistortion() {
-  const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const mousePos = useRef({ x: 0, y: 0 });
   const smoothPos = useRef({ x: 0, y: 0 });
   const animationFrameId = useRef<number | undefined>(undefined);
   const timeRef = useRef(0);
-  const prefersReducedMotion = useRef(false);
-  const dimensionsRef = useRef({ w: 1024, h: 768 });
 
   useEffect(() => {
-    // Check for prefers-reduced-motion
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    prefersReducedMotion.current = mediaQuery.matches;
-
-    if (prefersReducedMotion.current) {
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
       return;
     }
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const updateSize = () => {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      ctx.scale(dpr, dpr);
+    };
+    updateSize();
 
     const handleMouseMove = (e: MouseEvent) => {
       mousePos.current = { x: e.clientX, y: e.clientY };
@@ -32,170 +44,80 @@ export default function LensDistortion() {
     };
 
     const animate = () => {
-      const svg = svgRef.current;
-      if (!svg) {
-        animationFrameId.current = requestAnimationFrame(animate);
-        return;
-      }
+      const w = window.innerWidth;
+      const h = window.innerHeight;
 
-      // Smooth interpolation of mouse position
-      smoothPos.current.x += (mousePos.current.x - smoothPos.current.x) * 0.08;
-      smoothPos.current.y += (mousePos.current.y - smoothPos.current.y) * 0.08;
+      // Smooth cursor follow
+      smoothPos.current.x += (mousePos.current.x - smoothPos.current.x) * 0.06;
+      smoothPos.current.y += (mousePos.current.y - smoothPos.current.y) * 0.06;
 
-      // Increment time for animation
-      timeRef.current += 0.004;
+      timeRef.current += 0.003;
 
-      // Animate the distortion filter turbulence
-      const turbulence = svg.querySelector('#lensTurbulence') as SVGFETurbulenceElement;
-      if (turbulence) {
-        const baseFreq = 0.02 + Math.sin(timeRef.current * 0.2) * 0.003;
-        turbulence.setAttribute('baseFrequency', baseFreq.toString());
-      }
+      ctx.clearRect(0, 0, w, h);
 
-      const displacement = svg.querySelector('#lensDisplacement') as SVGFEDisplacementMapElement;
-      if (displacement) {
-        const scale = 8 + Math.sin(timeRef.current * 0.5) * 3;
-        displacement.setAttribute('scale', scale.toString());
-      }
+      const cx = smoothPos.current.x;
+      const cy = smoothPos.current.y;
 
-      // Update the radial gradient center to follow cursor
-      const radialGradient = svg.querySelector('#lensGradient') as SVGRadialGradientElement;
-      if (radialGradient) {
-        const cx = (smoothPos.current.x / window.innerWidth) * 100;
-        const cy = (smoothPos.current.y / window.innerHeight) * 100;
-        radialGradient.setAttribute('cx', `${cx}%`);
-        radialGradient.setAttribute('cy', `${cy}%`);
-      }
+      // Chromatic aberration: offset colored radial gradients around cursor
+      const radius = 250 + Math.sin(timeRef.current * 0.5) * 30;
+      const offset = 4 + Math.sin(timeRef.current * 0.3) * 2;
+
+      ctx.globalCompositeOperation = 'screen';
+
+      // Red channel — shifted right
+      const redGrad = ctx.createRadialGradient(cx + offset, cy, 0, cx + offset, cy, radius);
+      redGrad.addColorStop(0, 'rgba(245, 158, 11, 0.06)');
+      redGrad.addColorStop(0.4, 'rgba(245, 80, 20, 0.03)');
+      redGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = redGrad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Blue channel — shifted left
+      const blueGrad = ctx.createRadialGradient(cx - offset, cy, 0, cx - offset, cy, radius);
+      blueGrad.addColorStop(0, 'rgba(167, 139, 250, 0.05)');
+      blueGrad.addColorStop(0.4, 'rgba(34, 211, 238, 0.02)');
+      blueGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = blueGrad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Green/amber center glow
+      const centerGrad = ctx.createRadialGradient(cx, cy - offset * 0.5, 0, cx, cy - offset * 0.5, radius * 0.7);
+      centerGrad.addColorStop(0, 'rgba(240, 165, 0, 0.04)');
+      centerGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = centerGrad;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.globalCompositeOperation = 'source-over';
 
       animationFrameId.current = requestAnimationFrame(animate);
     };
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('touchmove', handleTouchMove);
+    window.addEventListener('resize', updateSize);
 
     animationFrameId.current = requestAnimationFrame(animate);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('resize', updateSize);
       if (animationFrameId.current) {
         cancelAnimationFrame(animationFrameId.current);
       }
     };
   }, []);
 
-  // Update dimensions on mount and resize
-  useEffect(() => {
-    const update = () => {
-      dimensionsRef.current = { w: window.innerWidth, h: window.innerHeight };
-    };
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
-
   return (
-    <div
-      ref={containerRef}
+    <canvas
+      ref={canvasRef}
       className="fixed inset-0 pointer-events-none"
       style={{
-        opacity: 1,
         zIndex: 1,
-        mixBlendMode: "screen",
+        mixBlendMode: 'screen',
+        width: '100%',
+        height: '100%',
       }}
-    >
-      <svg
-        ref={svgRef}
-        className="w-full h-full"
-        preserveAspectRatio="none"
-        viewBox="0 0 1024 768"
-      >
-        <defs>
-          {/* Radial gradient centered on cursor for focus */}
-          <radialGradient id="lensGradient" r="30%">
-            <stop offset="0%" stopColor="rgba(245, 158, 11, 0.12)" stopOpacity="0.12" />
-            <stop offset="50%" stopColor="rgba(167, 139, 250, 0.06)" stopOpacity="0.06" />
-            <stop offset="100%" stopColor="rgba(34, 211, 238, 0)" stopOpacity="0" />
-          </radialGradient>
-
-          {/* Filter for chromatic aberration effect */}
-          <filter id="chromaticAberration">
-            {/* Red channel with slight positive offset */}
-            <feOffset in="SourceGraphic" dx="2" dy="0" result="redOffset" />
-            <feComponentTransfer in="redOffset" result="redChannel">
-              <feFuncR type="linear" slope="1" />
-              <feFuncG type="linear" slope="0" />
-              <feFuncB type="linear" slope="0" />
-            </feComponentTransfer>
-
-            {/* Blue channel with slight negative offset */}
-            <feOffset in="SourceGraphic" dx="-2" dy="0" result="blueOffset" />
-            <feComponentTransfer in="blueOffset" result="blueChannel">
-              <feFuncR type="linear" slope="0" />
-              <feFuncG type="linear" slope="0" />
-              <feFuncB type="linear" slope="1" />
-            </feComponentTransfer>
-
-            {/* Green channel unchanged */}
-            <feComponentTransfer in="SourceGraphic" result="greenChannel">
-              <feFuncR type="linear" slope="0" />
-              <feFuncG type="linear" slope="1" />
-              <feFuncB type="linear" slope="0" />
-            </feComponentTransfer>
-
-            {/* Combine all channels */}
-            <feMerge>
-              <feMergeNode in="redChannel" />
-              <feMergeNode in="greenChannel" />
-              <feMergeNode in="blueChannel" />
-            </feMerge>
-          </filter>
-
-          {/* Main distortion filter */}
-          <filter id="lensDistortion">
-            <feTurbulence
-              id="lensTurbulence"
-              type="fractalNoise"
-              baseFrequency="0.02"
-              numOctaves="4"
-              result="noise"
-              seed="1"
-            />
-            <feDisplacementMap
-              id="lensDisplacement"
-              in="SourceGraphic"
-              in2="noise"
-              scale="8"
-              xChannelSelector="R"
-              yChannelSelector="G"
-            />
-          </filter>
-        </defs>
-
-        {/* Base overlay rectangle with lens gradient and distortion */}
-        <rect
-          width="100%"
-          height="100%"
-          fill="url(#lensGradient)"
-          filter="url(#lensDistortion)"
-          opacity="0.3"
-        />
-
-        {/* Subtle vignette with chromatic aberration for depth */}
-        <defs>
-          <radialGradient id="vignetteGradient" r="60%">
-            <stop offset="0%" stopColor="rgba(0, 0, 0, 0)" stopOpacity="0" />
-            <stop offset="100%" stopColor="rgba(0, 0, 0, 0.05)" stopOpacity="0.05" />
-          </radialGradient>
-        </defs>
-        <rect
-          width="100%"
-          height="100%"
-          fill="url(#vignetteGradient)"
-          filter="url(#chromaticAberration)"
-          opacity="0.15"
-        />
-      </svg>
-    </div>
+    />
   );
-};
+}
