@@ -47,7 +47,7 @@ export default function LensDistortion() {
 
   return (
     <div
-      className="fixed inset-0 pointer-events-none"
+      className="fixed inset-0 pointer-events-none hidden sm:block"
       style={{
         zIndex: 2,
         background: [
