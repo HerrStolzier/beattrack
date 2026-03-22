@@ -50,11 +50,10 @@ export default function LensDistortion() {
       className="fixed inset-0 pointer-events-none"
       style={{
         zIndex: 1,
-        mixBlendMode: 'screen',
         background: [
-          `radial-gradient(ellipse 500px 400px at calc(${pos.x}% + 12px) ${pos.y}%, rgba(245, 158, 11, 0.18), rgba(245, 80, 20, 0.06) 40%, transparent 70%)`,
-          `radial-gradient(ellipse 500px 400px at calc(${pos.x}% - 12px) ${pos.y}%, rgba(167, 139, 250, 0.14), rgba(34, 211, 238, 0.04) 40%, transparent 70%)`,
-          `radial-gradient(ellipse 350px 300px at ${pos.x}% calc(${pos.y}% - 5px), rgba(240, 165, 0, 0.1), transparent 60%)`,
+          `radial-gradient(ellipse 600px 500px at calc(${pos.x}% + 15px) ${pos.y}%, rgba(245, 158, 11, 0.12), rgba(245, 80, 20, 0.04) 50%, transparent 80%)`,
+          `radial-gradient(ellipse 600px 500px at calc(${pos.x}% - 15px) ${pos.y}%, rgba(167, 139, 250, 0.09), rgba(34, 211, 238, 0.03) 50%, transparent 80%)`,
+          `radial-gradient(ellipse 400px 350px at ${pos.x}% calc(${pos.y}% - 8px), rgba(240, 165, 0, 0.07), transparent 65%)`,
         ].join(', '),
       }}
     />
