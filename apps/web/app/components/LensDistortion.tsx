@@ -99,8 +99,9 @@ export default function LensDistortion() {
       ref={containerRef}
       className="fixed inset-0 pointer-events-none"
       style={{
-        opacity: 0.3,
-        zIndex: -1,
+        opacity: 0.15,
+        zIndex: 1,
+        mixBlendMode: "soft-light",
       }}
     >
       <svg
