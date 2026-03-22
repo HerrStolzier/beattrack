@@ -4,6 +4,7 @@ import "./globals.css";
 import { ToastProvider } from "./components/Toast";
 import MouseGlow from "./components/MouseGlow";
 import MeshGradient from "./components/MeshGradient";
+import LensDistortion from "./components/LensDistortion";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -78,6 +79,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${syne.variable} ${dmSans.variable} ${geistMono.variable} font-sans antialiased`}>
         <MeshGradient />
         <MouseGlow />
+        <LensDistortion />
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
