@@ -61,6 +61,13 @@ export default function LensDistortion() {
       const cx = smoothPos.current.x || w / 2;
       const cy = smoothPos.current.y || h / 2;
 
+      // DEBUG: bright yellow circle that MUST be visible
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 80, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.8)';
+      ctx.fill();
+
       // Chromatic aberration: offset colored radial gradients around cursor
       const radius = 300 + Math.sin(timeRef.current * 0.5) * 40;
       const offset = 12 + Math.sin(timeRef.current * 0.3) * 6;
@@ -119,8 +126,7 @@ export default function LensDistortion() {
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none"
       style={{
-        zIndex: 1,
-        mixBlendMode: 'screen',
+        zIndex: 10,
         width: '100%',
         height: '100%',
       }}
