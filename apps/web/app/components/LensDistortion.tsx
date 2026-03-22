@@ -97,9 +97,10 @@ export default function LensDistortion() {
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 pointer-events-none z-[2]"
+      className="fixed inset-0 pointer-events-none"
       style={{
-        opacity: 0.6,
+        opacity: 0.3,
+        zIndex: -1,
       }}
     >
       <svg
