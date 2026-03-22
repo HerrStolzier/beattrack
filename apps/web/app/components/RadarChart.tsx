@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { getSongFeatures, type RadarFeatures } from "@/lib/api";
 
 type RadarChartProps = {
@@ -74,7 +75,7 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
   const n = CATEGORIES.length;
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="glass-premium-noise rounded-xl p-4 flex flex-col items-center gap-2">
       <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-48 w-48">
         <defs>
           <filter id="glow-amber" x="-50%" y="-50%" width="200%" height="200%">
@@ -181,6 +182,7 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
               dominantBaseline="central"
               fill="rgba(161,161,170,1)"
               fontSize="7"
+              fontFamily="var(--font-mono, ui-monospace, monospace)"
             >
               {label}
             </text>
@@ -190,35 +192,44 @@ export default function RadarChart({ querySongId, resultSongId }: RadarChartProp
 
       {/* A/B Toggle */}
       <div className="flex items-center gap-1 rounded-lg bg-surface-raised p-0.5 text-[10px]">
-        <button
+        <motion.button
           onClick={() => setViewMode("compare")}
+          whileTap={{ scale: 0.95 }}
           className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
-            viewMode === "compare" ? "bg-surface-elevated text-text-primary" : "text-text-tertiary hover:text-text-secondary"
+            viewMode === "compare"
+              ? "bg-amber/10 text-amber-light border border-amber/20"
+              : "text-text-tertiary hover:text-text-secondary"
           }`}
         >
           Vergleich
-        </button>
+        </motion.button>
         {queryFeatures && (
-          <button
+          <motion.button
             onClick={() => setViewMode("query")}
+            whileTap={{ scale: 0.95 }}
             className={`flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-colors ${
-              viewMode === "query" ? "bg-amber/15 text-amber-light" : "text-text-tertiary hover:text-text-secondary"
+              viewMode === "query"
+                ? "bg-amber/10 text-amber-light border border-amber/20"
+                : "text-text-tertiary hover:text-text-secondary"
             }`}
           >
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
             Query
-          </button>
+          </motion.button>
         )}
         {resultFeatures && (
-          <button
+          <motion.button
             onClick={() => setViewMode("result")}
+            whileTap={{ scale: 0.95 }}
             className={`flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-colors ${
-              viewMode === "result" ? "bg-cyan/15 text-cyan" : "text-text-tertiary hover:text-text-secondary"
+              viewMode === "result"
+                ? "bg-amber/10 text-amber-light border border-amber/20"
+                : "text-text-tertiary hover:text-text-secondary"
             }`}
           >
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400" />
             Result
-          </button>
+          </motion.button>
         )}
       </div>
     </div>

@@ -78,7 +78,7 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-2">
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row">
         {/* Animated input container */}
         <motion.div
           className="relative flex-1 rounded-xl"
@@ -131,7 +131,7 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
         <button
           type="submit"
           disabled={!url.trim() || loading || disabled}
-          className="rounded-xl bg-amber/20 px-5 py-3 text-sm font-medium text-amber-light transition-colors hover:bg-amber/30 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full sm:w-auto rounded-xl bg-amber/20 px-5 py-3 text-sm font-medium text-amber-light transition-colors hover:bg-amber/30 disabled:cursor-not-allowed disabled:opacity-50"
           data-testid="url-submit"
         >
           {loading ? (
@@ -168,7 +168,7 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
           return (
             <motion.span
               key={p}
-              className="inline-flex cursor-default items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
+              className="inline-flex cursor-default items-center gap-1 rounded-md px-2 py-1 sm:py-0.5 text-xs font-medium"
               style={
                 isActive
                   ? {

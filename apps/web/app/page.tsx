@@ -103,13 +103,13 @@ export default function Home() {
             >
               Ähnliche finden
             </a>
-            <a href="/impressum" className="text-xs text-text-tertiary transition-colors hover:text-amber-light">
+            <a href="/impressum" className="px-2 py-1 text-xs text-text-tertiary transition-colors hover:text-amber-light">
               Impressum
             </a>
-            <a href="/privacy" className="text-xs text-text-tertiary transition-colors hover:text-amber-light">
+            <a href="/privacy" className="px-2 py-1 text-xs text-text-tertiary transition-colors hover:text-amber-light">
               Datenschutz
             </a>
-            <a href="/nutzungsbedingungen" className="text-xs text-text-tertiary transition-colors hover:text-amber-light">
+            <a href="/nutzungsbedingungen" className="px-2 py-1 text-xs text-text-tertiary transition-colors hover:text-amber-light">
               Nutzungsbedingungen
             </a>
           </div>

@@ -96,17 +96,17 @@ export default function JourneyView({ startSong, onExit }: JourneyViewProps) {
         </button>
       </div>
 
-      {/* Stats bar */}
+      {/* Stats bar — glass-premium-noise */}
       <div className="flex flex-wrap gap-3 text-xs">
-        <div className="glass rounded-lg px-3 py-1.5">
+        <div className="glass-premium-noise rounded-lg px-3 py-1.5">
           <span className="text-text-tertiary">Schritte </span>
           <span className="font-mono font-bold text-amber-light">{path.length - 1}</span>
         </div>
-        <div className="glass rounded-lg px-3 py-1.5">
+        <div className="glass-premium-noise rounded-lg px-3 py-1.5">
           <span className="text-text-tertiary">Sonic Distance </span>
           <span className="font-mono font-bold text-cyan">{totalDistance.toFixed(2)}</span>
         </div>
-        <div className="glass rounded-lg px-3 py-1.5">
+        <div className="glass-premium-noise rounded-lg px-3 py-1.5">
           <span className="text-text-tertiary">Genres </span>
           <span className="font-mono font-bold text-violet">{genresDiscovered.size}</span>
         </div>
@@ -124,7 +124,8 @@ export default function JourneyView({ startSong, onExit }: JourneyViewProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                 </svg>
               )}
-              <span
+              <motion.button
+                whileTap={{ scale: 0.95 }}
                 className={`rounded-full px-2.5 py-1 text-[10px] font-medium whitespace-nowrap transition-colors ${
                   isActive
                     ? "bg-amber/20 text-amber-light border border-amber/30"
@@ -135,7 +136,7 @@ export default function JourneyView({ startSong, onExit }: JourneyViewProps) {
                 } : undefined}
               >
                 {step.song.artist} — {step.song.title}
-              </span>
+              </motion.button>
             </div>
           );
         })}
@@ -144,11 +145,14 @@ export default function JourneyView({ startSong, onExit }: JourneyViewProps) {
       {/* Current song detail */}
       <motion.div
         key={currentSong.id}
-        className="glass-premium rounded-xl p-4 space-y-3"
+        className="glass-premium-noise relative overflow-hidden rounded-xl p-4 space-y-3"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
+        {/* Amber bottom accent */}
+        <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-amber/40 to-transparent" />
+
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h3 className="font-display text-sm font-medium text-text-primary">
@@ -167,12 +171,12 @@ export default function JourneyView({ startSong, onExit }: JourneyViewProps) {
                 </span>
               )}
               {currentSong.bpm != null && (
-                <span className="rounded-full bg-amber-dim px-2.5 py-0.5 font-mono text-amber-light">
+                <span className="rounded-full bg-amber-dim px-2.5 py-0.5 font-mono tabular-nums text-amber-light">
                   {Math.round(currentSong.bpm)} BPM
                 </span>
               )}
               {currentSong.musical_key && (
-                <span className="rounded-full bg-violet-dim px-2.5 py-0.5 font-mono text-violet">
+                <span className="rounded-full bg-violet-dim px-2.5 py-0.5 font-mono tabular-nums text-violet">
                   {currentSong.musical_key}
                 </span>
               )}
@@ -236,8 +240,9 @@ export default function JourneyView({ startSong, onExit }: JourneyViewProps) {
           </div>
         )}
 
+        {/* Dead-end state */}
         {!loading && !error && candidates.length === 0 && (
-          <div className="glass rounded-xl p-6 text-center">
+          <div className="glass-premium-noise rounded-xl p-6 text-center">
             <p className="text-sm text-text-secondary">Sackgasse erreicht!</p>
             <p className="mt-1 text-[10px] text-text-tertiary">
               Keine weiteren unbesuchten Songs in der Nähe. Deine Reise endet hier nach {path.length - 1} Schritten.
@@ -255,7 +260,7 @@ export default function JourneyView({ startSong, onExit }: JourneyViewProps) {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              {candidates.map((candidate) => {
+              {candidates.map((candidate, idx) => {
                 const pct = Math.round(candidate.similarity * 100);
                 const genreColor = getGenreColor(candidate.genre);
                 return (
@@ -265,10 +270,16 @@ export default function JourneyView({ startSong, onExit }: JourneyViewProps) {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ type: "spring", stiffness: 300, damping: 24 }}
                   >
-                    <button
+                    <motion.button
                       onClick={() => handleSelectCandidate(candidate)}
-                      className="w-full glass rounded-xl p-3 text-left transition-colors hover:bg-surface-elevated hover:border-amber/20 group cursor-pointer"
+                      className="w-full glass-premium-noise group relative overflow-hidden rounded-xl p-3 text-left hover:border-amber/20 cursor-pointer"
+                      whileHover={{ y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 25 }}
                     >
+                      {/* Amber bottom accent */}
+                      <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-transparent group-hover:via-amber/40 to-transparent transition-all duration-300" />
+
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-text-primary group-hover:text-amber-light transition-colors">
@@ -277,7 +288,7 @@ export default function JourneyView({ startSong, onExit }: JourneyViewProps) {
                           <p className="truncate text-xs text-text-secondary mt-0.5">{candidate.artist}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className={`text-xs font-bold ${candidate.similarity >= 0.4 ? "text-amber-light" : "text-text-secondary"}`}>
+                          <span className={`text-xs font-bold font-mono tabular-nums ${candidate.similarity >= 0.4 ? "text-amber-light" : "text-text-secondary"}`}>
                             {pct}%
                           </span>
                           <svg className="h-4 w-4 text-text-tertiary group-hover:text-amber-light transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -298,12 +309,19 @@ export default function JourneyView({ startSong, onExit }: JourneyViewProps) {
                           </span>
                         )}
                         {candidate.bpm != null && (
-                          <span className="rounded-full bg-amber-dim px-2 py-0.5 font-mono text-amber-light">
+                          <span className="rounded-full bg-amber-dim px-2 py-0.5 font-mono tabular-nums text-amber-light">
                             {Math.round(candidate.bpm)} BPM
                           </span>
                         )}
                       </div>
-                    </button>
+                      {/* Similarity bar */}
+                      <div className="mt-1.5 h-[2px] w-full overflow-hidden rounded-full bg-white/5">
+                        <div
+                          className="similarity-bar"
+                          style={{ width: `${pct}%`, "--bar-delay": `${0.2 + idx * 0.06}s` } as React.CSSProperties}
+                        />
+                      </div>
+                    </motion.button>
                   </motion.li>
                 );
               })}

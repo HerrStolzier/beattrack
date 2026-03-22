@@ -118,7 +118,7 @@ function ResultCard({ song, index, displayPct, expandedId, setExpandedId, djMode
       {/* Hover bottom accent line */}
       <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-amber/0 to-transparent transition-all duration-300 group-hover/card:via-amber/40" />
 
-      <div className="p-5">
+      <div className="p-4 sm:p-5">
         {/* Header: Rank + Title + Score */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -317,7 +317,7 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-text-secondary">
+        <h2 className="min-w-0 truncate text-sm font-semibold text-text-secondary">
           Ähnlich wie{" "}
           <span className="text-text-primary">{querySong.title}</span>
           <span className="ml-2 text-xs font-normal text-text-tertiary">
@@ -327,7 +327,7 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
         </h2>
         <button
           onClick={() => setDjMode(!djMode)}
-          className={`cursor-pointer flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
+          className={`cursor-pointer flex items-center gap-1.5 rounded-lg px-3 py-2 sm:py-1.5 text-[11px] font-semibold transition-all ${
             djMode
               ? "bg-cyan/15 text-cyan border border-cyan/30 shadow-[0_0_12px_var(--color-neon-cyan-dim)]"
               : "border border-border-subtle text-text-tertiary hover:text-cyan hover:border-cyan/20 hover:bg-cyan/5"

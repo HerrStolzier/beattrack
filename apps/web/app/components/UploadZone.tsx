@@ -102,7 +102,7 @@ export default function UploadZone({ onFileSelected, disabled }: UploadZoneProps
         }}
         className={`
           gradient-border glass-premium relative flex cursor-pointer flex-col items-center justify-center
-          overflow-hidden rounded-2xl p-12 transition-all duration-300
+          overflow-hidden rounded-2xl p-8 sm:p-12 transition-all duration-300
           ${disabled ? "cursor-not-allowed opacity-50" : ""}
         `}
         animate={

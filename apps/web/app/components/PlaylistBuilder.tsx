@@ -36,7 +36,7 @@ function SonicFlowChart({ songs, features }: { songs: Song[]; features: Map<stri
   const intPath = songs.map((_, i) => `${i === 0 ? "M" : "L"}${toX(i)},${intToY(intensities[i])}`).join(" ");
 
   return (
-    <div className="mt-3">
+    <div className="glass-premium-noise rounded-xl p-3 mt-3">
       <p className="text-[10px] text-text-tertiary mb-1">Sonic Flow</p>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-16">
         {/* BPM line */}
@@ -115,7 +115,7 @@ export default function PlaylistBuilder({ songs, onRemove, onReorder, onClear }:
 
   if (songs.length === 0) {
     return (
-      <div className="glass rounded-xl p-4 text-center">
+      <div className="glass-premium-noise rounded-xl p-4 text-center">
         <p className="text-xs text-text-tertiary">
           Noch keine Songs in der Playlist. Klicke bei Ergebnissen auf &ldquo;+&rdquo;, um Songs hinzuzufügen.
         </p>
@@ -131,18 +131,20 @@ export default function PlaylistBuilder({ songs, onRemove, onReorder, onClear }:
           Playlist <span className="text-text-tertiary font-normal">({songs.length})</span>
         </h3>
         <div className="flex gap-1.5">
-          <button
+          <motion.button
             onClick={handleCopy}
+            whileTap={{ scale: 0.95 }}
             className="rounded-lg px-2.5 py-1 text-[10px] font-medium text-text-secondary transition-colors hover:bg-surface-elevated hover:text-text-primary"
           >
             {copied ? "Kopiert!" : "Liste kopieren"}
-          </button>
-          <button
+          </motion.button>
+          <motion.button
             onClick={onClear}
+            whileTap={{ scale: 0.95 }}
             className="rounded-lg px-2.5 py-1 text-[10px] font-medium text-error/70 transition-colors hover:bg-error-dim hover:text-error"
           >
             Leeren
-          </button>
+          </motion.button>
         </div>
       </div>
 
@@ -155,21 +157,26 @@ export default function PlaylistBuilder({ songs, onRemove, onReorder, onClear }:
             onDragStart={() => handleDragStart(idx)}
             onDragOver={(e) => handleDragOver(e, idx)}
             onDragEnd={() => setDragIdx(null)}
-            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition-colors cursor-grab active:cursor-grabbing ${
-              dragIdx === idx ? "bg-amber/10 border border-amber/30" : "glass hover:bg-surface-elevated"
+            className={`relative overflow-hidden group flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition-colors cursor-grab active:cursor-grabbing ${
+              dragIdx === idx ? "bg-amber/10 border border-amber/30" : "glass-premium-noise hover:bg-surface-elevated"
             }`}
           >
-            <span className="w-5 text-center font-mono text-text-tertiary text-[10px]">{idx + 1}</span>
+            <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-amber/0 to-transparent transition-all duration-300 group-hover:via-amber/30" />
+            <span className="shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-surface-elevated font-mono text-[10px] font-bold text-text-secondary">
+              {idx + 1}
+            </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-text-primary font-medium">{song.title}</p>
               <p className="truncate text-[10px] text-text-secondary">{song.artist}</p>
             </div>
             {song.bpm != null && (
-              <span className="shrink-0 text-[10px] font-mono text-amber-light">{Math.round(song.bpm)}</span>
+              <span className="shrink-0 rounded-md bg-amber/8 px-1.5 py-0.5 font-mono tabular-nums text-[10px] text-amber-light">
+                {Math.round(song.bpm)}
+              </span>
             )}
             <button
               onClick={() => onRemove(song.id)}
-              className="shrink-0 text-text-tertiary hover:text-error transition-colors"
+              className="shrink-0 rounded-full w-5 h-5 flex items-center justify-center text-text-tertiary hover:text-error transition-colors"
               aria-label={`${song.title} entfernen`}
             >
               ×

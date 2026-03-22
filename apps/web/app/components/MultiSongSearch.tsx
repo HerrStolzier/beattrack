@@ -260,7 +260,7 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
                 </div>
                 <button
                   onClick={() => handleRemoveSong(song.id)}
-                  className="relative shrink-0 text-text-tertiary hover:text-error transition-colors"
+                  className="relative shrink-0 w-7 h-7 flex items-center justify-center text-text-tertiary hover:text-error transition-colors"
                   aria-label={`${song.title} entfernen`}
                 >
                   ×
@@ -334,7 +334,7 @@ export default function MultiSongSearch({ mode, onResults, onCancel }: MultiSong
                       initial={{ opacity: 0, y: -4 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -4 }}
-                      className="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-xl border border-border-glass bg-surface-elevated shadow-lg"
+                      className="absolute left-0 right-0 top-full z-10 mt-1 max-h-40 sm:max-h-48 overflow-y-auto rounded-xl border border-border-glass bg-surface-elevated shadow-lg"
                     >
                       {searchResults.map((s, idx) => (
                         <motion.li

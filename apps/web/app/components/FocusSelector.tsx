@@ -30,7 +30,7 @@ export default function FocusSelector({ selected, onSelect, disabled }: FocusSel
             onClick={() => onSelect(key)}
             disabled={disabled}
             whileTap={{ scale: 0.95 }}
-            className={`relative cursor-pointer rounded-full px-3 py-1 text-[11px] font-medium transition-all duration-200 disabled:opacity-50 ${
+            className={`relative cursor-pointer rounded-full px-3 py-1.5 sm:py-1 text-xs sm:text-[11px] font-medium transition-all duration-200 disabled:opacity-50 ${
               isActive
                 ? "border border-amber/40 bg-amber/15 text-amber shadow-[inset_0_1px_8px_rgba(245,158,11,0.12)]"
                 : "border border-transparent text-text-tertiary hover:border-amber/15 hover:bg-amber/5 hover:text-amber-light/80"
