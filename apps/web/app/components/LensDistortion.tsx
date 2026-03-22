@@ -59,30 +59,33 @@ export default function LensDistortion() {
       const cy = smoothPos.current.y;
 
       // Chromatic aberration: offset colored radial gradients around cursor
-      const radius = 250 + Math.sin(timeRef.current * 0.5) * 30;
-      const offset = 4 + Math.sin(timeRef.current * 0.3) * 2;
+      const radius = 300 + Math.sin(timeRef.current * 0.5) * 40;
+      const offset = 12 + Math.sin(timeRef.current * 0.3) * 6;
 
       ctx.globalCompositeOperation = 'screen';
 
-      // Red channel — shifted right
+      // Red/amber channel — shifted right
       const redGrad = ctx.createRadialGradient(cx + offset, cy, 0, cx + offset, cy, radius);
-      redGrad.addColorStop(0, 'rgba(245, 158, 11, 0.06)');
-      redGrad.addColorStop(0.4, 'rgba(245, 80, 20, 0.03)');
+      redGrad.addColorStop(0, 'rgba(245, 158, 11, 0.25)');
+      redGrad.addColorStop(0.3, 'rgba(245, 80, 20, 0.12)');
+      redGrad.addColorStop(0.7, 'rgba(245, 80, 20, 0.03)');
       redGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = redGrad;
       ctx.fillRect(0, 0, w, h);
 
-      // Blue channel — shifted left
+      // Blue/violet channel — shifted left
       const blueGrad = ctx.createRadialGradient(cx - offset, cy, 0, cx - offset, cy, radius);
-      blueGrad.addColorStop(0, 'rgba(167, 139, 250, 0.05)');
-      blueGrad.addColorStop(0.4, 'rgba(34, 211, 238, 0.02)');
+      blueGrad.addColorStop(0, 'rgba(167, 139, 250, 0.2)');
+      blueGrad.addColorStop(0.3, 'rgba(34, 211, 238, 0.08)');
+      blueGrad.addColorStop(0.7, 'rgba(34, 211, 238, 0.02)');
       blueGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = blueGrad;
       ctx.fillRect(0, 0, w, h);
 
-      // Green/amber center glow
-      const centerGrad = ctx.createRadialGradient(cx, cy - offset * 0.5, 0, cx, cy - offset * 0.5, radius * 0.7);
-      centerGrad.addColorStop(0, 'rgba(240, 165, 0, 0.04)');
+      // Center amber glow
+      const centerGrad = ctx.createRadialGradient(cx, cy - offset * 0.3, 0, cx, cy - offset * 0.3, radius * 0.6);
+      centerGrad.addColorStop(0, 'rgba(240, 165, 0, 0.15)');
+      centerGrad.addColorStop(0.5, 'rgba(240, 165, 0, 0.04)');
       centerGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = centerGrad;
       ctx.fillRect(0, 0, w, h);
