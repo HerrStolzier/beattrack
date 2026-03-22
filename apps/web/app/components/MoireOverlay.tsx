@@ -29,6 +29,7 @@ export default function MoireOverlay({
   // Check for reduced motion preference
   const prefersReducedMotion =
     typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // Pattern spacing and stroke width
