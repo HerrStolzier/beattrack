@@ -51,9 +51,9 @@ export default function LensDistortion() {
       style={{
         zIndex: 2,
         background: [
-          `radial-gradient(ellipse 600px 500px at calc(${pos.x}% + 18px) ${pos.y}%, rgba(245, 158, 11, 0.35), rgba(245, 80, 20, 0.12) 50%, transparent 80%)`,
-          `radial-gradient(ellipse 600px 500px at calc(${pos.x}% - 18px) ${pos.y}%, rgba(167, 139, 250, 0.25), rgba(34, 211, 238, 0.08) 50%, transparent 80%)`,
-          `radial-gradient(ellipse 400px 350px at ${pos.x}% calc(${pos.y}% - 8px), rgba(240, 165, 0, 0.2), transparent 65%)`,
+          `radial-gradient(ellipse 600px 500px at calc(${pos.x}% + 18px) ${pos.y}%, rgba(245, 158, 11, 0.18), rgba(245, 80, 20, 0.06) 50%, transparent 80%)`,
+          `radial-gradient(ellipse 600px 500px at calc(${pos.x}% - 18px) ${pos.y}%, rgba(167, 139, 250, 0.12), rgba(34, 211, 238, 0.04) 50%, transparent 80%)`,
+          `radial-gradient(ellipse 400px 350px at ${pos.x}% calc(${pos.y}% - 8px), rgba(240, 165, 0, 0.1), transparent 65%)`,
         ].join(', '),
       }}
     />
