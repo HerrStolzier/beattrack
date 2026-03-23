@@ -53,7 +53,7 @@ def _make_supabase_mock() -> MagicMock:
     # set .execute on it at the end.
     builder = MagicMock()
     sb.table.return_value = builder
-    for method in ("select", "eq", "ilike", "in_", "range", "insert", "single"):
+    for method in ("select", "eq", "ilike", "or_", "order", "in_", "range", "insert", "single"):
         getattr(builder, method).return_value = builder
     return sb, builder
 

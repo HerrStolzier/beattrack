@@ -46,9 +46,10 @@ def test_extract_features_safe_integration(audio_wav_path):
     Skipped if essentia is not installed in the venv.
     """
     try:
-        import essentia  # noqa: F401
-    except ImportError:
-        pytest.skip("essentia not installed — skipping integration test")
+        import essentia.standard
+        essentia.standard.TensorflowPredictMusiCNN  # verify model support
+    except (ImportError, AttributeError):
+        pytest.skip("essentia MusiCNN not available — skipping integration test")
 
     result = extract_features_safe(audio_wav_path, timeout=120)
 
