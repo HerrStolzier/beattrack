@@ -66,7 +66,7 @@ async def list_songs(
         query = query.or_(f"title.ilike.%{escaped}%,artist.ilike.%{escaped}%")
     if genre:
         query = query.eq("genre", genre)
-    result = query.range(offset, offset + limit - 1).execute()
+    result = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
     return [SongResponse(**row) for row in result.data]
 
 

@@ -1,1 +1,4 @@
-cd apps/web && bun run lint
+# Only lint frontend if frontend files changed
+if git diff --cached --name-only | grep -q "^apps/web/"; then
+  cd apps/web && bun run lint
+fi
