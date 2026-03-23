@@ -79,7 +79,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${syne.variable} ${dmSans.variable} ${geistMono.variable} font-sans antialiased`}>
         <MeshGradient />
         <MouseGlow />
-        <LensDistortion />
+        {/* <LensDistortion /> — deaktiviert, Effekt passt nicht zum Design */}
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
