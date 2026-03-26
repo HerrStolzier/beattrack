@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { type Song, type SimilarSong, trackClick } from "@/lib/api";
+import { type Song, type SimilarSong, type RadarFeatures, trackClick, getBatchFeatures } from "@/lib/api";
 import FeedbackButtons from "./FeedbackButtons";
 import HarmonicBadge from "./HarmonicBadge";
 import RadarChart from "./RadarChart";
 import DeezerEmbed from "./DeezerEmbed";
+import FeatureExplanation from "./FeatureExplanation";
 
 import type { FocusCategory } from "@/lib/api";
 import FocusSelector from "./FocusSelector";
@@ -85,9 +86,11 @@ interface ResultCardProps {
   onFeedback?: (querySongId: string, resultSongId: string, rating: 1 | -1) => void;
   onAddToPlaylist?: (song: Song) => void;
   focus?: FocusCategory | null;
+  queryFeatures?: RadarFeatures | null;
+  resultFeatures?: RadarFeatures | null;
 }
 
-function ResultCard({ song, index, displayPct, expandedId, setExpandedId, djMode, querySong, onFeedback, onAddToPlaylist, focus }: ResultCardProps) {
+function ResultCard({ song, index, displayPct, expandedId, setExpandedId, djMode, querySong, onFeedback, onAddToPlaylist, focus, queryFeatures, resultFeatures }: ResultCardProps) {
   const pct = displayPct;
   const animatedPct = useCountUp(pct);
   const isExpanded = expandedId === song.id;
@@ -156,6 +159,10 @@ function ResultCard({ song, index, displayPct, expandedId, setExpandedId, djMode
                   </span>
                 )}
               </div>
+              {/* Feature similarity dots — only shown when features are loaded */}
+              {queryFeatures && resultFeatures && (
+                <FeatureExplanation queryFeatures={queryFeatures} resultFeatures={resultFeatures} />
+              )}
             </div>
           </div>
 
@@ -313,6 +320,26 @@ function ResultCard({ song, index, displayPct, expandedId, setExpandedId, djMode
 export default function SimilarResults({ results, querySong, onFeedback, focus, onFocusChange, focusLoading, onAddToPlaylist }: SimilarResultsProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [djMode, setDjMode] = useState(false);
+  const [featuresMap, setFeaturesMap] = useState<Record<string, RadarFeatures>>({});
+
+  // Load batch features for query + result songs to show feature similarity dots
+  useEffect(() => {
+    const ids = [querySong.id, ...results.map((r) => r.id)].filter(
+      (id) => id && id !== "multi"
+    );
+    if (ids.length === 0) return;
+    getBatchFeatures(ids)
+      .then((batch) => {
+        const map: Record<string, RadarFeatures> = {};
+        for (const item of batch) {
+          map[item.song_id] = item.features;
+        }
+        setFeaturesMap(map);
+      })
+      .catch(() => {
+        // Features unavailable — FeatureExplanation simply won't render
+      });
+  }, [querySong.id, results]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -391,6 +418,8 @@ export default function SimilarResults({ results, querySong, onFeedback, focus, 
               onFeedback={onFeedback}
               onAddToPlaylist={onAddToPlaylist}
               focus={focus}
+              queryFeatures={featuresMap[querySong.id] ?? null}
+              resultFeatures={featuresMap[song.id] ?? null}
             />
               );
             });

@@ -160,6 +160,18 @@ export async function searchSongs(
   return res.json();
 }
 
+/**
+ * Used during ingest-retry: search for a song by query, return first match or null.
+ * Replaces the raw fetch in the ingest-retry flow so all API calls go through fetchWithRetry.
+ */
+export async function searchSongsForIngest(query: string): Promise<Song | null> {
+  const params = new URLSearchParams({ q: query, limit: "5" });
+  const res = await fetchWithRetry(`${API_URL}/songs?${params}`);
+  if (!res.ok) return null;
+  const songs: Song[] = await res.json();
+  return songs.length > 0 ? songs[0] : null;
+}
+
 export async function getGenres(): Promise<string[]> {
   const res = await fetchWithRetry(`${API_URL}/songs/genres`);
   if (!res.ok) throw new ApiError(`getGenres failed`, res.status);
