@@ -132,7 +132,7 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - **Essentia Extraction**: Kann bei `--workers >1` in Multiprocessing-Deadlock geraten (POSIX Semaphores). Fix: Prozess killen + `--resume`
 - **CORS www**: `CORS_ORIGINS` auf Railway muss BEIDE Varianten enthalten (`beattrack.app` + `www.beattrack.app`). Code auto-appended www wenn nur non-www gesetzt
 - **pgvector HNSW + WHERE**: WHERE-Klauseln in der gleichen Query verhindern Index-Nutzung. Fix: Subquery-Pattern (innere Query = Index, äußere = Filter)
-- **Vercel CRON_SECRET**: Darf kein Whitespace enthalten (inkl. trailing newline). Vercel validiert strikt seit 2026. `printf` statt `echo` beim Setzen
+- **Vercel CRON_SECRET**: Env-Var kann trailing Whitespace enthalten (inkl. Newline). Fix: `.trim()` auf beiden Seiten des Vergleichs in `apps/web/app/api/cron/route.ts` — bereits implementiert. Beim manuellen Setzen: `printf` statt `echo` verwenden
 - **Deezer iframe Autoplay**: Browser blockiert cross-origin autoplay — User muss im Widget selbst auf Play klicken
 - **Supabase Vektoren als Strings**: RPC/REST gibt `vector`-Spalten als JSON-String zurück (`"[0.1,...]"`) — `json.loads()` vor numpy nötig
 - **RLS blockiert UPDATEs**: Anon-Key kann nur SELECT+INSERT. Für Updates SECURITY DEFINER RPCs nutzen
@@ -141,7 +141,7 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - **workers/__init__.py**: Importiert Procrastinate global. Scripts die nur MERT brauchen: `importlib.util` direkt auf `mert.py`
 - **Package Manager**: `uv pip install ... --python .venv/bin/python` (kein pip im venv)
 - **Supabase MCP Project-ID**: MUSS `qpkemujemfnymtgmtkfg` sein. Bei "permission denied" → `list_projects` zum Verifizieren
-- **Externe SSD Ownership**: Projekt liegt auf `/Volumes/1TB-SSD/`. Bei Permission-Errors nach Standby/Reboot: `sudo diskutil enableOwnership /Volumes/1TB-SSD` (einmalig)
+- **`body > *` CSS-Regel**: `globals.css` hatte `body > * { position: relative }` — überschreibt `position: fixed` auf allen body-Kindern (MeshGradient, MouseGlow, Overlays). Geändert zu `body > main`. Neue fixed-Overlays im body müssen das berücksichtigen
 
 ## Security
 - **Rate Limiting**: slowapi auf `/analyze` (10/min), `/identify/*` (20/min), `/feedback` (5/min geplant, aktuell 30/min)

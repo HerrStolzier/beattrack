@@ -4,8 +4,11 @@ export const runtime = "edge";
 
 export async function GET(request: Request) {
   // Verify Vercel Cron secret
+  // Strip whitespace to prevent env var formatting issues (Vercel trailing whitespace bug)
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const providedSecret = authHeader?.replace(/^Bearer\s+/, "").trim() ?? "";
+  const expectedSecret = (process.env.CRON_SECRET ?? "").trim();
+  if (!providedSecret || providedSecret !== expectedSecret) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

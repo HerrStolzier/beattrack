@@ -3,10 +3,11 @@
 Protected by admin secret. Temporary endpoint for bulk DB expansion.
 """
 
+import hmac
 import logging
 import os
 
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,9 @@ class BatchIngestResponse(BaseModel):
 def _verify_admin(authorization: str | None) -> None:
     if not ADMIN_SECRET:
         raise HTTPException(503, "ADMIN_SECRET not configured")
-    if authorization != f"Bearer {ADMIN_SECRET}":
+    provided = (authorization or "").removeprefix("Bearer ")
+    # Constant-time comparison to prevent timing attacks
+    if not hmac.compare_digest(provided.encode(), ADMIN_SECRET.encode()):
         raise HTTPException(403, "Unauthorized")
 
 
@@ -135,7 +138,4 @@ def batch_ingest(
 def ingest_status(authorization: str | None = Header(None)):
     """Get total song count in DB."""
     _verify_admin(authorization)
-    from app.db import get_supabase
-
-    sb = get_supabase()
     return {"status": "ok"}
