@@ -10,7 +10,7 @@ Beattrack is already a working production-facing music discovery system. The nex
 The main recommendation is to improve in this order:
 
 1. Stabilize the repo and operational baseline.
-2. Make the core discovery experience clearer.
+2. Make the core music-discovery experience clearer.
 3. Measure and improve recommendation quality.
 4. Harden external APIs, jobs, and auto-ingest.
 5. Clean up data pipeline ownership and backfill strategy.
@@ -80,25 +80,37 @@ In simple words: first make sure the house is tidy and the doors close properly.
   - `cd apps/api && .venv/bin/python -m pytest -q`
   - `supabase db push --yes`
 
-## Sprint 2: Product Focus And UX Clarity
+## Sprint 2: Music Discovery Focus And UX Clarity
 
-**Goal**: Make the main user journey obvious and reduce feature overload.
+**Goal**: Make the main user journey obvious and align the product around music explorers looking for less obvious songs that still feel right.
 
 **Demo/Validation**:
 
-- A new user can understand the primary action within 5 seconds.
+- A new user can understand the primary action within 5 seconds: start from one seed track and dig outward.
 - Upload/URL/search paths feel like one coherent flow.
 - Secondary modes are available without competing with the main path.
 
 ### Task 2.1: Define The Primary Product Promise
 
 - **Location**: `docs/product-direction.md`
-- **Description**: Write a one-page product direction note that chooses the primary user promise for the next 4-6 weeks.
+- **Description**: Write a one-page product direction note that chooses music discovery as the primary promise for the next 4-6 weeks.
 - **Dependencies**: none
 - **Acceptance Criteria**:
-  - Names one primary user: listener, DJ, playlist builder, or explorer.
+  - Names the primary user as an electronic music explorer.
   - Names one primary job-to-be-done.
   - Lists non-goals for the next cycle.
+- **Validation**:
+  - Human review.
+
+### Task 2.1b: Document The Researched Music Discovery Direction
+
+- **Location**: `docs/music-discovery-direction.md`
+- **Description**: Capture the "less obvious songs that still feel right" direction, including critical research findings about novelty, relevance, serendipity, and retention.
+- **Dependencies**: Task 2.1
+- **Acceptance Criteria**:
+  - Documents product principles, ranking principles, UI principles, and non-goals.
+  - Includes source-backed research notes.
+  - Explicitly warns against optimizing for obscurity at the cost of relevance.
 - **Validation**:
   - Human review.
 
@@ -136,27 +148,27 @@ In simple words: first make sure the house is tidy and the doors close properly.
   - Component tests for error state branches.
   - Manual checks with mocked failed API responses.
 
-## Sprint 3: Recommendation Quality
+## Sprint 3: Discovery Quality
 
-**Goal**: Make similarity quality measurable and improve ranking with evidence.
+**Goal**: Make discovery quality measurable and improve ranking with evidence.
 
 **Demo/Validation**:
 
 - There is a repeatable evaluation set.
 - Ranking changes can be compared before/after.
-- Bad recommendations can be categorized.
+- Bad recommendations can be categorized by why they missed.
 
-### Task 3.1: Create A Golden Query Set
+### Task 3.1: Create A Discovery Golden Query Set
 
 - **Location**:
   - `apps/api/scripts/eval_similarity.py`
   - `apps/api/scripts/fixtures/similarity_queries.json`
   - `docs/recommendation-quality.md`
-- **Description**: Define a small curated set of representative Electronic tracks and expected-neighbor notes.
+- **Description**: Define a curated set of representative Electronic tracks with expected feeling, known-bad results, duplicate/version risks, and too-obvious examples.
 - **Dependencies**: none
 - **Acceptance Criteria**:
   - At least 30 query songs across subgenres.
-  - Each query has notes for expected sonic traits.
+  - Each query has notes for expected sonic traits, avoid traits, known-bad results, and discovery intent.
   - Evaluation script prints top results and basic metrics.
 - **Validation**:
   - `cd apps/api && .venv/bin/python scripts/eval_similarity.py --limit 10`
@@ -192,6 +204,21 @@ In simple words: first make sure the house is tidy and the doors close properly.
 - **Validation**:
   - Evaluation script output.
   - Existing similarity tests.
+
+### Task 3.4: Prototype A Discovery Score
+
+- **Location**:
+  - `apps/api/scripts/eval_similarity.py`
+  - `apps/api/app/routes/similar.py`
+  - `docs/recommendation-quality.md`
+- **Description**: Compare raw sonic similarity against a discovery score that includes duplicate/version penalties, same-artist/obviousness penalties, and energy drift penalties.
+- **Dependencies**: Tasks 3.1, 3.2, 3.3
+- **Acceptance Criteria**:
+  - Production ranking remains unchanged until evaluation supports a switch.
+  - Evaluation output can compare raw similarity and discovery-score rankings.
+  - Decision notes include examples where the score helps and hurts.
+- **Validation**:
+  - `cd apps/api && .venv/bin/python scripts/eval_similarity.py --limit 10`
 
 ## Sprint 4: Jobs, External APIs, And Reliability
 

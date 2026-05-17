@@ -4,9 +4,15 @@ Last updated: 2026-05-17
 
 ## Goal
 
-Recommendation quality should become measurable enough that ranking changes can be compared before and after.
+Recommendation quality should become measurable enough that discovery-oriented ranking changes can be compared before and after.
 
 Beattrack recommendations are subjective, but they should still be evaluated with repeatable examples. The goal is not to replace listening judgment. The goal is to make changes less random.
+
+The product direction is now more specific:
+
+> Find less obvious songs that still feel right next to a track the user already loves.
+
+That means ranking quality is not only "nearest neighbor accuracy". It also includes freshness, duplicate avoidance, energy consistency, and perceived discovery value.
 
 ## Current Ranking Model
 
@@ -77,6 +83,8 @@ For each query:
 - Are results too genre-literal but not sonically close?
 - Are MERT-backed results better than fallback results?
 - Does a focus mode improve the intended trait or make results worse?
+- Are the results less obvious without becoming random?
+- Would a music explorer plausibly save or continue from at least one result?
 
 ## Initial Baseline Observation
 
@@ -97,6 +105,7 @@ Practical meaning: the engine is useful enough to evaluate, but it needs a quali
 3. Store evaluation snapshots before changing ranking weights.
 4. Use feedback reason tags in reporting: `wrong_energy`, `wrong_genre`, `duplicate_version`, `too_obvious`, `bad_metadata`, `other`.
 5. Compare default fusion weights against at least two alternatives.
+6. Add a discovery-score comparison that tests duplicate/version, obviousness, and energy drift penalties.
 
 ## Feedback Reason Tags
 
@@ -121,3 +130,17 @@ The evaluation helper can compare three strategies:
 - `embedding`: gives MusiCNN more influence, useful when handcrafted traits over-constrain results.
 
 This keeps ranking experiments read-only until there is enough evidence to change the live default.
+
+## Research Notes
+
+External research supports evaluating beyond raw accuracy:
+
+- Spotify Research found that music discovery satisfaction depends on user goals and that discovery behavior differs between immediate listening and exploration.
+- Music recommender literature warns that perceived novelty, diversity, and serendipity are subjective and do not always match simple offline metrics.
+- Recent engagement research suggests diversity, novelty, and serendipity can matter for longer-term engagement, but they must be balanced with relevance.
+
+Practical implication for Beattrack:
+
+Do not optimize for "unknown" as a standalone goal. Optimize for "less obvious, still right".
+
+See `docs/music-discovery-direction.md` for the fuller source-backed direction.
