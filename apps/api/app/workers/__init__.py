@@ -62,9 +62,11 @@ def process_analysis_result(features: dict, job_id: str, audio_path: str = "") -
 
     if audio_path:
         try:
-            from app.services.acoustid import fingerprint_file, lookup as acoustid_lookup
-            from app.services.musicbrainz import lookup_recording
             import os as _os
+
+            from app.services.acoustid import fingerprint_file
+            from app.services.acoustid import lookup as acoustid_lookup
+            from app.services.musicbrainz import lookup_recording
 
             api_key = _os.environ.get("ACOUSTID_API_KEY", "")
             fp_result = fingerprint_file(audio_path)
@@ -79,7 +81,7 @@ def process_analysis_result(features: dict, job_id: str, audio_path: str = "") -
                         song_artist = mb_data.get("artist") or song_artist
                         song_album = mb_data.get("album") or None
                         logger.info(
-                            "AcoustID resolved job %s → MBID %s (%s – %s)",
+                            "AcoustID resolved job %s → MBID %s (%s - %s)",
                             job_id, mbid, song_artist, song_title,
                         )
         except Exception as exc:
@@ -148,26 +150,32 @@ def analyze_audio(context, *, audio_path: str, job_id: str):
 
     This runs in the Procrastinate worker process, NOT in the FastAPI event loop.
     """
-    from app.services.features import extract_features_safe, FeatureExtractionError
+    from app.services.features import FeatureExtractionError, extract_features_safe
 
     logger.info("Starting analysis for job %s: %s", job_id, audio_path)
 
-    from app.routes.analyze import update_job_status
+    from app.services.analysis_jobs import update_analysis_job
 
-    update_job_status(job_id, "processing", progress=0.1)
+    update_analysis_job(job_id, "processing", progress=0.1)
 
     # 1. Extract features via subprocess
     try:
         features = extract_features_safe(audio_path)
     except FeatureExtractionError as exc:
         logger.error("Feature extraction failed for job %s", job_id)
-        update_job_status(job_id, "failed", error=str(exc))
+        update_analysis_job(
+            job_id,
+            "failed",
+            progress=1.0,
+            last_error=str(exc),
+            error_code="feature_extraction_failed",
+        )
         raise
 
     logger.info("Extraction complete for job %s: learned=%d dims, handcrafted=%d dims, bpm=%.1f",
                 job_id, len(features["learned"]), len(features["handcrafted"]), features["bpm"])
 
-    update_job_status(job_id, "processing", progress=0.8)
+    update_analysis_job(job_id, "processing", progress=0.8)
 
     # 2. Insert into DB + find similar songs (pass audio_path for AcoustID enrichment)
     try:
@@ -183,7 +191,7 @@ def analyze_audio(context, *, audio_path: str, job_id: str):
             "similar_songs": [],
         }
 
-    update_job_status(job_id, "completed", progress=1.0, result=result)
+    update_analysis_job(job_id, "completed", progress=1.0, result=result)
     return result
 
 
