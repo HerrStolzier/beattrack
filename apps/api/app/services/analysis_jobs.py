@@ -54,3 +54,17 @@ def update_analysis_job(job_id: str, status: str, **kwargs: Any) -> None:
         payload["completed_at"] = payload["updated_at"]
 
     get_supabase().table("analysis_jobs").update(payload).eq("id", job_id).execute()
+
+
+def mark_analysis_job_processing(job_id: str, **kwargs: Any) -> None:
+    """Mark a job as processing and increment its visible attempt counter."""
+    current = get_analysis_job(job_id) or {}
+    attempt_count = int(current.get("attempt_count") or 0) + 1
+    update_analysis_job(
+        job_id,
+        "processing",
+        attempt_count=attempt_count,
+        last_error=None,
+        error_code=None,
+        **kwargs,
+    )

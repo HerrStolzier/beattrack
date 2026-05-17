@@ -150,6 +150,40 @@ def test_update_analysis_job_writes_error_fields(monkeypatch):
     assert "completed_at" in payload
 
 
+def test_mark_analysis_job_processing_increments_attempt_count(monkeypatch):
+    from app.services import analysis_jobs
+
+    updates = []
+    monkeypatch.setattr(
+        analysis_jobs,
+        "get_analysis_job",
+        lambda job_id: {"attempt_count": 2},
+    )
+    monkeypatch.setattr(
+        analysis_jobs,
+        "update_analysis_job",
+        lambda job_id, status, **kwargs: updates.append((job_id, status, kwargs)),
+    )
+
+    analysis_jobs.mark_analysis_job_processing(
+        "11111111-1111-1111-1111-111111111111",
+        progress=0.1,
+    )
+
+    assert updates == [
+        (
+            "11111111-1111-1111-1111-111111111111",
+            "processing",
+            {
+                "attempt_count": 3,
+                "last_error": None,
+                "error_code": None,
+                "progress": 0.1,
+            },
+        )
+    ]
+
+
 def test_upload_no_file(client):
     """POST /analyze without a file should return 422 (validation error)."""
     resp = client.post("/analyze")
@@ -299,6 +333,10 @@ def test_worker_updates_persistent_job_to_completed(monkeypatch):
     monkeypatch.setattr(
         "app.services.analysis_jobs.update_analysis_job",
         lambda job_id, status, **kwargs: updates.append((job_id, status, kwargs)),
+    )
+    monkeypatch.setattr(
+        "app.services.analysis_jobs.mark_analysis_job_processing",
+        lambda job_id, **kwargs: updates.append((job_id, "processing", kwargs | {"attempt_count": 1})),
     )
 
     workers.analyze_audio(

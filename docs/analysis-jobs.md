@@ -27,14 +27,14 @@ Think of `analysis_jobs` as the shared notebook for the upload flow. The API wri
 - `result`: JSON response returned by `/analyze/{job_id}/results` after completion.
 - `last_error`: readable failure message.
 - `error_code`: stable failure category such as `feature_extraction_failed` or `queue_enqueue_failed`.
-- `attempt_count`: reserved for retry-aware workers.
+- `attempt_count`: how many times a worker has started processing this job.
 
 ## Request Flow
 
 1. `POST /analyze` validates and stores the uploaded file.
 2. The route creates an `analysis_jobs` row with `status = queued`.
 3. The route enqueues `analyze_audio` in Procrastinate.
-4. The worker updates the row to `processing`.
+4. The worker updates the row to `processing`, increments `attempt_count`, and clears stale error fields.
 5. The worker writes either `completed + result` or `failed + last_error/error_code`.
 6. `/analyze/{job_id}/results` and `/analyze/{job_id}/stream` read from `analysis_jobs`.
 

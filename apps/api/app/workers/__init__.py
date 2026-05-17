@@ -154,9 +154,9 @@ def analyze_audio(context, *, audio_path: str, job_id: str):
 
     logger.info("Starting analysis for job %s: %s", job_id, audio_path)
 
-    from app.services.analysis_jobs import update_analysis_job
+    from app.services.analysis_jobs import mark_analysis_job_processing, update_analysis_job
 
-    update_analysis_job(job_id, "processing", progress=0.1)
+    mark_analysis_job_processing(job_id, progress=0.1)
 
     # 1. Extract features via subprocess
     try:
