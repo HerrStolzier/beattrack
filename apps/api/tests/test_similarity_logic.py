@@ -7,6 +7,7 @@ designed to be testable in isolation.
 import pytest
 
 from app.routes.similar import (
+    _FUSION_WEIGHT_STRATEGIES,
     _FusionWeights,
     _base_title,
     _compute_hc_similarity,
@@ -76,6 +77,27 @@ class TestDetermineWeights:
         """Unknown focus category should use default strategy."""
         w = _determine_weights(focus="nonexistent", has_mert=False, genre_weights=None)
         assert w.learned == pytest.approx(0.80)
+
+    def test_alternative_strategies_are_available_for_evaluation(self):
+        assert {"balanced", "acoustic", "embedding"}.issubset(_FUSION_WEIGHT_STRATEGIES)
+        acoustic = _determine_weights(
+            focus=None,
+            has_mert=True,
+            genre_weights=None,
+            strategy="acoustic",
+        )
+        embedding = _determine_weights(
+            focus=None,
+            has_mert=True,
+            genre_weights=None,
+            strategy="embedding",
+        )
+
+        assert acoustic.hc > embedding.hc
+        assert embedding.learned > acoustic.learned
+
+    def test_unknown_strategy_uses_balanced_weights(self):
+        assert _determine_weights(None, True, None, strategy="missing") == _determine_weights(None, True, None)
 
 
 # ---------------------------------------------------------------------------

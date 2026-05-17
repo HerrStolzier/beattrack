@@ -148,28 +148,54 @@ class _FusionWeights:
     hc: float
 
 
+_FUSION_WEIGHT_STRATEGIES: dict[str, dict[str, _FusionWeights]] = {
+    "balanced": {
+        "default_no_mert": _FusionWeights(0.80, 0.0, 0.20),
+        "default_with_mert": _FusionWeights(0.65, 0.15, 0.20),
+        "focus_no_mert": _FusionWeights(0.60, 0.0, 0.40),
+        "focus_with_mert": _FusionWeights(0.55, 0.15, 0.30),
+    },
+    "acoustic": {
+        "default_no_mert": _FusionWeights(0.70, 0.0, 0.30),
+        "default_with_mert": _FusionWeights(0.55, 0.20, 0.25),
+        "focus_no_mert": _FusionWeights(0.50, 0.0, 0.50),
+        "focus_with_mert": _FusionWeights(0.45, 0.20, 0.35),
+    },
+    "embedding": {
+        "default_no_mert": _FusionWeights(0.90, 0.0, 0.10),
+        "default_with_mert": _FusionWeights(0.75, 0.15, 0.10),
+        "focus_no_mert": _FusionWeights(0.70, 0.0, 0.30),
+        "focus_with_mert": _FusionWeights(0.65, 0.15, 0.20),
+    },
+}
+
+
 def _determine_weights(
     focus: str | None,
     has_mert: bool,
     genre_weights: dict[str, float] | None,
+    strategy: str = "balanced",
 ) -> _FusionWeights:
     """Select fusion weights based on strategy priority."""
+    strategy_weights = _FUSION_WEIGHT_STRATEGIES.get(strategy, _FUSION_WEIGHT_STRATEGIES["balanced"])
+
     if focus and focus in FOCUS_DIMENSIONS:
         if has_mert:
-            return _FusionWeights(0.55, 0.15, 0.30)
-        return _FusionWeights(0.60, 0.0, 0.40)
+            return strategy_weights["focus_with_mert"]
+        return strategy_weights["focus_no_mert"]
 
     if genre_weights:
         confidence = min(1.0, sum(genre_weights.values()) * 2)
+        base = strategy_weights["default_with_mert" if has_mert else "default_no_mert"]
         if has_mert:
-            hc = 0.15 + (0.15 * confidence)
-            return _FusionWeights(1.0 - hc - 0.15, 0.15, hc)
-        hc = 0.2 + (0.2 * confidence)
+            hc = base.hc + (0.10 * confidence)
+            return _FusionWeights(1.0 - hc - base.mert, base.mert, hc)
+        hc = base.hc + (0.20 * confidence)
         return _FusionWeights(1.0 - hc, 0.0, hc)
 
     if has_mert:
-        return _FusionWeights(0.65, 0.15, 0.20)
-    return _FusionWeights(0.80, 0.0, 0.20)
+        return strategy_weights["default_with_mert"]
+    return strategy_weights["default_no_mert"]
 
 
 def _compute_hc_similarity(
@@ -208,6 +234,7 @@ def _apply_late_fusion(
     focus: str | None = None,
     query_genre: str | None = None,
     query_mert: list[float] | None = None,
+    strategy: str = "balanced",
 ) -> list[dict]:
     """Blend learned, handcrafted, and MERT similarities.
 
@@ -236,7 +263,7 @@ def _apply_late_fusion(
 
     has_mert = bool(query_mert and mert_map)
     genre_weights = _get_genre_weights(sb, query_genre) if not focus else None
-    weights = _determine_weights(focus, has_mert, genre_weights)
+    weights = _determine_weights(focus, has_mert, genre_weights, strategy=strategy)
     focus_dims = FOCUS_DIMENSIONS.get(focus) if focus else None
 
     fused: list[dict] = []

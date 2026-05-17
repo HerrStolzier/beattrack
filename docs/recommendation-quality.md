@@ -54,6 +54,13 @@ cd apps/api
 .venv/bin/python scripts/eval_similarity.py --limit 10
 ```
 
+To compare fusion-weight candidates without changing production behavior:
+
+```bash
+cd apps/api
+.venv/bin/python scripts/eval_similarity.py --limit 5 --strategies balanced,acoustic,embedding
+```
+
 Required env vars:
 
 - `SUPABASE_URL`
@@ -102,3 +109,15 @@ The database change lives in:
 ```text
 supabase/migrations/024_feedback_reason_tags.sql
 ```
+
+## Fusion Weight Candidates
+
+Production still uses `balanced` by default.
+
+The evaluation helper can compare three strategies:
+
+- `balanced`: current behavior, MusiCNN-led with MERT and handcrafted as supporting signals.
+- `acoustic`: gives handcrafted and MERT slightly more influence, useful when energy, brightness, or rhythm drift is too visible.
+- `embedding`: gives MusiCNN more influence, useful when handcrafted traits over-constrain results.
+
+This keeps ranking experiments read-only until there is enough evidence to change the live default.
