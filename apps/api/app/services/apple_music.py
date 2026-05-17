@@ -9,7 +9,7 @@ from app.services.external_errors import (
     ExternalAPIError,
     ExternalAPINotFound,
     ExternalAPITemporaryUnavailable,
-    raise_for_external_response,
+    request_with_retries,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,8 +43,7 @@ async def fetch_metadata(url: str) -> dict | None:
     lookup_url = f"https://itunes.apple.com/lookup?id={track_id}"
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(lookup_url)
-            raise_for_external_response(resp, "Apple Music")
+            resp = await request_with_retries(lambda: client.get(lookup_url), "Apple Music")
             data = resp.json()
             results = data.get("results", [])
             if not results:

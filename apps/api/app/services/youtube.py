@@ -8,7 +8,7 @@ import httpx
 from app.services.external_errors import (
     ExternalAPIError,
     ExternalAPITemporaryUnavailable,
-    raise_for_external_response,
+    request_with_retries,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,8 +52,7 @@ async def fetch_oembed(url: str) -> dict | None:
     oembed_url = f"https://www.youtube.com/oembed?url={quote(url, safe='')}&format=json"
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(oembed_url)
-            raise_for_external_response(resp, "YouTube")
+            resp = await request_with_retries(lambda: client.get(oembed_url), "YouTube")
             return resp.json()
     except httpx.RequestError as exc:
         logger.warning("oEmbed request error for %s: %s", url, exc)

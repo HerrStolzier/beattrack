@@ -10,7 +10,7 @@ from app.services.external_errors import (
     ExternalAPIError,
     ExternalAPINotFound,
     ExternalAPITemporaryUnavailable,
-    raise_for_external_response,
+    request_with_retries,
 )
 
 logger = logging.getLogger(__name__)
@@ -69,8 +69,7 @@ async def fetch_oembed(url: str) -> dict | None:
 
         oembed_url = f"https://soundcloud.com/oembed?url={quote(resolved_url, safe='')}&format=json"
         try:
-            resp = await client.get(oembed_url)
-            raise_for_external_response(resp, "SoundCloud")
+            resp = await request_with_retries(lambda: client.get(oembed_url), "SoundCloud")
             data = resp.json()
             return {
                 "title": data.get("title", ""),

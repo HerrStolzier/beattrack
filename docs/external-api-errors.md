@@ -32,3 +32,13 @@ apps/api/app/services/external_errors.py
 Identify routes catch `ExternalAPIError` and expose the matching HTTP status.
 
 The individual platform services should use `raise_for_external_response()` for HTTP responses and raise `ExternalAPITemporaryUnavailable` for network-level request errors.
+
+## Retries
+
+Platform metadata requests use a small bounded retry helper:
+
+```text
+request_with_retries()
+```
+
+It retries temporary network and `5xx` failures. It does not retry `404` or `429`, because those are clear answers: the track is missing, or the service asked us to slow down.

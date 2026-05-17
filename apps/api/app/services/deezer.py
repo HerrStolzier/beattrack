@@ -9,7 +9,7 @@ from app.services.external_errors import (
     ExternalAPIError,
     ExternalAPINotFound,
     ExternalAPITemporaryUnavailable,
-    raise_for_external_response,
+    request_with_retries,
 )
 
 logger = logging.getLogger(__name__)
@@ -73,8 +73,10 @@ async def fetch_metadata(url: str) -> dict | None:
 
         # Fetch track info from Deezer API
         try:
-            resp = await client.get(f"https://api.deezer.com/track/{track_id}")
-            raise_for_external_response(resp, "Deezer")
+            resp = await request_with_retries(
+                lambda: client.get(f"https://api.deezer.com/track/{track_id}"),
+                "Deezer",
+            )
             data = resp.json()
 
             if "error" in data:

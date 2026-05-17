@@ -1,5 +1,7 @@
 """Shared error categories for external music metadata APIs."""
 
+import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 import httpx
@@ -50,3 +52,30 @@ def raise_for_external_response(response: httpx.Response, platform: str) -> None
     if response.status_code >= 500:
         raise ExternalAPITemporaryUnavailable(platform)
     response.raise_for_status()
+
+
+async def request_with_retries(
+    request_call: Callable[[], Awaitable[httpx.Response]],
+    platform: str,
+    *,
+    attempts: int = 2,
+    backoff_sec: float = 0.25,
+) -> httpx.Response:
+    """Run a small retry loop for temporary external API failures."""
+    last_error: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            response = await request_call()
+            raise_for_external_response(response, platform)
+            return response
+        except ExternalAPITemporaryUnavailable as exc:
+            last_error = exc
+        except httpx.RequestError as exc:
+            last_error = exc
+
+        if attempt < attempts - 1:
+            await asyncio.sleep(backoff_sec * (2 ** attempt))
+
+    if isinstance(last_error, ExternalAPITemporaryUnavailable):
+        raise last_error
+    raise ExternalAPITemporaryUnavailable(platform) from last_error

@@ -9,7 +9,7 @@ import httpx
 from app.services.external_errors import (
     ExternalAPIError,
     ExternalAPITemporaryUnavailable,
-    raise_for_external_response,
+    request_with_retries,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,8 +35,7 @@ async def fetch_oembed(url: str) -> dict | None:
         # 1) oEmbed for track title
         oembed_url = f"https://open.spotify.com/oembed?url={quote(url, safe='')}"
         try:
-            resp = await client.get(oembed_url)
-            raise_for_external_response(resp, "Spotify")
+            resp = await request_with_retries(lambda: client.get(oembed_url), "Spotify")
             data = resp.json()
             title = data.get("title", "")
         except httpx.RequestError as exc:
