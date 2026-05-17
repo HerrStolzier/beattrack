@@ -1,6 +1,9 @@
 {
   "name": "beattrack",
   "private": true,
+  "scripts": {
+    "check:prod-health": "node scripts/check_production_health.mjs"
+  },
   "workspaces": ["apps/*"],
   "description": "Find songs that sound alike — sonic similarity search powered by audio fingerprinting and vector embeddings",
   "author": "HerrStolzier",

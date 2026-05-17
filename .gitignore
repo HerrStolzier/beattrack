@@ -45,6 +45,11 @@ apps/api/scripts/seed_jamendo_checkpoint.json
 apps/api/scripts/sql_batches/
 apps/api/scripts/sql_stats/
 apps/api/scripts/extract.log
+apps/api/scripts/*_checkpoint*.json
+apps/api/scripts/*_resume*.log
+apps/api/scripts/embedding_analysis.png
+apps/api/scripts/deezer_tracks_v*.json
+apps/api/.coverage
 
 # Build artifacts
 apps/web/tsconfig.tsbuildinfo
