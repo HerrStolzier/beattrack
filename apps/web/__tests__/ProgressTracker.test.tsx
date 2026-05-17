@@ -122,6 +122,60 @@ describe("ProgressTracker", () => {
     expect(onError).toHaveBeenCalledWith("Feature extraction failed");
   });
 
+  it("turns queue enqueue failures into a retryable user message", () => {
+    const onError = vi.fn();
+    let sseCallback: Function;
+
+    mockStreamProgress.mockImplementation((_, onUpdate) => {
+      sseCallback = onUpdate;
+      return () => {};
+    });
+
+    render(
+      <ProgressTracker jobId="test-123" onComplete={vi.fn()} onError={onError} />
+    );
+
+    act(() => {
+      sseCallback({
+        status: "failed",
+        progress: 1,
+        error: "Failed to start analysis.",
+        error_code: "queue_enqueue_failed",
+      });
+    });
+
+    expect(onError).toHaveBeenCalledWith(
+      "Die Analyse konnte gerade nicht gestartet werden. Bitte versuche es gleich nochmal."
+    );
+  });
+
+  it("turns extraction failures into a file-focused user message", () => {
+    const onError = vi.fn();
+    let sseCallback: Function;
+
+    mockStreamProgress.mockImplementation((_, onUpdate) => {
+      sseCallback = onUpdate;
+      return () => {};
+    });
+
+    render(
+      <ProgressTracker jobId="test-123" onComplete={vi.fn()} onError={onError} />
+    );
+
+    act(() => {
+      sseCallback({
+        status: "failed",
+        progress: 1,
+        error: "Audio analysis timed out.",
+        error_code: "feature_extraction_failed",
+      });
+    });
+
+    expect(onError).toHaveBeenCalledWith(
+      "Die Audiodatei konnte nicht sauber analysiert werden. Probiere eine kürzere oder andere Datei."
+    );
+  });
+
   it("updates progress bar on SSE updates", () => {
     let sseCallback: Function;
 

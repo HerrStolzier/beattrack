@@ -12,6 +12,16 @@ type ProgressTrackerProps = {
 
 const COLD_START_THRESHOLD_MS = 20_000;
 
+function formatAnalysisError(error?: string | null, errorCode?: string | null): string {
+  if (errorCode === "queue_enqueue_failed") {
+    return "Die Analyse konnte gerade nicht gestartet werden. Bitte versuche es gleich nochmal.";
+  }
+  if (errorCode === "feature_extraction_failed") {
+    return "Die Audiodatei konnte nicht sauber analysiert werden. Probiere eine kürzere oder andere Datei.";
+  }
+  return error || "Analyse fehlgeschlagen";
+}
+
 export default function ProgressTracker({ jobId, onComplete, onError }: ProgressTrackerProps) {
   const [status, setStatus] = useState<string>("queued");
   const [progress, setProgress] = useState(0);
@@ -39,7 +49,7 @@ export default function ProgressTracker({ jobId, onComplete, onError }: Progress
         if (event.status === "completed" && event.result) {
           onComplete(event.result);
         } else if (event.status === "failed") {
-          onError(event.error || "Analyse fehlgeschlagen");
+          onError(formatAnalysisError(event.error, event.error_code));
         }
       },
       (err) => {
@@ -73,7 +83,7 @@ export default function ProgressTracker({ jobId, onComplete, onError }: Progress
           return;
         }
         if (job.status === "failed") {
-          onError(job.error || "Analyse fehlgeschlagen");
+          onError(formatAnalysisError(job.error, job.error_code));
           return;
         }
       } catch {

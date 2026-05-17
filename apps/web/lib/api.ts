@@ -323,6 +323,7 @@ export type JobStatus = {
   progress: number;
   result?: AnalysisResult | null;
   error?: string | null;
+  error_code?: string | null;
 };
 
 export type AnalysisResult = {
@@ -359,6 +360,7 @@ export type SSECallback = (event: {
   progress: number;
   result?: AnalysisResult | null;
   error?: string;
+  error_code?: string | null;
 }) => void;
 
 export function streamProgress(
