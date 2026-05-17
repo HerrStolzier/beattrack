@@ -240,7 +240,8 @@ export async function submitFeedback(
   querySongId: string,
   resultSongId: string,
   rating: 1 | -1,
-  focus?: string | null
+  focus?: string | null,
+  reasonTag?: string | null,
 ): Promise<void> {
   const res = await fetchWithRetry(`${API_URL}/feedback`, {
     method: "POST",
@@ -251,6 +252,7 @@ export async function submitFeedback(
       rating,
       focus: focus ?? null,
       ab_group: getAbGroup(),
+      reason_tag: reasonTag ?? null,
     }),
   });
   if (!res.ok) throw new ApiError(`submitFeedback failed`, res.status);

@@ -203,3 +203,37 @@ def test_post_feedback(client):
     )
 
     assert resp.status_code == 201
+
+
+def test_post_feedback_with_reason_tag(client):
+    sb, builder = _make_supabase_mock()
+    builder.execute.return_value = _make_response([{}])
+    app.dependency_overrides[get_supabase] = lambda: sb
+
+    resp = client.post(
+        "/feedback",
+        json={
+            "query_song_id": SONG_ROW["id"],
+            "result_song_id": SIMILAR_ROW["id"],
+            "rating": -1,
+            "reason_tag": "wrong_energy",
+        },
+    )
+
+    assert resp.status_code == 201
+    inserted = builder.insert.call_args.args[0]
+    assert inserted["reason_tag"] == "wrong_energy"
+
+
+def test_post_feedback_rejects_invalid_reason_tag(client):
+    resp = client.post(
+        "/feedback",
+        json={
+            "query_song_id": SONG_ROW["id"],
+            "result_song_id": SIMILAR_ROW["id"],
+            "rating": -1,
+            "reason_tag": "anything",
+        },
+    )
+
+    assert resp.status_code == 422

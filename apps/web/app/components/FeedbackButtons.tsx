@@ -17,6 +17,17 @@ const PARTICLES = Array.from({ length: 8 }, (_, i) => {
   return { x: Math.cos(angle) * 28, y: Math.sin(angle) * 28 };
 });
 
+const NEGATIVE_REASONS = [
+  { tag: "wrong_energy", label: "Falsche Energie" },
+  { tag: "wrong_genre", label: "Falsches Genre" },
+  { tag: "duplicate_version", label: "Doppelte Version" },
+  { tag: "too_obvious", label: "Zu offensichtlich" },
+  { tag: "bad_metadata", label: "Metadaten falsch" },
+  { tag: "other", label: "Anderer Grund" },
+] as const;
+
+type FeedbackReasonTag = (typeof NEGATIVE_REASONS)[number]["tag"];
+
 function ParticleBurst({ color }: { color: string }) {
   return (
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -44,9 +55,18 @@ export default function FeedbackButtons({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [burst, setBurst] = useState<1 | -1 | null>(null);
+  const [awaitingReason, setAwaitingReason] = useState(false);
 
   async function handleClick(rating: 1 | -1) {
     if (loading || selected !== null) return;
+
+    if (rating === -1) {
+      setAwaitingReason(true);
+      setError(false);
+      setBurst(-1);
+      return;
+    }
+
     setLoading(true);
     setError(false);
     setBurst(rating);
@@ -54,6 +74,29 @@ export default function FeedbackButtons({
       await submitFeedback(querySongId, resultSongId, rating, focusActive);
       setSelected(rating);
       onFeedback?.(rating);
+    } catch {
+      setError(true);
+      setBurst(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleNegativeReason(reasonTag: FeedbackReasonTag) {
+    if (loading || selected !== null) return;
+    setLoading(true);
+    setError(false);
+    try {
+      await submitFeedback(
+        querySongId,
+        resultSongId,
+        -1,
+        focusActive,
+        reasonTag,
+      );
+      setSelected(-1);
+      setAwaitingReason(false);
+      onFeedback?.(-1);
     } catch {
       setError(true);
       setBurst(null);
@@ -79,9 +122,30 @@ export default function FeedbackButtons({
           }`}
         >
           {selected === 1 ? (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
           ) : (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           )}
           {selected === 1 ? "Guter Match!" : "Passt nicht"}
         </div>
@@ -90,7 +154,7 @@ export default function FeedbackButtons({
   }
 
   return (
-    <div className="flex w-full items-center justify-center gap-3">
+    <div className="flex w-full flex-col items-center justify-center gap-3">
       {error && (
         <motion.span
           initial={{ opacity: 0 }}
@@ -101,39 +165,83 @@ export default function FeedbackButtons({
         </motion.span>
       )}
 
-      {/* PASS button */}
-      <motion.button
-        onClick={() => handleClick(1)}
-        disabled={loading}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.92 }}
-        className="group relative flex cursor-pointer items-center gap-2.5 overflow-hidden rounded-full border border-emerald-500/40 bg-emerald/5 px-5 py-2.5 text-xs font-semibold text-emerald-400 transition-all duration-200 hover:bg-emerald-500/10 hover:shadow-[0_0_20px_rgba(52,211,153,0.12)] disabled:opacity-40"
-        title="Passend"
-      >
-        <AnimatePresence>
-          {burst === 1 && <ParticleBurst color="#34d399" />}
-        </AnimatePresence>
-        <svg className="relative z-10 h-5 w-5 transition-transform duration-200 group-hover:scale-110" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M7.5 12.5 10.5 15.5 16.5 9.5" /></svg>
-        <span className="relative z-10">Passt</span>
-        <div className="absolute inset-0 bg-gradient-to-r from-emerald/0 via-emerald/5 to-emerald/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-      </motion.button>
+      <div className="flex items-center justify-center gap-3">
+        {/* PASS button */}
+        <motion.button
+          onClick={() => handleClick(1)}
+          disabled={loading || awaitingReason}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.92 }}
+          className="group relative flex cursor-pointer items-center gap-2.5 overflow-hidden rounded-full border border-emerald-500/40 bg-emerald/5 px-5 py-2.5 text-xs font-semibold text-emerald-400 transition-all duration-200 hover:bg-emerald-500/10 hover:shadow-[0_0_20px_rgba(52,211,153,0.12)] disabled:opacity-40"
+          title="Passend"
+        >
+          <AnimatePresence>
+            {burst === 1 && <ParticleBurst color="#34d399" />}
+          </AnimatePresence>
+          <svg
+            className="relative z-10 h-5 w-5 transition-transform duration-200 group-hover:scale-110"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          >
+            <path d="M7.5 12.5 10.5 15.5 16.5 9.5" />
+          </svg>
+          <span className="relative z-10">Passt</span>
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald/0 via-emerald/5 to-emerald/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        </motion.button>
 
-      {/* FAIL button */}
-      <motion.button
-        onClick={() => handleClick(-1)}
-        disabled={loading}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.92 }}
-        className="group relative flex cursor-pointer items-center gap-2.5 overflow-hidden rounded-full border border-red-500/40 bg-rose/5 px-5 py-2.5 text-xs font-semibold text-red-400 transition-all duration-200 hover:bg-red-500/10 hover:shadow-[0_0_20px_rgba(251,113,133,0.12)] disabled:opacity-40"
-        title="Unpassend"
-      >
-        <AnimatePresence>
-          {burst === -1 && <ParticleBurst color="#fb7185" />}
-        </AnimatePresence>
-        <svg className="relative z-10 h-5 w-5 transition-transform duration-200 group-hover:scale-110" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="16" y1="8" x2="8" y2="16" /><line x1="8" y1="8" x2="16" y2="16" /></svg>
-        <span className="relative z-10">Passt nicht</span>
-        <div className="absolute inset-0 bg-gradient-to-r from-rose/0 via-rose/5 to-rose/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-      </motion.button>
+        {/* FAIL button */}
+        <motion.button
+          onClick={() => handleClick(-1)}
+          disabled={loading || awaitingReason}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.92 }}
+          className="group relative flex cursor-pointer items-center gap-2.5 overflow-hidden rounded-full border border-red-500/40 bg-rose/5 px-5 py-2.5 text-xs font-semibold text-red-400 transition-all duration-200 hover:bg-red-500/10 hover:shadow-[0_0_20px_rgba(251,113,133,0.12)] disabled:opacity-40"
+          title="Unpassend"
+        >
+          <AnimatePresence>
+            {burst === -1 && <ParticleBurst color="#fb7185" />}
+          </AnimatePresence>
+          <svg
+            className="relative z-10 h-5 w-5 transition-transform duration-200 group-hover:scale-110"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          >
+            <line x1="16" y1="8" x2="8" y2="16" />
+            <line x1="8" y1="8" x2="16" y2="16" />
+          </svg>
+          <span className="relative z-10">Passt nicht</span>
+          <div className="absolute inset-0 bg-gradient-to-r from-rose/0 via-rose/5 to-rose/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        </motion.button>
+      </div>
+
+      <AnimatePresence>
+        {awaitingReason && (
+          <motion.div
+            className="flex max-w-md flex-wrap items-center justify-center gap-2"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+          >
+            {NEGATIVE_REASONS.map((reason) => (
+              <button
+                key={reason.tag}
+                type="button"
+                onClick={() => handleNegativeReason(reason.tag)}
+                disabled={loading}
+                className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-medium text-white/75 transition-colors hover:border-rose/40 hover:bg-rose/10 hover:text-rose disabled:opacity-40"
+              >
+                {reason.label}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

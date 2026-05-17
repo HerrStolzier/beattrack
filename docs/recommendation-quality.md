@@ -88,5 +88,17 @@ Practical meaning: the engine is useful enough to evaluate, but it needs a quali
 1. Expand from 10 to at least 30 curated Electronic queries.
 2. Add internal notes for known-good and known-bad neighbors.
 3. Store evaluation snapshots before changing ranking weights.
-4. Add feedback reason tags for bad results.
+4. Use feedback reason tags in reporting: `wrong_energy`, `wrong_genre`, `duplicate_version`, `too_obvious`, `bad_metadata`, `other`.
 5. Compare default fusion weights against at least two alternatives.
+
+## Feedback Reason Tags
+
+Negative result feedback now stores a short reason tag in `feedback.reason_tag`.
+
+This is intentionally simple. A user can still say "Passt nicht", but the app now asks why. That turns a vague downvote into a signal the ranking work can use later.
+
+The database change lives in:
+
+```text
+supabase/migrations/024_feedback_reason_tags.sql
+```

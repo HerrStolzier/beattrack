@@ -30,6 +30,14 @@ class FeedbackRequest(BaseModel):
     rating: Literal[1, -1]
     focus: str | None = None
     ab_group: str | None = None
+    reason_tag: Literal[
+        "wrong_energy",
+        "wrong_genre",
+        "duplicate_version",
+        "too_obvious",
+        "bad_metadata",
+        "other",
+    ] | None = None
 
 
 class ClickAction(str, Enum):
@@ -71,6 +79,7 @@ async def submit_feedback(
                 "ip_hash": ip_hash,
                 "focus_active": body.focus,
                 "ab_group": body.ab_group,
+                "reason_tag": body.reason_tag,
             }
         ).execute()
     except Exception as exc:
