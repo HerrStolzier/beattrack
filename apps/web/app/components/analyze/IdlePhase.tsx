@@ -18,25 +18,42 @@ interface IdlePhaseProps {
 
 export default function IdlePhase({ onMatch, onFileSelected, setPhase, history, onClearHistory }: IdlePhaseProps) {
   return (
-    <>
-      <UrlInput onMatch={onMatch} />
-      <div className="flex items-center gap-3 my-6">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent to-border-subtle" />
-        <span className="text-xs text-text-tertiary font-medium">oder</span>
-        <div className="h-px flex-1 bg-gradient-to-l from-transparent to-border-subtle" />
-      </div>
-      <UploadZone onFileSelected={onFileSelected} />
+    <div className="space-y-6">
+      <section className="glass-premium rounded-2xl border border-amber/15 p-4 shadow-[0_20px_80px_rgba(0,0,0,0.18)] sm:p-5">
+        <div className="mb-4 flex flex-col gap-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-light">
+            Track finden
+          </p>
+          <h2 className="text-xl font-semibold text-text-primary sm:text-2xl">
+            Starte mit einem Song
+          </h2>
+          <p className="max-w-2xl text-sm text-text-secondary">
+            Link einfügen oder Audio hochladen. Beattrack sucht danach klanglich passende Tracks.
+          </p>
+        </div>
 
-      {/* Blend + Vibe buttons */}
-      <div className="flex items-center gap-3 mt-6">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent to-border-subtle" />
-        <span className="text-xs text-text-tertiary font-medium">oder</span>
-        <div className="h-px flex-1 bg-gradient-to-l from-transparent to-border-subtle" />
-      </div>
-      <div className="flex gap-2 mt-4">
+        <div className="space-y-4">
+          <UrlInput onMatch={onMatch} />
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-border-subtle" />
+            <span className="text-xs font-medium text-text-tertiary">oder</span>
+            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-border-subtle" />
+          </div>
+          <UploadZone onFileSelected={onFileSelected} />
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border-glass bg-surface-elevated/35 p-3">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-text-tertiary">
+            Erweiterte Suche
+          </p>
+          <div className="h-px flex-1 bg-gradient-to-r from-border-subtle to-transparent" />
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <motion.button
           onClick={() => setPhase("blend")}
-          className="relative flex-1 overflow-hidden glass rounded-xl px-4 py-3 text-sm font-medium text-text-secondary"
+          className="relative overflow-hidden rounded-lg border border-border-glass bg-surface-glass/70 px-4 py-3 text-left text-sm font-medium text-text-secondary"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.97 }}
           transition={{ type: "spring", stiffness: 400, damping: 25 }}
@@ -64,7 +81,7 @@ export default function IdlePhase({ onMatch, onFileSelected, setPhase, history, 
         </motion.button>
         <motion.button
           onClick={() => setPhase("vibe")}
-          className="relative flex-1 overflow-hidden glass rounded-xl px-4 py-3 text-sm font-medium text-text-secondary"
+          className="relative overflow-hidden rounded-lg border border-border-glass bg-surface-glass/70 px-4 py-3 text-left text-sm font-medium text-text-secondary"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.97 }}
           transition={{ type: "spring", stiffness: 400, damping: 25 }}
@@ -90,10 +107,11 @@ export default function IdlePhase({ onMatch, onFileSelected, setPhase, history, 
           <span className="relative block text-text-primary">Vibe definieren</span>
           <span className="relative block text-[10px] text-text-tertiary font-normal mt-0.5">2-5 Songs kombinieren</span>
         </motion.button>
-      </div>
+        </div>
+      </section>
 
       {/* Session history — only shown when entries exist */}
       <SessionHistory history={history} onClear={onClearHistory} />
-    </>
+    </div>
   );
 }
