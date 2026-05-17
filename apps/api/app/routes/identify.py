@@ -11,6 +11,7 @@ from app.limiter import limiter
 from app.services import parse_title
 from app.services.apple_music import parse_apple_music_url, fetch_metadata as am_fetch_metadata
 from app.services.deezer import parse_deezer_url, fetch_metadata as dz_fetch_metadata
+from app.services.external_errors import ExternalAPIError
 from app.services.soundcloud import parse_soundcloud_url, fetch_oembed as sc_fetch_oembed
 from app.services.spotify import parse_spotify_url, fetch_oembed as sp_fetch_oembed
 from app.services.youtube import fetch_oembed as yt_fetch_oembed, parse_title as yt_parse_title, parse_youtube_url
@@ -143,7 +144,10 @@ async def _identify_platform(
     if not validate_url(url):
         raise HTTPException(status_code=400, detail=f"Invalid {platform_name} URL")
 
-    meta = await fetch_meta(url)
+    try:
+        meta = await fetch_meta(url)
+    except ExternalAPIError as exc:
+        raise HTTPException(status_code=exc.http_status, detail=exc.public_message) from exc
 
     if not meta:
         raise HTTPException(status_code=502, detail=f"Could not fetch {platform_name} metadata")

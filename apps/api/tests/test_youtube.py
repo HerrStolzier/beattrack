@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.db import get_supabase
+from app.services.external_errors import ExternalAPIRateLimited
 from app.services.youtube import parse_youtube_url, parse_title
 from tests.conftest import _make_supabase_mock
 
@@ -167,3 +168,15 @@ def test_identify_youtube_oembed_failure(client):
 
     assert resp.status_code == 502
     assert "Could not fetch YouTube metadata" in resp.json()["detail"]
+
+
+def test_identify_youtube_rate_limit_is_distinct(client):
+    sb, _ = _make_supabase_mock()
+    app.dependency_overrides[get_supabase] = lambda: sb
+
+    with patch("app.routes.identify.yt_fetch_oembed", new_callable=AsyncMock) as mock_oembed:
+        mock_oembed.side_effect = ExternalAPIRateLimited("YouTube")
+        resp = client.post("/identify/youtube", json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"})
+
+    assert resp.status_code == 429
+    assert resp.json()["detail"] == "YouTube rate limit reached"

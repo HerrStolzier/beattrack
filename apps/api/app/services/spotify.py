@@ -6,6 +6,12 @@ from urllib.parse import quote
 
 import httpx
 
+from app.services.external_errors import (
+    ExternalAPIError,
+    ExternalAPITemporaryUnavailable,
+    raise_for_external_response,
+)
+
 logger = logging.getLogger(__name__)
 
 # Matches open.spotify.com/track/ID URLs (with optional intl prefix and query params)
@@ -30,9 +36,14 @@ async def fetch_oembed(url: str) -> dict | None:
         oembed_url = f"https://open.spotify.com/oembed?url={quote(url, safe='')}"
         try:
             resp = await client.get(oembed_url)
-            resp.raise_for_status()
+            raise_for_external_response(resp, "Spotify")
             data = resp.json()
             title = data.get("title", "")
+        except httpx.RequestError as exc:
+            logger.warning("Spotify oEmbed request failed for %s: %s", url, exc)
+            raise ExternalAPITemporaryUnavailable("Spotify") from exc
+        except ExternalAPIError:
+            raise
         except Exception as exc:
             logger.warning("Spotify oEmbed failed for %s: %s", url, exc)
             return None

@@ -5,6 +5,13 @@ import re
 
 import httpx
 
+from app.services.external_errors import (
+    ExternalAPIError,
+    ExternalAPINotFound,
+    ExternalAPITemporaryUnavailable,
+    raise_for_external_response,
+)
+
 logger = logging.getLogger(__name__)
 
 # Matches music.apple.com track URLs:
@@ -37,18 +44,23 @@ async def fetch_metadata(url: str) -> dict | None:
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(lookup_url)
-            resp.raise_for_status()
+            raise_for_external_response(resp, "Apple Music")
             data = resp.json()
             results = data.get("results", [])
             if not results:
                 logger.warning("iTunes lookup returned no results for ID %s", track_id)
-                return None
+                raise ExternalAPINotFound("Apple Music")
 
             track = results[0]
             return {
                 "title": track.get("trackName", ""),
                 "author_name": track.get("artistName", ""),
             }
+    except httpx.RequestError as exc:
+        logger.warning("iTunes lookup request failed for %s: %s", track_id, exc)
+        raise ExternalAPITemporaryUnavailable("Apple Music") from exc
+    except ExternalAPIError:
+        raise
     except Exception as exc:
         logger.warning("iTunes lookup failed for %s: %s", track_id, exc)
         return None

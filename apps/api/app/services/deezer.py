@@ -5,6 +5,13 @@ import re
 
 import httpx
 
+from app.services.external_errors import (
+    ExternalAPIError,
+    ExternalAPINotFound,
+    ExternalAPITemporaryUnavailable,
+    raise_for_external_response,
+)
+
 logger = logging.getLogger(__name__)
 
 # Matches deezer.com/track/ID or deezer.com/xx/track/ID
@@ -62,22 +69,27 @@ async def fetch_metadata(url: str) -> dict | None:
                     return None
             except Exception as exc:
                 logger.warning("Failed to resolve Deezer share link %s: %s", url, exc)
-                return None
+                raise ExternalAPITemporaryUnavailable("Deezer") from exc
 
         # Fetch track info from Deezer API
         try:
             resp = await client.get(f"https://api.deezer.com/track/{track_id}")
-            resp.raise_for_status()
+            raise_for_external_response(resp, "Deezer")
             data = resp.json()
 
             if "error" in data:
                 logger.warning("Deezer API error for track %s: %s", track_id, data["error"])
-                return None
+                raise ExternalAPINotFound("Deezer")
 
             return {
                 "title": data.get("title", ""),
                 "author_name": data.get("artist", {}).get("name", ""),
             }
+        except httpx.RequestError as exc:
+            logger.warning("Deezer API request failed for track %s: %s", track_id, exc)
+            raise ExternalAPITemporaryUnavailable("Deezer") from exc
+        except ExternalAPIError:
+            raise
         except Exception as exc:
             logger.warning("Deezer API request failed for track %s: %s", track_id, exc)
             return None

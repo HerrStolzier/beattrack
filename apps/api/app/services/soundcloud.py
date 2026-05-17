@@ -6,6 +6,13 @@ from urllib.parse import quote
 
 import httpx
 
+from app.services.external_errors import (
+    ExternalAPIError,
+    ExternalAPINotFound,
+    ExternalAPITemporaryUnavailable,
+    raise_for_external_response,
+)
+
 logger = logging.getLogger(__name__)
 
 # Matches soundcloud.com/artist/track URLs
@@ -43,6 +50,7 @@ async def _resolve_shortened_url(url: str, client: httpx.AsyncClient) -> str | N
             return resolved
     except Exception as exc:
         logger.debug("SoundCloud URL resolution failed for %s: %s", url, exc)
+        raise ExternalAPITemporaryUnavailable("SoundCloud") from exc
     return None
 
 
@@ -57,17 +65,22 @@ async def fetch_oembed(url: str) -> dict | None:
                 resolved_url = resolved
             else:
                 logger.warning("Could not resolve SoundCloud shortened URL: %s", url)
-                return None
+                raise ExternalAPINotFound("SoundCloud")
 
         oembed_url = f"https://soundcloud.com/oembed?url={quote(resolved_url, safe='')}&format=json"
         try:
             resp = await client.get(oembed_url)
-            resp.raise_for_status()
+            raise_for_external_response(resp, "SoundCloud")
             data = resp.json()
             return {
                 "title": data.get("title", ""),
                 "author_name": data.get("author_name", ""),
             }
+        except httpx.RequestError as exc:
+            logger.warning("SoundCloud oEmbed request failed for %s: %s", resolved_url, exc)
+            raise ExternalAPITemporaryUnavailable("SoundCloud") from exc
+        except ExternalAPIError:
+            raise
         except Exception as exc:
             logger.warning("SoundCloud oEmbed failed for %s: %s", resolved_url, exc)
             return None

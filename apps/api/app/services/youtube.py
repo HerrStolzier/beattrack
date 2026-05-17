@@ -5,6 +5,12 @@ from urllib.parse import urlparse, quote
 
 import httpx
 
+from app.services.external_errors import (
+    ExternalAPIError,
+    ExternalAPITemporaryUnavailable,
+    raise_for_external_response,
+)
+
 logger = logging.getLogger(__name__)
 
 # Matches standard watch, short youtu.be, and Shorts URLs
@@ -47,10 +53,13 @@ async def fetch_oembed(url: str) -> dict | None:
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(oembed_url)
-            if resp.status_code != 200:
-                logger.warning("oEmbed returned HTTP %s for %s", resp.status_code, url)
-                return None
+            raise_for_external_response(resp, "YouTube")
             return resp.json()
+    except httpx.RequestError as exc:
+        logger.warning("oEmbed request error for %s: %s", url, exc)
+        raise ExternalAPITemporaryUnavailable("YouTube") from exc
+    except ExternalAPIError:
+        raise
     except Exception as exc:
         logger.warning("oEmbed fetch error for %s: %s", url, exc)
         return None
