@@ -1,0 +1,72 @@
+[
+  {
+    "label": "peak-time techno drive",
+    "artist": "Charlotte de Witte",
+    "title": "Sgadi Li Mi",
+    "expected_traits": ["driving", "dark", "peak-time", "techno"],
+    "avoid_traits": ["downtempo", "ambient", "vocal pop"]
+  },
+  {
+    "label": "melodic techno lift",
+    "artist": "ARTBAT",
+    "title": "Return to Oz",
+    "expected_traits": ["melodic", "progressive", "wide", "club"],
+    "avoid_traits": ["industrial", "breakbeat", "minimal dry"]
+  },
+  {
+    "label": "deep house groove",
+    "artist": "Peggy Gou",
+    "title": "It Makes You Forget",
+    "expected_traits": ["deep house", "warm", "groovy", "dance"],
+    "avoid_traits": ["hard techno", "ambient drone", "metallic"]
+  },
+  {
+    "label": "minimal hypnotic pulse",
+    "artist": "Ricardo Villalobos",
+    "title": "Easy Lee",
+    "expected_traits": ["minimal", "hypnotic", "percussive", "long-form"],
+    "avoid_traits": ["anthemic", "maximal", "vocal-heavy"]
+  },
+  {
+    "label": "ambient electronic texture",
+    "artist": "Jon Hopkins",
+    "title": "Abandon Window",
+    "expected_traits": ["ambient", "textural", "slow", "cinematic"],
+    "avoid_traits": ["peak-time", "hardstyle", "high BPM"]
+  },
+  {
+    "label": "breakbeat energy",
+    "artist": "Bicep",
+    "title": "Glue",
+    "expected_traits": ["breakbeat", "emotional", "rave", "melodic"],
+    "avoid_traits": ["straight techno only", "acoustic", "ambient-only"]
+  },
+  {
+    "label": "liquid drum and bass",
+    "artist": "Calibre",
+    "title": "Even If",
+    "expected_traits": ["drum and bass", "liquid", "rolling", "warm"],
+    "avoid_traits": ["four-on-the-floor", "hard techno", "downtempo"]
+  },
+  {
+    "label": "trance euphoria",
+    "artist": "Paul van Dyk",
+    "title": "For An Angel",
+    "expected_traits": ["trance", "euphoric", "melodic", "uplifting"],
+    "avoid_traits": ["minimal", "ambient", "industrial"]
+  },
+  {
+    "label": "electro acid snap",
+    "artist": "Dopplereffekt",
+    "title": "Scientist",
+    "expected_traits": ["electro", "machine funk", "acid", "sparse"],
+    "avoid_traits": ["lush house", "vocal pop", "ambient wash"]
+  },
+  {
+    "label": "downtempo chill-out",
+    "artist": "Bonobo",
+    "title": "Kiara",
+    "expected_traits": ["downtempo", "organic", "rhythmic", "warm"],
+    "avoid_traits": ["hard techno", "trance", "industrial"]
+  }
+]
