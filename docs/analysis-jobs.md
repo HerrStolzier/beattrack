@@ -55,3 +55,10 @@ If the row is stuck in `queued`, check whether Procrastinate workers are running
 If the row is stuck in `processing`, check worker logs and the temp audio path.
 
 If the row is `failed`, use `error_code` for the broad class and `last_error` for the concrete message.
+
+For a quick read-only report:
+
+```bash
+cd apps/api
+.venv/bin/python scripts/analysis_jobs_report.py
+```

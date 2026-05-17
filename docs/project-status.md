@@ -36,7 +36,7 @@ Current product modes:
 - `supabase/migrations/` — numbered Supabase migrations, currently `001` through `023`.
 - `docs/` — project status, scaling, job lifecycle, improvement plans, and durable learnings.
 - `.github/workflows/` — CI and secret scanning.
-- `scripts/check_production_health.mjs` — production API/Supabase health check.
+- `scripts/check_production_health.mjs` — production API/Supabase/catalog/job-table health check.
 
 ## Frontend
 
@@ -154,11 +154,13 @@ Current production check:
 npm run check:prod-health
 ```
 
-Most recent observed result:
+The production check covers:
 
-- Railway API `/health`: OK.
-- Supabase REST config read: OK.
-- `normalization_stats` present.
+- Railway API `/health`.
+- API song count endpoint.
+- API lightweight song search.
+- Supabase REST config read for `normalization_stats`.
+- Supabase REST read against `analysis_jobs`.
 
 Migration state:
 

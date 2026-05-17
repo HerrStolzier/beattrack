@@ -77,7 +77,10 @@ const supabaseKey =
 const summary = {
   checkedAt: new Date().toISOString(),
   api: { url: `${apiBaseUrl}/health` },
+  apiSongCount: { url: `${apiBaseUrl}/songs/count/total` },
+  apiSongSearch: { url: `${apiBaseUrl}/songs?q=daft&limit=1` },
   supabase: { url: supabaseUrl ? `${supabaseUrl}/rest/v1/` : null },
+  analysisJobs: { url: supabaseUrl ? `${supabaseUrl}/rest/v1/analysis_jobs` : null },
 };
 
 let failed = false;
@@ -100,6 +103,29 @@ try {
   failed = true;
 }
 
+for (const [key, url] of [
+  ["apiSongCount", `${apiBaseUrl}/songs/count/total`],
+  ["apiSongSearch", `${apiBaseUrl}/songs?q=daft&limit=1`],
+]) {
+  try {
+    const result = await fetchJson(url);
+    summary[key] = {
+      ...summary[key],
+      status: result.status,
+      ok: result.ok,
+      body: result.body,
+    };
+    if (!result.ok) failed = true;
+  } catch (error) {
+    summary[key] = {
+      ...summary[key],
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+    failed = true;
+  }
+}
+
 if (!supabaseUrl || !supabaseKey) {
   summary.supabase = {
     ...summary.supabase,
@@ -108,32 +134,54 @@ if (!supabaseUrl || !supabaseKey) {
   };
   failed = true;
 } else {
-  const healthUrl = new URL("/rest/v1/config", supabaseUrl);
-  healthUrl.searchParams.set("select", "key");
-  healthUrl.searchParams.set("key", "eq.normalization_stats");
-  healthUrl.searchParams.set("limit", "1");
-
-  try {
-    const supabaseResult = await fetchJson(healthUrl.toString(), {
-      headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
+  const supabaseChecks = [
+    {
+      key: "supabase",
+      url: new URL("/rest/v1/config", supabaseUrl),
+      params: {
+        select: "key",
+        key: "eq.normalization_stats",
+        limit: "1",
       },
-    });
-    summary.supabase = {
-      ...summary.supabase,
-      status: supabaseResult.status,
-      ok: supabaseResult.ok,
-      body: supabaseResult.body,
-    };
-    if (!supabaseResult.ok) failed = true;
-  } catch (error) {
-    summary.supabase = {
-      ...summary.supabase,
-      ok: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
-    failed = true;
+    },
+    {
+      key: "analysisJobs",
+      url: new URL("/rest/v1/analysis_jobs", supabaseUrl),
+      params: {
+        select: "id,status,created_at",
+        order: "created_at.desc",
+        limit: "1",
+      },
+    },
+  ];
+
+  for (const check of supabaseChecks) {
+    for (const [name, value] of Object.entries(check.params)) {
+      check.url.searchParams.set(name, value);
+    }
+
+    try {
+      const supabaseResult = await fetchJson(check.url.toString(), {
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+        },
+      });
+      summary[check.key] = {
+        ...summary[check.key],
+        status: supabaseResult.status,
+        ok: supabaseResult.ok,
+        body: supabaseResult.body,
+      };
+      if (!supabaseResult.ok) failed = true;
+    } catch (error) {
+      summary[check.key] = {
+        ...summary[check.key],
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+      failed = true;
+    }
   }
 }
 
