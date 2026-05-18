@@ -53,7 +53,7 @@ def _make_supabase_mock() -> MagicMock:
     # set .execute on it at the end.
     builder = MagicMock()
     sb.table.return_value = builder
-    for method in ("select", "eq", "ilike", "or_", "order", "in_", "range", "insert", "single"):
+    for method in ("select", "eq", "ilike", "or_", "order", "in_", "range", "insert", "single", "limit"):
         getattr(builder, method).return_value = builder
     return sb, builder
 
@@ -74,10 +74,12 @@ def client():
 # Health
 # ---------------------------------------------------------------------------
 
-def test_health(client):
+def test_health(client, monkeypatch):
+    sb, _ = _make_supabase_mock()
+    monkeypatch.setattr("app.main.get_supabase", lambda: sb)
     resp = client.get("/health")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok"}
+    assert resp.json() == {"status": "ok", "db": "ok"}
 
 
 # ---------------------------------------------------------------------------

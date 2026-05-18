@@ -14,6 +14,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.db import get_supabase
 from app.limiter import limiter
 from app.routes import songs, similar, feedback, analyze, identify, batch_ingest
 
@@ -52,6 +53,30 @@ async def _periodic_cleanup(temp_dir: str, max_age_minutes: int = 15, interval_m
                     logger.debug("Cleaned up temp file: %s", f.name)
         except Exception as exc:
             logger.warning("Temp cleanup error: %s", exc)
+
+
+def _summarize_health_error(exc: Exception) -> str:
+    message = str(exc).strip().splitlines()[0] if str(exc).strip() else ""
+    if not message:
+        return exc.__class__.__name__
+    return f"{exc.__class__.__name__}: {message[:160]}"
+
+
+def _check_supabase_health() -> tuple[str, str | None]:
+    try:
+        sb = get_supabase()
+    except KeyError as exc:
+        missing = exc.args[0] if exc.args else "SUPABASE_*"
+        return "unconfigured", f"Missing env: {missing}"
+    except Exception as exc:
+        return "error", _summarize_health_error(exc)
+
+    try:
+        # A tiny read proves the Supabase client, auth, and backing table are reachable.
+        sb.table("songs").select("id").limit(1).execute()
+        return "ok", None
+    except Exception as exc:
+        return "error", _summarize_health_error(exc)
 
 
 @asynccontextmanager
@@ -97,8 +122,16 @@ app.include_router(batch_ingest.router)
 
 
 @app.get("/health")
-async def health() -> dict:
-    return {"status": "ok"}
+async def health(response: Response) -> dict:
+    db_status, detail = await asyncio.to_thread(_check_supabase_health)
+    if db_status == "ok":
+        return {"status": "ok", "db": "ok"}
+
+    response.status_code = 503
+    payload = {"status": "degraded", "db": db_status}
+    if detail:
+        payload["detail"] = detail
+    return payload
 
 
 # atexit als Fallback bei hartem Prozess-Kill
