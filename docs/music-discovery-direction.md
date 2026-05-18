@@ -74,6 +74,13 @@ discovery_score =
 
 This is not a final formula. It is the product intent translated into ranking language.
 
+Current live behavior:
+
+- `/similar` now applies a conservative discovery score after late fusion and before dedup/MMR.
+- The score keeps sonic similarity as the anchor.
+- Same-artist results, same-base-title versions, and extremely close results receive small penalties so they do not dominate the top of the list.
+- The penalties are intentionally small: a much stronger sonic match can still rank first.
+
 Practical signals:
 
 - `sonic_similarity`: current MusiCNN/MERT/handcrafted fusion.

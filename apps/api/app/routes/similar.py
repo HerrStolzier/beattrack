@@ -22,6 +22,13 @@ _OVERFETCH_FACTOR = 3.0
 # MMR diversity parameter: 1.0 = pure relevance, 0.0 = pure diversity
 _MMR_LAMBDA = 0.7
 
+# Discovery scoring keeps sonic fit as the main signal, but gently reduces
+# candidates that are likely to feel too obvious in the primary discovery list.
+_SAME_ARTIST_PENALTY = 0.06
+_SAME_TITLE_PENALTY = 0.08
+_TOO_CLOSE_THRESHOLD = 0.94
+_TOO_CLOSE_MAX_PENALTY = 0.04
+
 # Regex to extract base title by stripping (...), [...], and common suffixes
 _STRIP_PARENS = re.compile(r"\s*[\(\[].*?[\)\]]\s*")
 _STRIP_SUFFIXES = re.compile(
@@ -318,6 +325,48 @@ def _deduplicate_versions(results: list[dict]) -> list[dict]:
     return deduped
 
 
+def _apply_discovery_score(results: list[dict], query_song: dict) -> list[dict]:
+    """Re-rank toward less obvious songs that still fit sonically.
+
+    The incoming similarity score remains the relevance anchor. Penalties are
+    intentionally small so a clearly better sonic match can still win.
+    """
+    query_artist = str(query_song.get("artist") or "").strip().lower()
+    query_title = _base_title(str(query_song.get("title") or ""))
+
+    scored: list[dict] = []
+    for row in results:
+        sonic_similarity = float(row.get("similarity", 0.0))
+        penalty = 0.0
+        reasons: list[str] = []
+
+        artist = str(row.get("artist") or "").strip().lower()
+        if query_artist and artist == query_artist:
+            penalty += _SAME_ARTIST_PENALTY
+            reasons.append("same_artist")
+
+        title = _base_title(str(row.get("title") or ""))
+        if query_title and title == query_title:
+            penalty += _SAME_TITLE_PENALTY
+            reasons.append("same_title")
+
+        if sonic_similarity > _TOO_CLOSE_THRESHOLD:
+            excess = min(1.0, (sonic_similarity - _TOO_CLOSE_THRESHOLD) / (1.0 - _TOO_CLOSE_THRESHOLD))
+            penalty += excess * _TOO_CLOSE_MAX_PENALTY
+            reasons.append("too_close")
+
+        scored.append({
+            **row,
+            "similarity": max(0.0, sonic_similarity - penalty),
+            "sonic_similarity": sonic_similarity,
+            "discovery_penalty": penalty,
+            "discovery_penalty_reasons": reasons,
+        })
+
+    scored.sort(key=lambda x: x["similarity"], reverse=True)
+    return scored
+
+
 def _apply_mmr(
     results: list[dict],
     embeddings: dict[str, list[float]],
@@ -387,7 +436,7 @@ async def find_similar(
     # 1. Fetch query song (including MERT embedding if available)
     song_result = (
         sb.table("songs")
-        .select("id, learned_embedding, handcrafted_norm, mert_embedding, genre")
+        .select("id, title, artist, learned_embedding, handcrafted_norm, mert_embedding, genre")
         .eq("id", body.song_id)
         .single()
         .execute()
@@ -441,10 +490,13 @@ async def find_similar(
         except Exception as exc:
             logger.warning("Late fusion failed, returning learned-only results: %s", exc)
 
-    # 4. Deduplicate remix/version variants (keep best per base track)
+    # 4. Discovery scoring: less obvious, still sonically close
+    results = _apply_discovery_score(results, query_song)
+
+    # 5. Deduplicate remix/version variants (keep best per base track)
     results = _deduplicate_versions(results)
 
-    # 5. MMR diversity re-ranking (use learned embeddings for inter-result distance)
+    # 6. MMR diversity re-ranking (use learned embeddings for inter-result distance)
     if len(results) > body.limit:
         result_ids = [str(r["id"]) for r in results]
         emb_result = (

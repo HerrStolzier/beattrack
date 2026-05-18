@@ -14,6 +14,7 @@ from app.routes.similar import (
     _cosine_similarity,
     _deduplicate_versions,
     _determine_weights,
+    _apply_discovery_score,
     _parse_vector,
 )
 from app.services.genre import DEEZER_GENRE_MAP, map_deezer_genre
@@ -138,6 +139,53 @@ class TestDeduplication:
 
     def test_deduplicate_empty(self):
         assert _deduplicate_versions([]) == []
+
+
+# ---------------------------------------------------------------------------
+# _apply_discovery_score
+# ---------------------------------------------------------------------------
+
+class TestDiscoveryScore:
+    def test_same_artist_is_gently_penalized(self):
+        query = {"artist": "Burial", "title": "Archangel"}
+        results = [
+            {"id": "1", "artist": "Burial", "title": "Shell of Light", "similarity": 0.91},
+            {"id": "2", "artist": "Unknown Artist", "title": "Late Night Signal", "similarity": 0.90},
+        ]
+
+        scored = _apply_discovery_score(results, query)
+
+        assert scored[0]["id"] == "2"
+        same_artist = next(r for r in scored if r["id"] == "1")
+        assert same_artist["sonic_similarity"] == pytest.approx(0.91)
+        assert same_artist["similarity"] == pytest.approx(0.85)
+        assert same_artist["discovery_penalty_reasons"] == ["same_artist"]
+
+    def test_stronger_sonic_match_can_still_win(self):
+        query = {"artist": "Burial", "title": "Archangel"}
+        results = [
+            {"id": "1", "artist": "Burial", "title": "Shell of Light", "similarity": 0.97},
+            {"id": "2", "artist": "Unknown Artist", "title": "Late Night Signal", "similarity": 0.84},
+        ]
+
+        scored = _apply_discovery_score(results, query)
+
+        assert scored[0]["id"] == "1"
+        assert scored[0]["similarity"] < scored[0]["sonic_similarity"]
+
+    def test_same_base_title_gets_extra_penalty(self):
+        query = {"artist": "Energy 52", "title": "Café Del Mar"}
+        results = [
+            {"id": "1", "artist": "Energy 52", "title": "Café Del Mar (Radio Edit)", "similarity": 0.95},
+            {"id": "2", "artist": "Other", "title": "Blue Horizon", "similarity": 0.88},
+        ]
+
+        scored = _apply_discovery_score(results, query)
+
+        assert scored[0]["id"] == "2"
+        duplicate = next(r for r in scored if r["id"] == "1")
+        assert duplicate["discovery_penalty"] > 0.10
+        assert duplicate["discovery_penalty_reasons"] == ["same_artist", "same_title", "too_close"]
 
 
 # ---------------------------------------------------------------------------
