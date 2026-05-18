@@ -18,6 +18,15 @@ Usage:
     # Custom output:
     python apps/api/scripts/seed_deezer.py --output my_features.jsonl
 
+    # Playlist-based crawl (discovers new artists via Deezer playlists):
+    python apps/api/scripts/seed_deezer.py --mode playlist --workers 4
+
+    # Playlist crawl with custom queries:
+    python apps/api/scripts/seed_deezer.py --mode playlist --playlist-queries "techno" "hard techno" --workers 4
+
+    # Playlist crawl, crawl-only (no extraction):
+    python apps/api/scripts/seed_deezer.py --mode playlist --crawl-only
+
 Checkpoint file: seed_deezer_checkpoint.json (in this script's directory)
 """
 
@@ -225,6 +234,51 @@ SEED_ARTIST_NAMES: list[str] = [
     "Henry Saiz", "Nick Warren", "Cid Inc", "GMJ",
 ]
 
+PLAYLIST_QUERIES: list[str] = [
+    "techno", "tech house", "deep house", "minimal techno",
+    "melodic techno", "hard techno", "industrial techno",
+    "progressive house", "electro house", "trance",
+    "drum and bass", "liquid dnb", "neurofunk",
+    "dubstep", "ambient electronic", "downtempo",
+    "IDM", "breakbeat", "psytrance", "hardstyle",
+    "acid techno", "detroit techno", "berlin techno",
+    "electronic music 2026", "electronic music 2025",
+    "underground techno", "afterhour", "rave",
+]
+
+
+def load_existing_deezer_ids() -> set[str]:
+    """Load all deezer_ids already in the DB to skip duplicates."""
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_ANON_KEY")
+    if not url or not key:
+        logger.warning("SUPABASE_URL/SUPABASE_ANON_KEY not set — skipping DB dedup")
+        return set()
+
+    existing: set[str] = set()
+    offset = 0
+    batch_size = 1000
+    while True:
+        req_url = (
+            f"{url}/rest/v1/songs?select=deezer_id"
+            f"&deezer_id=not.is.null&order=id&offset={offset}&limit={batch_size}"
+        )
+        req = urllib.request.Request(req_url, headers={
+            "apikey": key, "Authorization": f"Bearer {key}", "Accept": "application/json",
+        })
+        try:
+            resp = urllib.request.urlopen(req, timeout=30)
+            data = json.loads(resp.read().decode("utf-8"))
+        except Exception as exc:
+            logger.warning("DB dedup fetch failed at offset %d: %s", offset, exc)
+            break
+        if not data:
+            break
+        existing.update(str(row["deezer_id"]) for row in data if row.get("deezer_id"))
+        offset += batch_size
+    logger.info("Loaded %d existing deezer_ids from DB", len(existing))
+    return existing
+
 
 def resolve_artist_id(name: str) -> dict | None:
     """Look up artist by name via Deezer search. Returns {id, name} or None."""
@@ -391,6 +445,97 @@ def crawl_tracks(
         len(tracks),
         len(seen_artist_ids),
     )
+    return tracks
+
+
+def crawl_playlist_tracks(
+    queries: list[str],
+    min_playlist_tracks: int = 50,
+    playlists_per_query: int = 100,
+    tracks_per_playlist: int = 500,
+    top_limit: int = 50,
+    existing_ids: set[str] | None = None,
+) -> list[dict]:
+    """Discover Electronic tracks via Deezer playlist search."""
+    from urllib.parse import quote
+
+    if existing_ids is None:
+        existing_ids = set()
+
+    seen_track_ids: set[int] = set()
+    seen_artist_ids: set[int] = set()
+    skipped_artists: set[int] = set()
+    tracks: list[dict] = []
+    playlist_count = 0
+    artist_candidates: dict[int, str] = {}
+
+    # Phase 1: Collect artist IDs from playlists
+    for query in queries:
+        logger.info("Searching playlists for: %s", query)
+        time.sleep(API_DELAY)
+        playlists = deezer_get_all(
+            f"/search/playlist?q={quote(query)}&limit={playlists_per_query}",
+            limit=playlists_per_query,
+        )
+        qualifying = [p for p in playlists if p.get("nb_tracks", 0) >= min_playlist_tracks]
+        logger.info("  %d playlists found, %d with %d+ tracks", len(playlists), len(qualifying), min_playlist_tracks)
+
+        for playlist in qualifying:
+            pid = playlist.get("id")
+            if not pid:
+                continue
+            playlist_count += 1
+            time.sleep(API_DELAY)
+            pl_tracks = deezer_get_all(f"/playlist/{pid}/tracks?limit=100", limit=tracks_per_playlist)
+            for t in pl_tracks:
+                artist = t.get("artist", {})
+                aid = artist.get("id")
+                aname = artist.get("name", f"Artist {aid}")
+                if aid and aid not in artist_candidates:
+                    artist_candidates[aid] = aname
+            logger.info("  Playlist %d: %d tracks, %d unique artists so far", pid, len(pl_tracks), len(artist_candidates))
+
+    logger.info("Phase 1 complete: %d playlists scanned, %d candidate artists", playlist_count, len(artist_candidates))
+
+    # Phase 2: For each new artist, genre-check + fetch top tracks
+    for i, (artist_id, artist_name) in enumerate(artist_candidates.items()):
+        if artist_id in seen_artist_ids or artist_id in skipped_artists:
+            continue
+        if not is_electronic_artist(artist_id):
+            skipped_artists.add(artist_id)
+            continue
+        seen_artist_ids.add(artist_id)
+
+        top_tracks = deezer_get_all(f"/artist/{artist_id}/top?limit={top_limit}", limit=top_limit)
+        new_count = 0
+        for t in top_tracks:
+            tid = t.get("id")
+            if not tid or tid in seen_track_ids:
+                continue
+            if str(tid) in existing_ids:
+                continue
+            preview = t.get("preview")
+            if not preview:
+                continue
+            seen_track_ids.add(tid)
+            new_count += 1
+            tracks.append({
+                "deezer_id": tid,
+                "title": t.get("title", ""),
+                "artist": artist_name,
+                "artist_id": artist_id,
+                "album": t.get("album", {}).get("title", ""),
+                "duration": t.get("duration", 0),
+                "preview_url": preview,
+                "release_year": None,
+                "genre_id": None,
+            })
+        if new_count > 0:
+            logger.info("[%d/%d] %s: %d new tracks (total: %d)", i + 1, len(artist_candidates), artist_name, new_count, len(tracks))
+        if (i + 1) % 100 == 0:
+            logger.info("Progress: %d/%d artists, %d tracks, %d skipped", i + 1, len(artist_candidates), len(tracks), len(skipped_artists))
+
+    logger.info("Playlist crawl complete: %d tracks from %d artists (%d skipped, %d playlists)", len(tracks), len(seen_artist_ids), len(skipped_artists), playlist_count)
     return tracks
 
 
@@ -616,6 +761,24 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Use cached track list from JSON file (skip crawl phase)",
     )
+    parser.add_argument(
+        "--mode",
+        choices=["artists", "playlist"],
+        default="artists",
+        help="Crawl mode: 'artists' (seed + related) or 'playlist' (Deezer playlist search)",
+    )
+    parser.add_argument(
+        "--playlist-queries",
+        nargs="+",
+        default=None,
+        help="Custom playlist search queries (default: built-in list)",
+    )
+    parser.add_argument(
+        "--min-playlist-tracks",
+        type=int,
+        default=50,
+        help="Min tracks for playlist to qualify (default: 50)",
+    )
     return parser.parse_args()
 
 
@@ -626,17 +789,6 @@ def main() -> None:
         logger.error("Extract script not found at '%s'", EXTRACT_SCRIPT)
         sys.exit(1)
 
-    # --- Resolve seed artist IDs via Deezer search ---
-    names = SEED_ARTIST_NAMES
-    if args.limit_artists:
-        names = names[: args.limit_artists]
-    logger.info("Resolving %d seed artists via Deezer search...", len(names))
-    seeds = resolve_seed_artists(names)
-    if not seeds:
-        logger.error("Could not resolve any seed artists. Exiting.")
-        sys.exit(1)
-    logger.info("Using %d seed artists", len(seeds))
-
     # --- Load or crawl tracks ---
     tracks_cache = SCRIPT_DIR / "deezer_tracks.json"
     if args.tracks_json:
@@ -646,7 +798,34 @@ def main() -> None:
         with open(tracks_cache, encoding="utf-8") as f:
             tracks = json.load(f)
         logger.info("Loaded %d cached tracks from '%s'", len(tracks), tracks_cache)
+    elif args.mode == "playlist":
+        queries = args.playlist_queries if args.playlist_queries else PLAYLIST_QUERIES
+        logger.info("Starting playlist crawl with %d queries...", len(queries))
+        existing_ids = load_existing_deezer_ids()
+        tracks = crawl_playlist_tracks(
+            queries=queries,
+            min_playlist_tracks=args.min_playlist_tracks,
+            existing_ids=existing_ids,
+        )
+        if not tracks:
+            logger.error("No tracks found. Exiting.")
+            sys.exit(1)
+        # Always cache the track list for resume
+        with open(tracks_cache, "w", encoding="utf-8") as f:
+            json.dump(tracks, f, ensure_ascii=False)
+        logger.info("Cached %d tracks to '%s'", len(tracks), tracks_cache)
     else:
+        # --- Resolve seed artist IDs via Deezer search ---
+        names = SEED_ARTIST_NAMES
+        if args.limit_artists:
+            names = names[: args.limit_artists]
+        logger.info("Resolving %d seed artists via Deezer search...", len(names))
+        seeds = resolve_seed_artists(names)
+        if not seeds:
+            logger.error("Could not resolve any seed artists. Exiting.")
+            sys.exit(1)
+        logger.info("Using %d seed artists", len(seeds))
+
         logger.info("Starting Deezer crawl (related_depth=%d)...", args.related_depth)
         tracks = crawl_tracks(
             seeds,

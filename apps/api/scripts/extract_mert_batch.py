@@ -117,6 +117,64 @@ def upload_embedding(job: SongJob, sb) -> bool:
             return False
 
 
+def count_pending_songs(sb) -> int | None:
+    """Count current MERT candidates once for saner ETA/progress reporting."""
+    try:
+        return (
+            sb.table("songs")
+            .select("id", count="exact", head=True)
+            .is_("mert_embedding", "null")
+            .not_.is_("deezer_id", "null")
+            .execute()
+            .count
+        )
+    except Exception as exc:
+        logger.warning("Could not count pending MERT songs: %s", exc)
+        return None
+
+
+def fetch_batch_window(sb, processed_ids: set[str], fetch_target: int, page_size: int) -> tuple[list[SongJob], set[str]]:
+    """Fetch enough rows to fill a batch even if many early rows are already in the checkpoint."""
+    jobs: list[SongJob] = []
+    stale_ids: set[str] = set()
+    offset = 0
+
+    while len(jobs) < fetch_target:
+        result = (
+            sb.table("songs")
+            .select("id, deezer_id, artist, title")
+            .is_("mert_embedding", "null")
+            .not_.is_("deezer_id", "null")
+            .order("created_at", desc=False)
+            .range(offset, offset + page_size - 1)
+            .execute()
+        )
+        songs = result.data or []
+        if not songs:
+            break
+
+        offset += len(songs)
+
+        for s in songs:
+            sid = str(s["id"])
+            if sid in processed_ids:
+                stale_ids.add(sid)
+                continue
+            jobs.append(SongJob(
+                id=sid,
+                deezer_id=s["deezer_id"],
+                artist=s["artist"],
+                title=s["title"],
+            ))
+            if len(jobs) >= fetch_target:
+                break
+
+        if len(songs) < page_size:
+            break
+
+    return jobs, stale_ids
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Batch extract MERT embeddings (pipelined)")
     parser.add_argument("--apply", action="store_true", help="Store in DB")
@@ -127,8 +185,16 @@ def main() -> None:
     parser.add_argument("--checkpoint", type=str, default="mert_checkpoint.json")
     args = parser.parse_args()
 
-    import torch
-    from transformers import AutoModel, Wav2Vec2FeatureExtractor
+    try:
+        import torch
+        from transformers import AutoModel, Wav2Vec2FeatureExtractor
+    except ModuleNotFoundError as exc:
+        missing = exc.name or "torch/transformers"
+        raise SystemExit(
+            "Missing MERT dependency: "
+            f"{missing}. Install the local extra first with "
+            "`uv pip install --python .venv/bin/python '.[mert]'`."
+        ) from exc
 
     # Device selection
     if torch.backends.mps.is_available():
@@ -156,8 +222,11 @@ def main() -> None:
         processed_ids = set(json.loads(checkpoint_path.read_text()))
         logger.info("Resuming from checkpoint: %d songs done", len(processed_ids))
 
-    stats = {"extracted": 0, "failed": 0, "no_preview": 0, "skipped": 0}
-    total_processed = 0
+    pending_total = count_pending_songs(sb)
+    if pending_total is not None:
+        logger.info("Pending songs with Deezer previews: %d", pending_total)
+
+    stats = {"attempted": 0, "extracted": 0, "failed": 0, "no_preview": 0, "checkpoint_skips": 0}
     max_songs = args.limit or float("inf")
     start_time = time.time()
     temp_dir = tempfile.mkdtemp(prefix="mert_batch_")
@@ -169,22 +238,14 @@ def main() -> None:
     MAX_CONSECUTIVE_ERRORS = 5
 
     try:
-        while total_processed < max_songs:
-            # Fetch batch from DB (with retry)
-            fetch_limit = min(args.db_batch, int(max_songs - total_processed)) if args.limit else args.db_batch
-            songs = None
+        while stats["attempted"] < max_songs:
+            # Fetch enough rows to build a useful batch even with checkpoint hits at the front.
+            fetch_limit = min(args.db_batch, int(max_songs - stats["attempted"])) if args.limit else args.db_batch
+            jobs = None
+            stale_ids: set[str] = set()
             for retry in range(3):
                 try:
-                    result = (
-                        sb.table("songs")
-                        .select("id, deezer_id, artist, title")
-                        .is_("mert_embedding", "null")
-                        .not_.is_("deezer_id", "null")
-                        .order("created_at", desc=False)
-                        .limit(fetch_limit)
-                        .execute()
-                    )
-                    songs = result.data or []
+                    jobs, stale_ids = fetch_batch_window(sb, processed_ids, fetch_limit, args.db_batch)
                     consecutive_errors = 0
                     break
                 except Exception as exc:
@@ -192,7 +253,7 @@ def main() -> None:
                     logger.warning("DB fetch failed (attempt %d/3), retry in %ds: %s", retry + 1, wait, exc)
                     time.sleep(wait)
 
-            if songs is None:
+            if jobs is None:
                 consecutive_errors += 1
                 logger.error("DB fetch failed 3 times (%d/%d consecutive)", consecutive_errors, MAX_CONSECUTIVE_ERRORS)
                 if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
@@ -200,34 +261,24 @@ def main() -> None:
                     break
                 continue
 
-            if not songs:
+            stats["checkpoint_skips"] += len(stale_ids)
+
+            if not jobs:
+                if stale_ids:
+                    # Only stale checkpoint hits remain in the current result set.
+                    # Clear them once so a retry can re-attempt transient failures.
+                    processed_ids -= stale_ids
+                    logger.info("Cleared %d stale checkpoint entries, retrying...", len(stale_ids))
+                    checkpoint_path.write_text(json.dumps(list(processed_ids)))
+                    continue
                 logger.info("No more songs to process.")
                 break
 
-            # Filter already processed
-            jobs = []
-            for s in songs:
-                sid = str(s["id"])
-                if sid in processed_ids:
-                    stats["skipped"] += 1
-                    total_processed += 1
-                    continue
-                jobs.append(SongJob(id=sid, deezer_id=s["deezer_id"],
-                                    artist=s["artist"], title=s["title"]))
-
-            if not jobs:
-                # All songs in this batch are in checkpoint but still NULL in DB.
-                # These are permanent failures (no preview, extraction error).
-                # Remove them from checkpoint so the query can advance past them
-                # on next run. They'll be re-attempted once, then re-added.
-                stale = {str(s["id"]) for s in songs} & processed_ids
-                if stale:
-                    processed_ids -= stale
-                    logger.info("Cleared %d stale checkpoint entries, retrying...", len(stale))
-                    checkpoint_path.write_text(json.dumps(list(processed_ids)))
-                continue
-
-            logger.info("=== Batch: %d jobs (total: %d) ===", len(jobs), total_processed)
+            stats["attempted"] += len(jobs)
+            logger.info(
+                "=== Batch: %d jobs (attempted: %d, checkpoint_skips: %d) ===",
+                len(jobs), stats["attempted"], stats["checkpoint_skips"],
+            )
 
             # Stage 1: Parallel download + decode
             download_futures = {download_pool.submit(fetch_and_decode, job, temp_dir): job for job in jobs}
@@ -241,7 +292,6 @@ def main() -> None:
                     else:
                         stats["failed"] += 1
                     processed_ids.add(job.id)
-                    total_processed += 1
                     continue
                 ready_jobs.append(job)
 
@@ -271,7 +321,6 @@ def main() -> None:
                 elif job.embedding:
                     stats["extracted"] += 1
                 processed_ids.add(job.id)
-                total_processed += 1
 
             # Wait for uploads to finish
             for f in as_completed(upload_futures):
@@ -281,12 +330,20 @@ def main() -> None:
 
             # Progress + checkpoint
             elapsed = time.time() - start_time
-            rate = total_processed / elapsed if elapsed > 0 else 0
-            remaining = (121000 - total_processed) / rate / 3600 if rate > 0 else 0
-            logger.info(
-                "Progress: %d | extracted=%d failed=%d | %.1f songs/s | ETA: %.1fh",
-                total_processed, stats["extracted"], stats["failed"], rate, remaining,
-            )
+            rate = stats["attempted"] / elapsed if elapsed > 0 else 0
+            if pending_total is not None and rate > 0:
+                remaining = max(0, pending_total - stats["attempted"]) / rate / 3600
+                logger.info(
+                    "Progress: attempted=%d/%d extracted=%d no_preview=%d failed=%d checkpoint_skips=%d | %.1f songs/s | ETA: %.1fh",
+                    stats["attempted"], pending_total, stats["extracted"], stats["no_preview"],
+                    stats["failed"], stats["checkpoint_skips"], rate, remaining,
+                )
+            else:
+                logger.info(
+                    "Progress: attempted=%d extracted=%d no_preview=%d failed=%d checkpoint_skips=%d | %.1f songs/s",
+                    stats["attempted"], stats["extracted"], stats["no_preview"],
+                    stats["failed"], stats["checkpoint_skips"], rate,
+                )
             checkpoint_path.write_text(json.dumps(list(processed_ids)))
 
     finally:
@@ -300,9 +357,9 @@ def main() -> None:
 
     elapsed = time.time() - start_time
     logger.info(
-        "Done! extracted=%d failed=%d no_preview=%d skipped=%d (%.1f min, %.1f songs/s)",
-        stats["extracted"], stats["failed"], stats["no_preview"],
-        stats["skipped"], elapsed / 60, total_processed / elapsed if elapsed > 0 else 0,
+        "Done! attempted=%d extracted=%d failed=%d no_preview=%d checkpoint_skips=%d (%.1f min, %.1f songs/s)",
+        stats["attempted"], stats["extracted"], stats["failed"], stats["no_preview"],
+        stats["checkpoint_skips"], elapsed / 60, stats["attempted"] / elapsed if elapsed > 0 else 0,
     )
 
 
