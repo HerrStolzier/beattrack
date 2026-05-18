@@ -103,6 +103,36 @@ def test_bpm_delta_ignores_missing_or_invalid_values():
     assert eval_similarity._bpm_delta(120, 128) == pytest.approx(8)
 
 
+def test_discovery_penalty_summary_counts_visible_penalties():
+    rows = [
+        {"discovery_penalty": 0.06},
+        {"discovery_penalty": 0.00},
+        {"discovery_penalty": 0.02},
+        {"discovery_penalty": 0.50},
+    ]
+
+    summary = eval_similarity._discovery_penalty_summary(rows, limit=3)
+
+    assert summary == {
+        "penalized_result_count": 2,
+        "total_discovery_penalty": pytest.approx(0.08),
+        "avg_discovery_penalty": pytest.approx(0.08 / 3),
+        "max_discovery_penalty": pytest.approx(0.06),
+    }
+
+
+def test_format_discovery_penalty_summary_is_compact():
+    rows = [{"discovery_penalty": 0.06}, {"discovery_penalty": 0.0}]
+
+    line = eval_similarity._format_discovery_penalty_summary(rows, limit=2)
+
+    assert line == "penalized=1/2 total=0.060 avg=0.030 max=0.060"
+
+
+def test_format_discovery_penalty_summary_hides_empty_summary():
+    assert eval_similarity._format_discovery_penalty_summary([{"discovery_penalty": 0}], limit=1) is None
+
+
 def test_snapshot_rows_keep_compact_result_fields():
     rows = [
         {
@@ -182,6 +212,11 @@ def test_snapshot_review_summary_counts_review_signals():
                     "balanced": {
                         "rank_changes": ["A: down 1", "B: up 1"],
                         "bpm_drift_warnings": ["#1 A: bpm_delta=20.0"],
+                        "discovery_penalty_summary": {
+                            "penalized_result_count": 2,
+                            "total_discovery_penalty": 0.10,
+                            "max_discovery_penalty": 0.06,
+                        },
                         "scores": {
                             "discovery": [
                                 {"discovery_penalty_reasons": ["same_artist", "too_close"]},
@@ -201,4 +236,7 @@ def test_snapshot_review_summary_counts_review_signals():
         "penalty_reason_counts": {"same_artist": 2, "too_close": 1},
         "rank_change_count": 2,
         "bpm_drift_warning_count": 1,
+        "penalized_result_count": 2,
+        "total_discovery_penalty": 0.10,
+        "max_discovery_penalty": 0.06,
     }

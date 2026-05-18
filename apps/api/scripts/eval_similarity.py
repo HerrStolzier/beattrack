@@ -236,6 +236,31 @@ def _format_bpm_drift_notes(song: dict[str, Any], rows: list[dict[str, Any]], li
     return [line for _, line in notes[:5]]
 
 
+def _discovery_penalty_summary(rows: list[dict[str, Any]], limit: int) -> dict[str, Any]:
+    """Summarize how strongly discovery scoring changed a visible result list."""
+    visible = rows[:limit]
+    penalties = [float(row.get("discovery_penalty", 0.0)) for row in visible]
+    penalized = [penalty for penalty in penalties if penalty > 0]
+    return {
+        "penalized_result_count": len(penalized),
+        "total_discovery_penalty": sum(penalties),
+        "avg_discovery_penalty": (sum(penalties) / len(visible)) if visible else 0.0,
+        "max_discovery_penalty": max(penalties, default=0.0),
+    }
+
+
+def _format_discovery_penalty_summary(rows: list[dict[str, Any]], limit: int) -> str | None:
+    summary = _discovery_penalty_summary(rows, limit)
+    if summary["penalized_result_count"] == 0:
+        return None
+    return (
+        f"penalized={summary['penalized_result_count']}/{min(limit, len(rows))} "
+        f"total={summary['total_discovery_penalty']:.3f} "
+        f"avg={summary['avg_discovery_penalty']:.3f} "
+        f"max={summary['max_discovery_penalty']:.3f}"
+    )
+
+
 def _snapshot_rows(rows: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
     snapshot: list[dict[str, Any]] = []
     for rank, row in enumerate(rows[:limit], start=1):
@@ -287,11 +312,21 @@ def _snapshot_review_summary(snapshot: dict[str, Any]) -> dict[str, Any]:
     penalty_reasons: Counter[str] = Counter()
     rank_change_count = 0
     bpm_warning_count = 0
+    penalized_result_count = 0
+    total_discovery_penalty = 0.0
+    max_discovery_penalty = 0.0
 
     for query in snapshot.get("queries", []):
         for strategy in query.get("strategies", {}).values():
             rank_change_count += len(strategy.get("rank_changes", []))
             bpm_warning_count += len(strategy.get("bpm_drift_warnings", []))
+            penalty_summary = strategy.get("discovery_penalty_summary", {})
+            penalized_result_count += int(penalty_summary.get("penalized_result_count", 0))
+            total_discovery_penalty += float(penalty_summary.get("total_discovery_penalty", 0.0))
+            max_discovery_penalty = max(
+                max_discovery_penalty,
+                float(penalty_summary.get("max_discovery_penalty", 0.0)),
+            )
             for score_rows in strategy.get("scores", {}).values():
                 for row in score_rows:
                     penalty_reasons.update(row.get("discovery_penalty_reasons", []))
@@ -300,6 +335,9 @@ def _snapshot_review_summary(snapshot: dict[str, Any]) -> dict[str, Any]:
         "penalty_reason_counts": dict(sorted(penalty_reasons.items())),
         "rank_change_count": rank_change_count,
         "bpm_drift_warning_count": bpm_warning_count,
+        "penalized_result_count": penalized_result_count,
+        "total_discovery_penalty": total_discovery_penalty,
+        "max_discovery_penalty": max_discovery_penalty,
     }
 
 
@@ -399,6 +437,9 @@ def run_read_only_eval(
                     print("BPM drift warnings:")
                     for note in bpm_notes:
                         print(f"- {note}")
+                penalty_line = _format_discovery_penalty_summary(discovery_rows, limit)
+                if penalty_line:
+                    print(f"Discovery penalty summary: {penalty_line}")
             if query_snapshot is not None:
                 strategy_snapshot = {
                     "scores": {
@@ -409,6 +450,10 @@ def run_read_only_eval(
                 if score_mode == "both":
                     strategy_snapshot["rank_changes"] = changes
                     strategy_snapshot["bpm_drift_warnings"] = bpm_notes
+                    strategy_snapshot["discovery_penalty_summary"] = _discovery_penalty_summary(
+                        discovery_rows,
+                        limit,
+                    )
                 query_snapshot["strategies"][strategy] = strategy_snapshot
 
     print(f"\nSummary: found={found} missing={missing} total={len(queries)}")
