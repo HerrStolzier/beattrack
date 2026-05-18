@@ -19,7 +19,11 @@ const fadeInUp = {
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.1, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as const },
+    transition: {
+      delay: i * 0.1,
+      duration: 0.5,
+      ease: [0.25, 0.46, 0.45, 0.94] as const,
+    },
   }),
 };
 
@@ -66,7 +70,7 @@ export default function Home() {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
               >
-                Finde deinen nächsten Track
+                Finde weniger offensichtliche Tracks, die trotzdem passen
               </motion.p>
             </div>
             <AudioWaveform className="hidden sm:flex" />
@@ -91,7 +95,9 @@ export default function Home() {
       <footer className="mx-auto mt-auto w-full max-w-6xl px-4 py-8">
         <div className="h-px bg-gradient-to-r from-transparent via-amber/40 to-transparent" />
         <div className="glass-premium-noise mt-px flex flex-col items-center gap-3 rounded-b-xl px-4 pt-6 pb-4 sm:flex-row sm:justify-between">
-          <p className="text-xs text-text-tertiary">beattrack — Finde deinen nächsten Track</p>
+          <p className="text-xs text-text-tertiary">
+            beattrack — Weniger offensichtliche Tracks finden
+          </p>
           <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
             <a
               ref={bookmarkletRef}
@@ -103,13 +109,22 @@ export default function Home() {
             >
               Ähnliche finden
             </a>
-            <a href="/impressum" className="px-2 py-1 text-xs text-text-tertiary transition-colors hover:text-amber-light">
+            <a
+              href="/impressum"
+              className="px-2 py-1 text-xs text-text-tertiary transition-colors hover:text-amber-light"
+            >
               Impressum
             </a>
-            <a href="/privacy" className="px-2 py-1 text-xs text-text-tertiary transition-colors hover:text-amber-light">
+            <a
+              href="/privacy"
+              className="px-2 py-1 text-xs text-text-tertiary transition-colors hover:text-amber-light"
+            >
               Datenschutz
             </a>
-            <a href="/nutzungsbedingungen" className="px-2 py-1 text-xs text-text-tertiary transition-colors hover:text-amber-light">
+            <a
+              href="/nutzungsbedingungen"
+              className="px-2 py-1 text-xs text-text-tertiary transition-colors hover:text-amber-light"
+            >
               Nutzungsbedingungen
             </a>
           </div>
