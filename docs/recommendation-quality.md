@@ -41,8 +41,12 @@ Each query contains:
 - `label`
 - `expected_traits`
 - `avoid_traits`
+- `known_bad`
+- `too_obvious`
+- `duplicate_risks`
+- `discovery_intent`
 
-This is intentionally small at first. It should grow only with examples that are useful for judging sonic behavior.
+This is intentionally curated rather than exhaustive. It should grow only with examples that are useful for judging sonic behavior.
 
 ## How To Run
 
@@ -60,11 +64,53 @@ cd apps/api
 .venv/bin/python scripts/eval_similarity.py --limit 10
 ```
 
+For a faster smoke check over only the first few curated seeds:
+
+```bash
+cd apps/api
+.venv/bin/python scripts/eval_similarity.py --query-limit 3 --limit 5
+```
+
 To compare fusion-weight candidates without changing production behavior:
 
 ```bash
 cd apps/api
 .venv/bin/python scripts/eval_similarity.py --limit 5 --strategies balanced,acoustic,embedding
+```
+
+To compare raw similarity with the conservative discovery score:
+
+```bash
+cd apps/api
+.venv/bin/python scripts/eval_similarity.py --limit 5 --score-mode both
+```
+
+To save a compact JSON snapshot for before/after comparison:
+
+```bash
+cd apps/api
+.venv/bin/python scripts/eval_similarity.py --query-limit 5 --limit 5 --score-mode both --snapshot-out /tmp/beattrack-eval.json
+```
+
+To compare two saved evaluation snapshots:
+
+```bash
+cd apps/api
+.venv/bin/python scripts/compare_eval_snapshots.py /tmp/before.json /tmp/after.json
+```
+
+To inspect negative feedback reason tags:
+
+```bash
+cd apps/api
+.venv/bin/python scripts/report_feedback_reasons.py --limit 1000
+```
+
+For automation or saved reports:
+
+```bash
+cd apps/api
+.venv/bin/python scripts/report_feedback_reasons.py --limit 1000 --format json
 ```
 
 Required env vars:
@@ -100,18 +146,39 @@ Practical meaning: the engine is useful enough to evaluate, but it needs a quali
 
 ## Next Improvements
 
-1. Expand from 10 to at least 30 curated Electronic queries.
-2. Add internal notes for known-good and known-bad neighbors.
-3. Store evaluation snapshots before changing ranking weights.
-4. Use feedback reason tags in reporting: `wrong_energy`, `wrong_genre`, `duplicate_version`, `too_obvious`, `bad_metadata`, `other`.
-5. Compare default fusion weights against at least two alternatives.
-6. Add a discovery-score comparison that tests duplicate/version, obviousness, and energy drift penalties.
+1. Add known-good neighbors after listening review.
+2. Store evaluation snapshots before changing ranking weights.
+3. Use feedback reason tags in reporting: `wrong_energy`, `wrong_genre`, `duplicate_version`, `too_obvious`, `bad_metadata`, `other`.
+4. Compare default fusion weights against at least two alternatives.
+5. Compare BPM drift warnings against listening notes before adding live energy drift penalties.
+
+## Live Discovery Score
+
+The production `/similar` route now applies a small discovery-score adjustment after late fusion and before dedup/MMR.
+
+In plain language: Beattrack still starts with "does this sound close?", but it gently pushes down results that are likely to feel too obvious, such as the same artist, the same base title, or an almost identical neighbor.
+
+The score currently stores the original fused value as `sonic_similarity` internally, then returns the adjusted score as `similarity`. It also keeps internal `discovery_penalty_reasons` so evaluation output can explain whether a candidate was pushed down for `same_artist`, `same_title`, or `too_close`.
+
+Current penalties:
+
+- Same artist: small penalty.
+- Same base title: stronger version/duplicate penalty.
+- Extremely high sonic similarity: small saturation penalty, because very-near neighbors are often edits, versions, or obvious catalog neighbors.
+
+This is deliberately conservative. It should improve the first result list without turning discovery into random novelty.
+
+The evaluation helper can now print raw and discovery-scored rankings from the same candidate pool via `--score-mode both`. It also prints a short `Rank changes` summary so obvious demotions and fresh-result promotions are easier to inspect. When comparing both modes, it flags top-result BPM differences of 12 BPM or more as `BPM drift warnings`; these are review notes only and do not change production ranking. Use `--snapshot-out` to persist a compact JSON snapshot with query metadata, fixture review notes, scores, rank changes, BPM warnings, summary counts, and a top-level `review_summary` with penalty-reason counts. Use `scripts/compare_eval_snapshots.py` to compare those review-summary counts before and after ranking changes.
+
+The fixture now contains 31 curated Electronic seeds with discovery intent notes, too-obvious examples, duplicate/version risks, and known-bad result patterns. In practice, this is the first safety check before tuning penalties: the same input list should reveal whether same-artist, same-title, too-close, or high-BPM-drift results move down without breaking the sonic fit of the top results.
 
 ## Feedback Reason Tags
 
 Negative result feedback now stores a short reason tag in `feedback.reason_tag`.
 
 This is intentionally simple. A user can still say "Passt nicht", but the app now asks why. That turns a vague downvote into a signal the ranking work can use later.
+
+The read-only helper `scripts/report_feedback_reasons.py` summarizes recent negative feedback by reason tag and can print either text or JSON. It also includes a suggested ranking check for each reason, such as reviewing BPM drift for `wrong_energy` or base-title deduplication for `duplicate_version`. These suggestions are review prompts, not automatic ranking changes. This is the first lightweight bridge from collected feedback to ranking work: if `wrong_energy`, `duplicate_version`, or `too_obvious` dominates, the next ranking experiment should target that failure mode first.
 
 The database change lives in:
 

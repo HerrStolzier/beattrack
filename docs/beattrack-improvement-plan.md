@@ -173,6 +173,8 @@ In simple words: first make sure the house is tidy and the doors close properly.
 - **Validation**:
   - `cd apps/api && .venv/bin/python scripts/eval_similarity.py --limit 10`
 
+**Status 2026-05-17**: Fixture expanded to 31 curated Electronic query songs. Each case includes expected traits, avoid traits, known-bad result patterns, too-obvious examples, duplicate/version risks, and a plain discovery intent note. Remaining work: add known-good neighbors after listening review and store real evaluation snapshots.
+
 ### Task 3.2: Log And Inspect Bad Matches
 
 - **Location**:
@@ -188,6 +190,8 @@ In simple words: first make sure the house is tidy and the doors close properly.
 - **Validation**:
   - Backend feedback tests.
   - Frontend component tests.
+
+**Status 2026-05-17**: Feedback requests can include reason tags, and `apps/api/scripts/report_feedback_reasons.py` now provides a read-only text or JSON summary over recent negative feedback reasons with suggested ranking checks per reason. Remaining work: run it with Supabase env vars, review dominant failure modes weekly, and connect repeated reasons to specific ranking experiments.
 
 ### Task 3.3: Tune Fusion Weights With Evaluation
 
@@ -219,6 +223,8 @@ In simple words: first make sure the house is tidy and the doors close properly.
   - Decision notes include examples where the score helps and hurts.
 - **Validation**:
   - `cd apps/api && .venv/bin/python scripts/eval_similarity.py --limit 10`
+
+**Status 2026-05-17**: First conservative production version implemented in `apps/api/app/routes/similar.py`. It applies small same-artist, same-base-title, and too-close-result penalties after fusion and before dedup/MMR, and keeps internal penalty reasons for evaluation explainability. `apps/api/scripts/eval_similarity.py` can compare raw and discovery-scored rankings with `--score-mode both`, prints a short rank-change summary, flags 12+ BPM top-result drift for easier listening review, can persist compact JSON snapshots with fixture review notes and a top-level `review_summary` via `--snapshot-out`, supports quick smoke runs with `--query-limit`, and `apps/api/scripts/compare_eval_snapshots.py` can compare before/after review-summary deltas. Remaining work: compare live examples with Supabase env vars, decide whether BPM drift should become a live penalty, add richer energy/intensity drift only with evidence, and tune based on reason-tag feedback.
 
 ## Sprint 4: Jobs, External APIs, And Reliability
 

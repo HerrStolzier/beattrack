@@ -4,69 +4,343 @@
     "artist": "Charlotte de Witte",
     "title": "Sgadi Li Mi",
     "expected_traits": ["driving", "dark", "peak-time", "techno"],
-    "avoid_traits": ["downtempo", "ambient", "vocal pop"]
+    "avoid_traits": ["downtempo", "ambient", "vocal pop"],
+    "known_bad": ["ambient or chill-out results in the top 3"],
+    "too_obvious": ["Charlotte de Witte catalog neighbors"],
+    "duplicate_risks": ["radio edit", "extended mix", "remix variants"],
+    "discovery_intent": "Find darker club tracks with similar pressure, not just the same artist lane."
   },
   {
     "label": "melodic techno lift",
     "artist": "ARTBAT",
     "title": "Return to Oz",
     "expected_traits": ["melodic", "progressive", "wide", "club"],
-    "avoid_traits": ["industrial", "breakbeat", "minimal dry"]
+    "avoid_traits": ["industrial", "breakbeat", "minimal dry"],
+    "known_bad": ["dry minimal techno with little harmonic movement"],
+    "too_obvious": ["Tale Of Us", "Anyma", "ARTBAT remixes"],
+    "duplicate_risks": ["remix", "edit", "live version"],
+    "discovery_intent": "Find emotionally wide melodic tracks without collapsing into the most obvious melodic-techno names."
   },
   {
     "label": "deep house groove",
     "artist": "Peggy Gou",
     "title": "It Makes You Forget",
     "expected_traits": ["deep house", "warm", "groovy", "dance"],
-    "avoid_traits": ["hard techno", "ambient drone", "metallic"]
+    "avoid_traits": ["hard techno", "ambient drone", "metallic"],
+    "known_bad": ["hard peak-time techno", "ambient drone"],
+    "too_obvious": ["Peggy Gou catalog neighbors"],
+    "duplicate_risks": ["radio edit", "remix", "club mix"],
+    "discovery_intent": "Find warm, rolling house discoveries that keep the groove but feel less platform-obvious."
   },
   {
     "label": "minimal hypnotic pulse",
     "artist": "Ricardo Villalobos",
     "title": "Easy Lee",
     "expected_traits": ["minimal", "hypnotic", "percussive", "long-form"],
-    "avoid_traits": ["anthemic", "maximal", "vocal-heavy"]
+    "avoid_traits": ["anthemic", "maximal", "vocal-heavy"],
+    "known_bad": ["big-room anthems", "short vocal-heavy house"],
+    "too_obvious": ["Ricardo Villalobos alternate mixes"],
+    "duplicate_risks": ["remaster", "edit", "mixed version"],
+    "discovery_intent": "Find patient, percussive minimal tracks with similar movement and restraint."
   },
   {
     "label": "ambient electronic texture",
     "artist": "Jon Hopkins",
     "title": "Abandon Window",
     "expected_traits": ["ambient", "textural", "slow", "cinematic"],
-    "avoid_traits": ["peak-time", "hardstyle", "high BPM"]
+    "avoid_traits": ["peak-time", "hardstyle", "high BPM"],
+    "known_bad": ["high-BPM club tracks", "aggressive techno"],
+    "too_obvious": ["Jon Hopkins album neighbors"],
+    "duplicate_risks": ["live version", "piano version", "remaster"],
+    "discovery_intent": "Find quiet electronic texture that still feels emotionally connected."
   },
   {
     "label": "breakbeat energy",
     "artist": "Bicep",
     "title": "Glue",
     "expected_traits": ["breakbeat", "emotional", "rave", "melodic"],
-    "avoid_traits": ["straight techno only", "acoustic", "ambient-only"]
+    "avoid_traits": ["straight techno only", "acoustic", "ambient-only"],
+    "known_bad": ["straight four-on-the-floor techno with no break feel"],
+    "too_obvious": ["Bicep catalog neighbors"],
+    "duplicate_risks": ["radio edit", "extended", "remix"],
+    "discovery_intent": "Find emotional breakbeat-adjacent tracks without over-serving versions of the same hit."
   },
   {
     "label": "liquid drum and bass",
     "artist": "Calibre",
     "title": "Even If",
     "expected_traits": ["drum and bass", "liquid", "rolling", "warm"],
-    "avoid_traits": ["four-on-the-floor", "hard techno", "downtempo"]
+    "avoid_traits": ["four-on-the-floor", "hard techno", "downtempo"],
+    "known_bad": [
+      "house tracks misranked by warmth",
+      "downtempo tracks without DnB rhythm"
+    ],
+    "too_obvious": ["Calibre catalog neighbors"],
+    "duplicate_risks": ["remix", "VIP", "mixed version"],
+    "discovery_intent": "Find rolling, warm DnB with energy intact."
   },
   {
     "label": "trance euphoria",
     "artist": "Paul van Dyk",
     "title": "For An Angel",
     "expected_traits": ["trance", "euphoric", "melodic", "uplifting"],
-    "avoid_traits": ["minimal", "ambient", "industrial"]
+    "avoid_traits": ["minimal", "ambient", "industrial"],
+    "known_bad": ["minimal techno with low harmonic lift"],
+    "too_obvious": ["classic trance staples only"],
+    "duplicate_risks": ["radio edit", "PvD remix", "club mix"],
+    "discovery_intent": "Find euphoric melodic momentum while avoiding duplicate classic-trance versions."
   },
   {
     "label": "electro acid snap",
     "artist": "Dopplereffekt",
     "title": "Scientist",
     "expected_traits": ["electro", "machine funk", "acid", "sparse"],
-    "avoid_traits": ["lush house", "vocal pop", "ambient wash"]
+    "avoid_traits": ["lush house", "vocal pop", "ambient wash"],
+    "known_bad": ["warm deep house ranked by synth tone alone"],
+    "too_obvious": ["Drexciya-only result clusters"],
+    "duplicate_risks": ["remaster", "edit", "live version"],
+    "discovery_intent": "Find sparse machine-funk tracks with similar snap and coldness."
   },
   {
     "label": "downtempo chill-out",
     "artist": "Bonobo",
     "title": "Kiara",
     "expected_traits": ["downtempo", "organic", "rhythmic", "warm"],
-    "avoid_traits": ["hard techno", "trance", "industrial"]
+    "avoid_traits": ["hard techno", "trance", "industrial"],
+    "known_bad": ["club tracks that match brightness but not pace"],
+    "too_obvious": ["Bonobo album neighbors"],
+    "duplicate_risks": ["radio edit", "remix"],
+    "discovery_intent": "Find warm downtempo rhythm with organic texture."
+  },
+  {
+    "label": "lo-fi outsider house",
+    "artist": "DJ Seinfeld",
+    "title": "U",
+    "expected_traits": ["lo-fi", "melancholic", "house", "dusty"],
+    "avoid_traits": ["polished EDM", "hard techno", "ambient-only"],
+    "known_bad": ["clean festival house"],
+    "too_obvious": ["DJ Seinfeld catalog neighbors"],
+    "duplicate_risks": ["remix", "edit"],
+    "discovery_intent": "Find dusty emotional house with similar haze but less obvious artist matching."
+  },
+  {
+    "label": "acid house classic",
+    "artist": "Phuture",
+    "title": "Acid Tracks",
+    "expected_traits": ["acid", "raw", "hypnotic", "house"],
+    "avoid_traits": ["lush progressive", "ambient", "pop vocal"],
+    "known_bad": ["smooth house without acid movement"],
+    "too_obvious": ["Phuture duplicates", "Acid Tracks versions"],
+    "duplicate_risks": ["remaster", "edit", "remix"],
+    "discovery_intent": "Find raw acid pressure beyond the canonical same-title versions."
+  },
+  {
+    "label": "industrial techno pressure",
+    "artist": "Regis",
+    "title": "Speak To Me",
+    "expected_traits": ["industrial", "techno", "dry", "tense"],
+    "avoid_traits": ["deep house", "trance", "downtempo"],
+    "known_bad": ["melodic techno ranked only by BPM"],
+    "too_obvious": ["Regis catalog neighbors"],
+    "duplicate_risks": ["remaster", "live version"],
+    "discovery_intent": "Find tense industrial techno with similar austerity and force."
+  },
+  {
+    "label": "dub techno depth",
+    "artist": "Basic Channel",
+    "title": "Phylyps Trak",
+    "expected_traits": ["dub techno", "hypnotic", "deep", "chord stabs"],
+    "avoid_traits": ["bright EDM", "vocal house", "hardstyle"],
+    "known_bad": ["generic techno without dub space"],
+    "too_obvious": ["Basic Channel catalog neighbors"],
+    "duplicate_risks": ["remaster", "edit", "version"],
+    "discovery_intent": "Find deep chord-driven techno without only returning the obvious Berlin canon."
+  },
+  {
+    "label": "idm intricate melody",
+    "artist": "Aphex Twin",
+    "title": "Xtal",
+    "expected_traits": ["idm", "melodic", "dreamy", "breaks"],
+    "avoid_traits": ["hard techno", "straight EDM", "vocal pop"],
+    "known_bad": ["aggressive Aphex tracks that miss the dreaminess"],
+    "too_obvious": ["Aphex Twin catalog neighbors"],
+    "duplicate_risks": ["remaster", "album version"],
+    "discovery_intent": "Find delicate electronic tracks with soft breaks and emotional melody."
+  },
+  {
+    "label": "uk garage swing",
+    "artist": "MJ Cole",
+    "title": "Sincere",
+    "expected_traits": ["uk garage", "swing", "warm", "vocal"],
+    "avoid_traits": ["straight techno", "ambient", "hard trance"],
+    "known_bad": ["house tracks without garage swing"],
+    "too_obvious": ["MJ Cole remixes"],
+    "duplicate_risks": ["radio edit", "remix", "club mix"],
+    "discovery_intent": "Find shuffled, warm garage-adjacent tracks without flattening to generic house."
+  },
+  {
+    "label": "future garage melancholy",
+    "artist": "Burial",
+    "title": "Archangel",
+    "expected_traits": ["future garage", "melancholic", "vocal chops", "night"],
+    "avoid_traits": ["bright EDM", "hard techno", "acoustic"],
+    "known_bad": ["same-BPM tracks without atmosphere"],
+    "too_obvious": ["Burial catalog neighbors"],
+    "duplicate_risks": ["remix", "edit", "bootleg"],
+    "discovery_intent": "Find night-time emotional garage textures beyond the default Burial-neighbor cluster."
+  },
+  {
+    "label": "microhouse detail",
+    "artist": "Akufen",
+    "title": "Deck The House",
+    "expected_traits": ["microhouse", "glitchy", "funky", "detailed"],
+    "avoid_traits": ["big-room", "ambient drone", "hard techno"],
+    "known_bad": ["minimal tracks with no funk or edits"],
+    "too_obvious": ["Akufen catalog neighbors"],
+    "duplicate_risks": ["edit", "remix"],
+    "discovery_intent": "Find detailed cut-up house with playful rhythmic edits."
+  },
+  {
+    "label": "electroclash vocal drive",
+    "artist": "Miss Kittin & The Hacker",
+    "title": "Frank Sinatra",
+    "expected_traits": ["electroclash", "vocal", "cold", "club"],
+    "avoid_traits": ["ambient", "organic downtempo", "hardstyle"],
+    "known_bad": ["electro tracks without vocal attitude"],
+    "too_obvious": ["Miss Kittin catalog neighbors"],
+    "duplicate_risks": ["remix", "radio edit"],
+    "discovery_intent": "Find cold vocal electro with attitude while avoiding same-era obvious duplicates."
+  },
+  {
+    "label": "leftfield bass weight",
+    "artist": "Lorn",
+    "title": "Anvil",
+    "expected_traits": ["leftfield", "bass", "dark", "cinematic"],
+    "avoid_traits": ["happy house", "trance", "bright pop"],
+    "known_bad": ["dark techno with no bass weight"],
+    "too_obvious": ["Lorn catalog neighbors"],
+    "duplicate_risks": ["remix", "instrumental"],
+    "discovery_intent": "Find heavy cinematic electronic tracks with similar gravity."
+  },
+  {
+    "label": "jungle amen pressure",
+    "artist": "Goldie",
+    "title": "Inner City Life",
+    "expected_traits": ["jungle", "breaks", "soulful", "dramatic"],
+    "avoid_traits": ["four-on-the-floor", "minimal techno", "ambient-only"],
+    "known_bad": ["liquid tracks that lose the dramatic break pressure"],
+    "too_obvious": ["Goldie remixes"],
+    "duplicate_risks": ["radio edit", "remaster", "remix"],
+    "discovery_intent": "Find break-heavy, soulful jungle that feels connected but not like the same classic again."
+  },
+  {
+    "label": "detroit techno soul",
+    "artist": "Model 500",
+    "title": "No UFO's",
+    "expected_traits": ["detroit", "techno", "electro", "soulful"],
+    "avoid_traits": ["hardstyle", "ambient drone", "generic EDM"],
+    "known_bad": ["raw electro with no melodic soul"],
+    "too_obvious": ["Juan Atkins catalog neighbors"],
+    "duplicate_risks": ["remaster", "edit"],
+    "discovery_intent": "Find early techno/electro energy with machine soul and less obvious catalog matches."
+  },
+  {
+    "label": "nu-disco glide",
+    "artist": "Todd Terje",
+    "title": "Inspector Norse",
+    "expected_traits": ["nu-disco", "playful", "bright", "groovy"],
+    "avoid_traits": ["dark industrial", "ambient", "hard techno"],
+    "known_bad": ["bright EDM without disco groove"],
+    "too_obvious": ["Todd Terje catalog neighbors"],
+    "duplicate_risks": ["radio edit", "remix"],
+    "discovery_intent": "Find playful disco-electronic movement without over-ranking obvious festival favorites."
+  },
+  {
+    "label": "balearic warmth",
+    "artist": "The Field",
+    "title": "Over The Ice",
+    "expected_traits": ["looping", "warm", "balearic", "hypnotic"],
+    "avoid_traits": ["industrial", "vocal pop", "hard trance"],
+    "known_bad": ["minimal loops that feel cold and dry"],
+    "too_obvious": ["The Field album neighbors"],
+    "duplicate_risks": ["edit", "remix"],
+    "discovery_intent": "Find warm looping electronic tracks with similar lift and patience."
+  },
+  {
+    "label": "bass music swing",
+    "artist": "Joy Orbison",
+    "title": "Hyph Mngo",
+    "expected_traits": ["bass", "garage", "melodic", "swing"],
+    "avoid_traits": ["straight techno", "ambient", "hardstyle"],
+    "known_bad": ["melodic house with no bass swing"],
+    "too_obvious": ["Joy Orbison catalog neighbors"],
+    "duplicate_risks": ["remix", "edit"],
+    "discovery_intent": "Find UK bass tracks with emotional melody and swing, not just nearby house tempo."
+  },
+  {
+    "label": "gqom percussion",
+    "artist": "DJ Lag",
+    "title": "Ice Drop",
+    "expected_traits": ["gqom", "percussive", "minimal", "dark"],
+    "avoid_traits": ["lush trance", "ambient", "vocal pop"],
+    "known_bad": ["minimal techno without syncopated percussion"],
+    "too_obvious": ["DJ Lag catalog neighbors"],
+    "duplicate_risks": ["remix", "edit"],
+    "discovery_intent": "Find sparse, percussive club tracks with similar low-end tension."
+  },
+  {
+    "label": "afro house pulse",
+    "artist": "Black Coffee",
+    "title": "We Dance Again",
+    "expected_traits": ["afro house", "warm", "percussive", "vocal"],
+    "avoid_traits": ["industrial techno", "ambient drone", "hardstyle"],
+    "known_bad": ["deep house with no percussion identity"],
+    "too_obvious": ["Black Coffee catalog neighbors"],
+    "duplicate_risks": ["radio edit", "remix", "club mix"],
+    "discovery_intent": "Find warm percussive house with similar human pulse and less obvious artist matching."
+  },
+  {
+    "label": "hardgroove techno",
+    "artist": "Ben Sims",
+    "title": "Manipulated",
+    "expected_traits": ["hardgroove", "techno", "funky", "driving"],
+    "avoid_traits": ["ambient", "trance pads", "downtempo"],
+    "known_bad": ["hard techno that loses the groove"],
+    "too_obvious": ["Ben Sims catalog neighbors"],
+    "duplicate_risks": ["remix", "remaster", "edit"],
+    "discovery_intent": "Find driving techno with groove, not only harder or faster tracks."
+  },
+  {
+    "label": "minimal dubstep weight",
+    "artist": "Skream",
+    "title": "Midnight Request Line",
+    "expected_traits": ["dubstep", "minimal", "bass", "space"],
+    "avoid_traits": ["brostep", "trance", "four-on-the-floor"],
+    "known_bad": ["aggressive bass tracks without sparse space"],
+    "too_obvious": ["Skream catalog neighbors"],
+    "duplicate_risks": ["remix", "edit"],
+    "discovery_intent": "Find sparse low-end tracks with early dubstep space and melody."
+  },
+  {
+    "label": "ambient techno float",
+    "artist": "Orbital",
+    "title": "Halcyon On and On",
+    "expected_traits": ["ambient techno", "floating", "melodic", "soft"],
+    "avoid_traits": ["industrial", "hard techno", "vocal pop"],
+    "known_bad": ["ambient tracks with no pulse at all"],
+    "too_obvious": ["Orbital catalog neighbors"],
+    "duplicate_risks": ["edit", "remaster", "live version"],
+    "discovery_intent": "Find floating electronic tracks that keep a gentle pulse and melodic glow."
+  },
+  {
+    "label": "ebm body music",
+    "artist": "Nitzer Ebb",
+    "title": "Join In The Chant",
+    "expected_traits": ["ebm", "industrial", "body music", "vocal"],
+    "avoid_traits": ["deep house", "ambient", "trance"],
+    "known_bad": ["industrial techno with no vocal/body-music feel"],
+    "too_obvious": ["Nitzer Ebb catalog neighbors"],
+    "duplicate_risks": ["remaster", "single edit", "remix"],
+    "discovery_intent": "Find physical, chant-like electronic tracks with similar stomp and attitude."
   }
 ]

@@ -11,6 +11,8 @@ Run scripts from `apps/api` with the project virtualenv:
 - `seed_deezer.py`: Deezer Electronic crawl and feature extraction.
 - `import_features.py`: imports JSONL feature rows through Supabase RPC.
 - `eval_similarity.py`: read-only recommendation quality evaluation.
+- `compare_eval_snapshots.py`: read-only before/after comparison for evaluation snapshots.
+- `report_feedback_reasons.py`: read-only negative feedback reason report.
 - `catalog_health.py`: read-only catalog health report.
 
 ## Maintenance
