@@ -32,29 +32,25 @@ describe("SearchBar", () => {
     expect(input).toHaveFocus();
   });
 
-  it("calls searchSongs after 300ms debounce on initial render", async () => {
+  it("does not search on initial render", async () => {
     const onResults = vi.fn();
     render(<SearchBar onResults={onResults} />);
 
     await vi.advanceTimersByTimeAsync(300);
 
     await waitFor(() => {
-      expect(mockSearch).toHaveBeenCalledWith("", expect.objectContaining({
-        signal: expect.any(AbortSignal),
-      }));
+      expect(mockSearch).not.toHaveBeenCalled();
       expect(onResults).toHaveBeenCalledWith([]);
     });
   });
 
-  it("passes genre filter to searchSongs", async () => {
+  it("does not search with only a genre filter and empty query", async () => {
     render(<SearchBar onResults={vi.fn()} genre="Techno" />);
 
     await vi.advanceTimersByTimeAsync(300);
 
     await waitFor(() => {
-      expect(mockSearch).toHaveBeenCalledWith("", expect.objectContaining({
-        genre: "Techno",
-      }));
+      expect(mockSearch).not.toHaveBeenCalled();
     });
   });
 
@@ -89,10 +85,26 @@ describe("SearchBar", () => {
     mockSearch.mockRejectedValue(new Error("API down"));
 
     render(<SearchBar onResults={vi.fn()} />);
+    const input = screen.getByPlaceholderText("Songs durchsuchen...");
+    await userEvent.type(input, "techno");
     await vi.advanceTimersByTimeAsync(300);
 
     await waitFor(() => {
       expect(screen.getByText("Suche fehlgeschlagen. Erneut versuchen.")).toBeInTheDocument();
+    });
+  });
+
+  it("does not search for a single character", async () => {
+    const onResults = vi.fn();
+    render(<SearchBar onResults={onResults} />);
+
+    const input = screen.getByPlaceholderText("Songs durchsuchen...");
+    await userEvent.type(input, "t");
+    await vi.advanceTimersByTimeAsync(300);
+
+    await waitFor(() => {
+      expect(mockSearch).not.toHaveBeenCalled();
+      expect(onResults).toHaveBeenLastCalledWith([]);
     });
   });
 });

@@ -20,6 +20,15 @@ export default function SearchBar({ onResults, genre, resultCount }: SearchBarPr
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
 
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
+      abortRef.current?.abort();
+      setLoading(false);
+      setError(false);
+      onResults([]);
+      return;
+    }
+
     timerRef.current = setTimeout(async () => {
       // Cancel any in-flight request
       abortRef.current?.abort();
@@ -29,7 +38,7 @@ export default function SearchBar({ onResults, genre, resultCount }: SearchBarPr
       setLoading(true);
       setError(false);
       try {
-        const results = await searchSongs(query, {
+        const results = await searchSongs(trimmed, {
           genre: genre ?? undefined,
           signal: controller.signal,
         });
