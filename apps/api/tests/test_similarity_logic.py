@@ -6,7 +6,7 @@ designed to be testable in isolation.
 
 import pytest
 
-from app.routes.similar import (
+from app.services.similarity import (
     _FUSION_WEIGHT_STRATEGIES,
     _FusionWeights,
     _base_title,

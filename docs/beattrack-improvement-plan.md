@@ -380,6 +380,8 @@ In simple words: first make sure the house is tidy and the doors close properly.
 - **Validation**:
   - `cd apps/api && .venv/bin/python -m pytest tests/test_similarity_logic.py -q`
 
+**Status 2026-05-19**: Completed as a behavior-preserving refactor. Ranking helpers for fusion weights, handcrafted similarity, discovery scoring, remix/version deduplication, MMR, vector parsing, and focus categories now live in `apps/api/app/services/similarity.py`. `apps/api/app/routes/similar.py` keeps the request validation, Supabase calls, and response conversion. `apps/api/scripts/eval_similarity.py` and `apps/api/tests/test_similarity_logic.py` import the shared service directly, so evaluation and unit tests exercise the same ranking code used by the route.
+
 ## Sprint 7: Observability And Release Confidence
 
 **Goal**: Make production failures easier to detect and diagnose.

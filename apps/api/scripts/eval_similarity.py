@@ -18,7 +18,7 @@ from typing import Any
 
 from supabase import create_client
 
-from app.routes.similar import (
+from app.services.similarity import (
     _FUSION_WEIGHT_STRATEGIES,
     _apply_discovery_score,
     _compute_hc_similarity,

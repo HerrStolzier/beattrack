@@ -1,6 +1,6 @@
 # Recommendation Quality
 
-Last updated: 2026-05-17
+Last updated: 2026-05-19
 
 ## Goal
 
@@ -25,6 +25,23 @@ The current backend combines:
 - MMR diversity to avoid overly similar result lists.
 - Optional focus modes: timbre, harmony, rhythm, brightness, intensity.
 - Feedback-learned genre focus weights where available.
+
+The reusable ranking helpers live in:
+
+```text
+apps/api/app/services/similarity.py
+```
+
+The `/similar` route imports those helpers and keeps the HTTP/database flow in:
+
+```text
+apps/api/app/routes/similar.py
+```
+
+Practical meaning: ranking experiments and evaluation scripts can now use the
+same scoring helpers without importing the FastAPI route module. That makes
+future changes easier to test and reduces the chance that API wiring and
+ranking behavior get mixed together.
 
 ## Golden Query Set
 
