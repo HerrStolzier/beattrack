@@ -365,6 +365,8 @@ In simple words: first make sure the house is tidy and the doors close properly.
   - Backend test suite.
   - Import smoke tests for scripts.
 
+**Status 2026-05-19**: Completed as a small behavior-preserving cleanup. `apps/api/app/workers/__init__.py` now keeps Procrastinate app setup and task registration, while import-safe task bodies live in `apps/api/app/workers/analysis.py` and `apps/api/app/workers/ingest_tasks.py`. Existing task names remain unchanged: `analyze_audio`, `ingest_from_deezer`, and `ingest_neighbors`.
+
 ### Task 6.2: Move Similarity Pure Logic Into A Service
 
 - **Location**:
@@ -455,6 +457,8 @@ In simple words: first make sure the house is tidy and the doors close properly.
 - **Validation**:
   - `cd apps/web && bun run test --run`
   - `cd apps/web && bunx tsc --noEmit`
+
+**Status 2026-05-19**: Started with a narrow behavior-preserving cut. Playlist localStorage persistence now lives in `apps/web/app/hooks/usePersistentPlaylist.ts`, while `useAnalyzeState` keeps the same public return shape consumed by `AnalyzeView`. Remaining work: split URL identify and upload analysis workflows only when the next frontend change needs it.
 
 ### Task 8.2: Add Tests For URL Identify And Ingest Retry UX
 

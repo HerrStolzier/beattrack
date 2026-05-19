@@ -1,6 +1,6 @@
 # Beattrack Project Status
 
-Last reviewed: 2026-05-17
+Last reviewed: 2026-05-19
 
 ## Summary
 
@@ -54,6 +54,7 @@ Important files:
 - `apps/web/app/page.tsx` — app shell and first screen.
 - `apps/web/app/components/AnalyzeView.tsx` — central product flow.
 - `apps/web/app/hooks/useAnalyzeState.ts` — main client-side state machine.
+- `apps/web/app/hooks/usePersistentPlaylist.ts` — playlist localStorage persistence.
 - `apps/web/lib/api.ts` — API client, retries, analysis/identify/similarity calls.
 - `apps/web/app/components/analyze/*` — split phase components for idle, processing, results, history, and playlist panel.
 
@@ -88,8 +89,11 @@ Important files:
 - `apps/api/app/main.py` — FastAPI app, CORS, security headers, health check, cleanup.
 - `apps/api/app/routes/analyze.py` — audio upload, persistent analysis job creation, SSE/polling.
 - `apps/api/app/services/analysis_jobs.py` — persistence helpers for `analysis_jobs`.
-- `apps/api/app/workers/__init__.py` — Procrastinate tasks for upload analysis and Deezer ingest.
-- `apps/api/app/routes/similar.py` — similarity, blend, vibe, fusion, dedup, MMR.
+- `apps/api/app/workers/__init__.py` — Procrastinate app setup and task registration.
+- `apps/api/app/workers/analysis.py` — import-safe upload analysis task logic.
+- `apps/api/app/workers/ingest_tasks.py` — import-safe Deezer ingest task logic.
+- `apps/api/app/routes/similar.py` — similarity, blend, and vibe HTTP routes.
+- `apps/api/app/services/similarity.py` — fusion, discovery scoring, deduplication, MMR, and shared ranking helpers.
 - `apps/api/app/routes/identify.py` — external URL identification and auto-ingest trigger.
 - `apps/api/app/services/ingest.py` — Deezer preview ingestion and neighbor expansion.
 - `apps/api/app/services/features.py` — feature extraction and normalization helpers.
@@ -106,7 +110,7 @@ Backend risks:
 
 - External API failure handling is still uneven. Some errors are permanent, some retryable, and some rate-limit related; the code should make these classes explicit.
 - Worker retry behavior is still basic. `analysis_jobs.attempt_count` exists but is not yet fully used.
-- `apps/api/app/workers/__init__.py` imports Procrastinate globally, which can complicate scripts or tests that only need worker-adjacent code.
+- Procrastinate registration is now thinner, but future worker features should keep business logic in import-safe modules rather than growing `workers/__init__.py` again.
 - Auto-ingest is useful but operationally sensitive because Deezer preview URLs expire and external APIs can be flaky.
 
 ## Database And Data
@@ -189,14 +193,10 @@ npm run check:prod-health
 
 ## Current Working Tree Note
 
-As of this review, the working tree contains several unrelated modified and untracked files in addition to the persistent analysis job work. Before large new implementation work, separate these into intentional commits or clean ignored/runtime artifacts.
-
-Likely candidates for cleanup or `.gitignore` review:
-
-- Coverage files such as `apps/api/.coverage`.
-- Runtime checkpoint files under `apps/api/scripts/`.
-- Generated analysis images or large data files.
-- Local build artifacts such as `.next` and TypeScript build info if not already ignored.
+As of this review, the active local changes are intentional roadmap execution
+work: recommendation evaluation notes, worker cleanup, and a small frontend
+maintainability cut. Before unrelated work, commit or discard these changes so
+future diffs stay easy to review.
 
 ## Strategic Assessment
 

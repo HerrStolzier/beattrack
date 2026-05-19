@@ -189,6 +189,48 @@ The evaluation helper can now print raw and discovery-scored rankings from the s
 
 The fixture now contains 31 curated Electronic seeds with discovery intent notes, too-obvious examples, duplicate/version risks, and known-bad result patterns. In practice, this is the first safety check before tuning penalties: the same input list should reveal whether same-artist, same-title, too-close, or high-BPM-drift results move down without breaking the sonic fit of the top results.
 
+## Evaluation Run: 2026-05-19
+
+Command:
+
+```bash
+cd apps/api
+.venv/bin/python scripts/eval_similarity.py --query-limit 5 --limit 5 --score-mode both --snapshot-out /tmp/beattrack-eval-discovery.json
+```
+
+Result:
+
+- Found 4 of 5 query songs.
+- `ARTBAT - Return to Oz` was still missing from the catalog sample.
+- Snapshot written to `/tmp/beattrack-eval-discovery.json`.
+- `penalized_result_count`: 20.
+- `penalty_reason_counts`: `too_close=20`.
+- `rank_change_count`: 5.
+- `bpm_drift_warning_count`: 2.
+- `total_discovery_penalty`: about 0.481.
+- `max_discovery_penalty`: about 0.029.
+
+Interpretation:
+
+The current discovery score is conservative and mostly acts as a "too-near
+neighbor" softener. That looks safe, but it is not yet a complete discovery
+quality mechanism. The Peggy Gou query shows the most useful current behavior:
+a same-artist/same-title near-duplicate drops out of the visible top 5, while
+nearby house/disco-leaning alternatives move up.
+
+The run also shows that BPM drift remains a real review signal. For the Ricardo
+Villalobos query, the top result was about 19 BPM away and another visible
+result was about 15 BPM away. This is not enough evidence to add a live BPM
+penalty yet, but it is enough to keep BPM/energy drift as the next listening
+review topic.
+
+Decision:
+
+Keep the live discovery score unchanged for now. Do not make larger penalty or
+fusion-weight changes from this small run alone. The next ranking decision
+should compare a larger query sample and include listening notes for cases where
+`too_close` demotion or BPM drift changes the visible top results.
+
 ## Feedback Reason Tags
 
 Negative result feedback now stores a short reason tag in `feedback.reason_tag`.

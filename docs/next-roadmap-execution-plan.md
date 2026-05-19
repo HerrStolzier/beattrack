@@ -34,6 +34,8 @@ cd apps/api && .venv/bin/python -m pytest tests/test_eval_similarity.py tests/te
 cd apps/api && .venv/bin/python -m py_compile app/routes/similar.py app/services/similarity.py scripts/eval_similarity.py
 ```
 
+**Status 2026-05-19**: Completed and committed in `f4fa043`.
+
 ## 2. Run Real Recommendation Evaluation
 
 **Goal**: Use real Supabase data to judge whether the discovery score helps
@@ -58,6 +60,11 @@ with "less obvious, but still fitting" results.
 cd apps/api && .venv/bin/python scripts/eval_similarity.py --query-limit 5 --limit 5 --score-mode both --snapshot-out /tmp/beattrack-eval-discovery.json
 ```
 
+**Status 2026-05-19**: Completed with env vars loaded from `apps/api/.env`.
+The run found 4 of 5 query songs, wrote `/tmp/beattrack-eval-discovery.json`,
+and produced `too_close=20`, `rank_change_count=5`, and
+`bpm_drift_warning_count=2`.
+
 ## 3. Decide Ranking Next Step From Evidence
 
 **Goal**: Make a documented recommendation, not a blind tuning change.
@@ -72,6 +79,10 @@ cd apps/api && .venv/bin/python scripts/eval_similarity.py --query-limit 5 --lim
 - State whether the current discovery score looks plausible, too weak, too
   strong, or needs listening review.
 - Stop before bigger weighting or penalty changes.
+
+**Status 2026-05-19**: Completed as a no-change decision. Keep the live
+discovery score unchanged until a larger sample and listening notes justify
+stronger penalties or weighting changes.
 
 ## 4. Make Worker Logic More Import-Safe
 
@@ -97,6 +108,10 @@ cd apps/api && .venv/bin/python scripts/eval_similarity.py --query-limit 5 --lim
 cd apps/api && .venv/bin/python -m pytest tests/test_analyze.py -q
 ```
 
+**Status 2026-05-19**: Completed. Task registration remains in
+`apps/api/app/workers/__init__.py`; import-safe bodies now live in
+`apps/api/app/workers/analysis.py` and `apps/api/app/workers/ingest_tasks.py`.
+
 ## 5. Make The Next Small Frontend Maintainability Cut
 
 **Goal**: Improve the biggest frontend state hook without changing UI behavior.
@@ -118,6 +133,10 @@ cd apps/api && .venv/bin/python -m pytest tests/test_analyze.py -q
 ```bash
 cd apps/web && bun run test --run AnalyzeView UrlInput
 ```
+
+**Status 2026-05-19**: Completed as the first narrow cut.
+`usePersistentPlaylist` now owns playlist localStorage persistence while
+`useAnalyzeState` keeps the same public API.
 
 ## Stop Conditions
 

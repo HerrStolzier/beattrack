@@ -16,6 +16,7 @@ import {
   type Song,
   type FocusCategory,
 } from "@/lib/api";
+import { usePersistentPlaylist } from "./usePersistentPlaylist";
 
 export type AnalyzePhase =
   | "idle"
@@ -67,25 +68,8 @@ export function useAnalyzeState(initialUrl?: string | null): AnalyzeState {
   const [focusLoading, setFocusLoading] = useState(false);
   const [multiLabel, setMultiLabel] = useState<string>("");
   const [visitedIds, setVisitedIds] = useState<string[]>([]);
-  const [playlist, setPlaylist] = useState<Song[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const saved = localStorage.getItem("beattrack-playlist");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [playlist, setPlaylist] = usePersistentPlaylist();
   const [playlistOpen, setPlaylistOpen] = useState(false);
-
-  // Persist playlist to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem("beattrack-playlist", JSON.stringify(playlist));
-    } catch {
-      /* ignore */
-    }
-  }, [playlist]);
 
   // Auto-trigger identify when initialUrl is provided (deep-link)
   const deepLinkTriggered = useRef(false);
