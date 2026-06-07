@@ -3,18 +3,17 @@
 Protected by admin secret. Temporary endpoint for bulk DB expansion.
 """
 
-import hmac
 import logging
-import os
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
+
+from app.admin_auth import verify_admin
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin/ingest", tags=["admin"])
 
-ADMIN_SECRET = os.environ.get("ADMIN_SECRET", "")
 MAX_BATCH_SIZE = 10
 
 
@@ -37,15 +36,6 @@ class BatchIngestResponse(BaseModel):
     succeeded: int
     failed: int
     errors: list[str]
-
-
-def _verify_admin(authorization: str | None) -> None:
-    if not ADMIN_SECRET:
-        raise HTTPException(503, "ADMIN_SECRET not configured")
-    provided = (authorization or "").removeprefix("Bearer ")
-    # Constant-time comparison to prevent timing attacks
-    if not hmac.compare_digest(provided.encode(), ADMIN_SECRET.encode()):
-        raise HTTPException(403, "Unauthorized")
 
 
 def _ingest_single(track_dict: dict) -> tuple[bool, str]:
@@ -80,7 +70,7 @@ def batch_ingest(
     Max 20 tracks per request. Runs extraction in parallel (2 workers).
     Protected by ADMIN_SECRET bearer token.
     """
-    _verify_admin(authorization)
+    verify_admin(authorization)
 
     if len(body.tracks) > MAX_BATCH_SIZE:
         raise HTTPException(400, f"Max {MAX_BATCH_SIZE} tracks per batch")
@@ -137,5 +127,5 @@ def batch_ingest(
 @router.get("/status")
 def ingest_status(authorization: str | None = Header(None)):
     """Get total song count in DB."""
-    _verify_admin(authorization)
+    verify_admin(authorization)
     return {"status": "ok"}

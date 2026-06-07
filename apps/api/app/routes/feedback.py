@@ -3,11 +3,12 @@ import logging
 from enum import Enum
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from pydantic import BaseModel
 from supabase import Client
 
-from app.db import get_supabase
+from app.admin_auth import verify_admin
+from app.db import get_supabase, get_supabase_admin
 from app.limiter import limiter
 
 logger = logging.getLogger(__name__)
@@ -127,9 +128,15 @@ async def get_genre_weights(
 async def get_feedback_stats(
     type: Literal["top", "flop"] = "top",
     limit: int = 20,
-    sb: Client = Depends(get_supabase),
+    authorization: str | None = Header(None),
 ) -> list[FeedbackStatsItem]:
-    """Get top-rated or worst-rated song pair matches."""
+    """Get internal top-rated or worst-rated song pair matches."""
+    verify_admin(authorization)
+    try:
+        sb = get_supabase_admin()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
     result = (
         sb.table("feedback_stats")
         .select("*")

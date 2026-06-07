@@ -81,19 +81,19 @@ The remote migration history can drift from local files if SQL was applied manua
 
 Stop before applying more SQL. Run `supabase migration list`, compare local and remote entries, and document the exact mismatch before choosing repair SQL or migration-history cleanup.
 
-## Supabase Advisor Meldet Public Aggregate Materialized Views
+## Supabase Advisor Meldet Public Genre Weight Materialized View
 
 ### Symptom
 
-Supabase Advisor meldet `materialized_view_in_api` für `public.feedback_stats` und `public.genre_focus_weights`.
+Supabase Advisor meldet `materialized_view_in_api` fuer `public.genre_focus_weights`.
 
 ### Ursache
 
-Die Views liefern öffentliche Aggregate beziehungsweise Gewichtungen fuer die App. Direkte Rohdaten-Tabellen und interne Jobs muessen getrennt davon geschlossen bleiben.
+`genre_focus_weights` liefert oeffentliche Aggregat-Gewichtungen fuer die Recommendation-API. Das Live-Backend liest Supabase aktuell mit einem echten `anon`-Key; ein Revoke wuerde das Ranking oder den Fallback-Pfad verschlechtern. Direkte Rohdaten-Tabellen, interne Jobs und Reporting-Surfaces muessen getrennt davon geschlossen bleiben.
 
 ### Loesung
 
-Nicht pauschal `anon SELECT` entziehen, solange die App diese Aggregate ueber den oeffentlichen API-Pfad braucht. Erlaubt ist nur `anon SELECT`; `authenticated` und `PUBLIC` sollen keine Select-Rechte haben. Wenn die App spaeter vollstaendig ueber einen Service-Role-Backendpfad liest, koennen die Materialized Views aus der Data API entfernt oder in eine private Schicht verschoben werden.
+Nicht pauschal `anon SELECT` entziehen, solange die App diese Aggregate ueber den oeffentlichen API-Pfad braucht. Erlaubt ist nur `anon SELECT`; `authenticated` und `PUBLIC` sollen keine Select-Rechte haben. `feedback_stats` ist dagegen kein oeffentliches App-Surface mehr: `/feedback/stats` ist admin-geschuetzt, nutzt `SUPABASE_SERVICE_ROLE_KEY`, und `anon SELECT` auf `feedback_stats` ist entzogen. Wenn die App spaeter vollstaendig ueber einen Service-Role-Backendpfad liest, kann auch `genre_focus_weights` privat werden.
 
 ## Supabase Advisor Meldet Extensions In Public
 
