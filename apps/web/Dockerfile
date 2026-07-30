@@ -3,12 +3,11 @@
 FROM oven/bun:1 AS builder
 WORKDIR /app
 
-# Monorepo: Lockfile liegt im Root, die App in apps/web.
-COPY package.json bun.lock* ./
-COPY apps/web/package.json ./apps/web/
-RUN bun install --frozen-lockfile
-
+# Monorepo: Das Lockfile deckt alle Workspace-Pakete ab. Nur zwei package.json
+# vorab zu kopieren laesst bun das Lockfile veraendern und --frozen-lockfile
+# scheitern. Deshalb erst alles kopieren, dann installieren.
 COPY . .
+RUN bun install --frozen-lockfile
 
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
