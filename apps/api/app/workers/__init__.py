@@ -152,7 +152,7 @@ def analyze_audio(context, *, audio_path: str, job_id: str):
 
     logger.info("Starting analysis for job %s: %s", job_id, audio_path)
 
-    from app.routes.analyze import update_job_status
+    from app.services.jobs import update_job_status
 
     update_job_status(job_id, "processing", progress=0.1)
 
