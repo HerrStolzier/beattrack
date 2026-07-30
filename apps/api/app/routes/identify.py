@@ -3,7 +3,7 @@ from collections.abc import Callable, Coroutine
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from supabase import Client
 
 from app.db import get_supabase
@@ -118,7 +118,10 @@ def _artists_match(a: str, b: str) -> bool:
 
 
 class IdentifyRequest(BaseModel):
-    url: str
+    # Länge begrenzt, bevor die Plattform-Regexes die Eingabe sehen.
+    # Ohne Limit kann eine riesige URL die Prüf-Regexes in langes
+    # Backtracking treiben (siehe apple_music.MAX_URL_LENGTH).
+    url: str = Field(..., max_length=2048)
 
 
 class IdentifyResponse(BaseModel):
