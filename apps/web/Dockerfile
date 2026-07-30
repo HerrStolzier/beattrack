@@ -25,6 +25,7 @@ ENV HOSTNAME=0.0.0.0
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 
 # standalone kopiert public/ und .next/static NICHT mit.
+# public/ ist derzeit leer, existiert aber (per .gitkeep) — sonst bricht der COPY ab.
 COPY --from=builder /app/apps/web/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static

@@ -50,4 +50,4 @@ EXPOSE 8000
 # Ein Image, zwei Rollen. ROLE=api startet die Webschnittstelle,
 # ROLE=worker den Procrastinate-Worker fuer die Audio-Analyse.
 # Auf Railway lief beides in einem Prozess; auf infra-01 sind es zwei Container.
-CMD ["sh", "-c", "if [ \"$ROLE\" = worker ]; then exec python -m procrastinate --app app.workers.app worker; else exec python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT}; fi"]
+CMD ["sh", "-c", "if [ \"$ROLE\" = worker ]; then python -m procrastinate --app app.workers.app schema --apply || true; exec python -m procrastinate --app app.workers.app worker; else exec python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT}; fi"]
