@@ -3,11 +3,13 @@
 Sonically similar song finder — findet Songs die ähnlich klingen.
 
 ## Stack
-- **Frontend**: Next.js 15 + TypeScript + TailwindCSS v4 + framer-motion → Vercel
-- **Backend**: Python 3.12+ FastAPI + Essentia → Railway (Dockerfile)
-- **Database**: Supabase PostgreSQL + pgvector (eu-central-1)
-- **Job Queue**: Procrastinate (Postgres-based, kein Redis)
-- **Build-Tools**: Bun (Frontend/Vercel), uv (Python/Backend)
+- **Frontend**: Next.js 15 + TypeScript + TailwindCSS v4 + framer-motion → Docker auf infra-01 (Hetzner)
+- **Backend**: Python 3.12+ FastAPI + Essentia → Docker auf infra-01 (`apps/api/Dockerfile`, ROLE=api)
+- **Worker**: Procrastinate-Worker als eigener Container (gleiches Image, ROLE=worker, cpus=1)
+- **Database**: eigene PostgreSQL 17 + pgvector auf infra-01; Zugriff via PostgREST unter `https://beattrack.app/rest/v1`
+- **Job Queue**: Procrastinate (Postgres-based, kein Redis); Job-Status in `analysis_jobs` (`app/services/jobs.py`)
+- **Build-Tools**: Bun (Frontend), uv (Python/Backend)
+- **Hosting-Details/Runbooks**: Repo `infra-migration` (docs/server.md, runbooks/)
 
 ## Monorepo-Struktur
 - `apps/web/` — Next.js Frontend
@@ -45,15 +47,22 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 - **Aktuell**: ~121K Songs. Genre-Backfill von Deezer Album API + MERT-Embedding-Extraction laufend
 - **Legacy (inaktiv)**: FMA-large, MTG-Jamendo — Seeder-Scripts existieren noch in `scripts/`, werden nicht mehr verwendet
 
-## Deployment
-- Railway: Root Directory `/apps/api`, Config `/apps/api/railway.toml`, Healthcheck `/health` (30s timeout), Restart ON_FAILURE (max 3). CLI: `railway logs`, `railway variables`
-- Vercel: Auto-deploy von `main`, `NEXT_PUBLIC_API_URL` zeigt auf Railway. Cron aktuell deaktiviert (CRON_SECRET Issue)
-- Supabase: Migrations via MCP (`project_id: qpkemujemfnymtgmtkfg`) oder `supabase db push`
-- Deploy-Status prüfen: `/deploy-check` (Config in `.claude/deploy.json`)
+## Deployment (seit 2026-07-30: infra-01, Hetzner)
+- Alles läuft als Docker-Container auf infra-01 (95.217.222.246, Helsinki), orchestriert über
+  `/opt/stack/docker-compose.yml` (Quelle: `infra-migration/stack/docker-compose.yml`).
+- Deploy: auf dem Server `cd /opt/apps/beattrack && git pull`, dann
+  `cd /opt/stack && docker compose build beattrack-api beattrack-web beattrack-worker && docker compose up -d`.
+- DNS/Registrar: beattrack.app liegt bei Vercel (nur noch Registrar+DNS, kein Hosting).
+- DB-Migrations: direkt gegen die eigene Postgres (`docker exec postgres psql -U postgres -d beattrack`).
+- Health-Cron: `/etc/cron.d/beattrack-health` auf infra-01. Uptime-Alarm: UptimeRobot (Konto Basti).
+- Legacy (bis zur Kündigung ~Aug 2026): Railway/Vercel-Hosting/Supabase laufen als Fallback weiter.
 
 ## Environment Variables (Backend)
-- `DATABASE_URL` — Supabase PostgreSQL Connection String (required)
-- `SUPABASE_URL` + `SUPABASE_ANON_KEY` — Supabase Client (required)
+- `DATABASE_URL` — Postgres Connection String (required; auf infra-01: stack-db)
+- `SUPABASE_URL` + `SUPABASE_ANON_KEY` — PostgREST-Endpunkt + anon-JWT (required)
+- `SUPABASE_SERVICE_ROLE_KEY` — service-JWT; auf infra-01 Pflicht (anon hat keinen songs-Zugriff)
+- `ROLE` — `api` (Default) oder `worker` (startet Procrastinate-Worker)
+- `BEATTRACK_TEMP_DIR` — gemeinsames Upload-Volume von API+Worker (`/data/uploads`)
 - `ACOUSTID_API_KEY` — Song-Identifikation via AcoustID (required)
 - `CORS_ORIGINS` — Erlaubte Origins (Railway: `beattrack.app,www.beattrack.app,beattrack.vercel.app`)
 - `SUPABASE_DB_URL` — Procrastinate-Connection (port 6543 Supavisor, optional fallback: DATABASE_URL)
