@@ -60,10 +60,11 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 - `SENTRY_DSN` — Error-Tracking (optional)
 
 ## Entwicklung
+- Setup: `bun install` (Root) und `cd apps/api && uv sync` (Python-venv ist nicht Teil des Workspace-Kopiervorgangs — nach frischem Checkout/Kopie neu anlegen)
 - `cd apps/api && uvicorn app.main:app --reload` — Backend lokal
 - `cd apps/web && bun dev` — Frontend lokal
 - Backend-Tests: `cd apps/api && pytest`
-- Frontend-Tests: `cd apps/web && bun test` (Vitest, nicht Jest)
+- Frontend-Tests: `cd apps/web && bun run test` (Vitest, nicht Jest — siehe Gotchas: raw `bun test` funktioniert nicht)
 
 ## Batch Scripts (langlebig)
 - Scripts in `apps/api/scripts/` für DB-Operationen: `backfill_genre.py`, `extract_mert_batch.py`
@@ -79,6 +80,11 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - **compute_stats.py** — Z-Score Stats berechnen + normalisieren (generiert SQL, `--format sql` für stdout)
 - **cleanup_genres.py** — Songs nach Genre/Jahr filtern und löschen (`--execute`)
 - **seed_fma.py** / **seed_jamendo.py** — Legacy-Seeder (nicht mehr aktiv)
+
+## Datenbestände
+- Die großen Datendateien wurden NICHT in diesen Workspace kopiert: `apps/api/scripts/deezer_features.jsonl` (719M), `deezer_tracks.json` (214M), `seed_features.jsonl` (129M), `jamendo_features.jsonl` (81M)
+- Sie liegen weiterhin im Desktop-Original unter `/Users/ten.december/Desktop/projekte-codex/beattrack/apps/api/scripts/`
+- Kleinere Checkpoints sind mitkopiert: `mert_*`, `seed_*`, `feed_checkpoint.json`, `deezer_tracks_v1.json`
 
 ## Similarity Engine
 - **Tri-Signal Fusion**: MusiCNN 200d (HNSW-Index) + MERT 768d (re-ranking) + 44d handcrafted. Weights: 65/15/20 (with MERT) or 80/20 fallback
@@ -142,6 +148,8 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - **Package Manager**: `uv pip install ... --python .venv/bin/python` (kein pip im venv)
 - **Supabase MCP Project-ID**: MUSS `qpkemujemfnymtgmtkfg` sein. Bei "permission denied" → `list_projects` zum Verifizieren
 - **`body > *` CSS-Regel**: `globals.css` hatte `body > * { position: relative }` — überschreibt `position: fixed` auf allen body-Kindern (MeshGradient, MouseGlow, Overlays). Geändert zu `body > main`. Neue fixed-Overlays im body müssen das berücksichtigen
+- **Raw `bun test` vs. Vitest**: `bun test` nutzt Buns eigenen Test-Runner ohne Vitest/jsdom-Setup (`document is not defined`, `vi.mocked is not a function`). Immer `cd apps/web && bun run test` verwenden
+- **npm audit PostCSS-Finding**: `npm audit --workspaces --omit=dev` meldet `node_modules/next/node_modules/postcss <8.5.10` — stable Next.js pinnt internes `postcss@8.4.31`. Kein Canary-Upgrade nur fürs Audit; abwarten bis stable Next.js `postcss >=8.5.10` mitbringt (Details in `KNOWN_ERRORS.md`)
 
 ## Security
 - **Rate Limiting**: slowapi auf `/analyze` (10/min), `/identify/*` (20/min), `/feedback` (5/min geplant, aktuell 30/min)

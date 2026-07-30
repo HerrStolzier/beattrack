@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 
-export const runtime = "edge";
-
 export async function GET(request: Request) {
-  // Verify Vercel Cron secret
+  // Shared-Secret-Pruefung (wird jetzt vom Server-Cronjob aufgerufen, nicht mehr von Vercel)
   // Strip whitespace to prevent env var formatting issues (Vercel trailing whitespace bug)
   const authHeader = request.headers.get("authorization");
   const providedSecret = authHeader?.replace(/^Bearer\s+/, "").trim() ?? "";
