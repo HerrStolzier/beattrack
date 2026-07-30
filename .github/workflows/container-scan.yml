@@ -1,0 +1,122 @@
+name: Container Scan
+
+on:
+  pull_request:
+    paths:
+      - "**/Dockerfile"
+      - ".github/workflows/container-scan.yml"
+  schedule:
+    # Montags 05:11 UTC — neue CVEs tauchen auch ohne Dockerfile-Aenderung auf
+    - cron: "11 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    name: Collect base images
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.parse.outputs.images }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Parse FROM lines
+        id: parse
+        run: |
+          set -euo pipefail
+          # Sucht alle getrackten Dockerfiles, statt Pfade festzuschreiben:
+          # apps/web/Dockerfile existiert noch nicht auf main, apps/api schon.
+          files=$(git ls-files -- '*Dockerfile')
+          if [ -z "$files" ]; then
+            echo "Kein Dockerfile gefunden — nichts zu scannen." >&2
+            exit 1
+          fi
+          echo "Dockerfiles: $(echo "$files" | tr '\n' ' ')"
+          images=$(echo "$files" | xargs grep -hE '^FROM ' \
+            | awk '{print $2}' | sort -u | jq -R . | jq -sc .)
+          echo "images=$images" >> "$GITHUB_OUTPUT"
+          echo "Gefundene Base-Images: $images"
+
+  scan:
+    name: Scan ${{ matrix.image }}
+    needs: discover
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.discover.outputs.images) }}
+
+    steps:
+      - name: Build a SARIF category slug
+        id: slug
+        run: |
+          set -euo pipefail
+          # SARIF-Kategorien trennen die Analysen; / und : raus, damit der Name stabil bleibt.
+          echo "value=$(printf '%s' '${{ matrix.image }}' | tr -c 'a-zA-Z0-9._-' '-')" >> "$GITHUB_OUTPUT"
+
+      - name: Scan image and write SARIF
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ matrix.image }}
+          scan-type: image
+          format: sarif
+          output: trivy.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
+
+      - name: Upload SARIF to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-${{ steps.slug.outputs.value }}
+
+      - name: Fail on fixable CRITICAL findings
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ matrix.image }}
+          scan-type: image
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+  dockerfile-config:
+    name: Dockerfile misconfiguration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Scan Dockerfiles
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          format: sarif
+          output: trivy-config.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+      - name: Upload SARIF to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-config.sarif
+          category: trivy-config
