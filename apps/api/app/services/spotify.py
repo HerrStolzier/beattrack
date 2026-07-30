@@ -25,6 +25,14 @@ def parse_spotify_url(url: str) -> str | None:
 
 async def fetch_oembed(url: str) -> dict | None:
     """Fetch track metadata via Spotify oEmbed + OG meta tags for artist."""
+    # Validate up front. The caller does this too, but the previous code
+    # fell back to the raw user URL when the ID was missing, which turned
+    # a direct call into an SSRF (CodeQL py/full-ssrf).
+    track_id = parse_spotify_url(url)
+    if not track_id:
+        logger.warning("Refusing to fetch non-Spotify URL: %s", url)
+        return None
+
     async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
         # 1) oEmbed for track title
         oembed_url = f"https://open.spotify.com/oembed?url={quote(url, safe='')}"
@@ -38,9 +46,9 @@ async def fetch_oembed(url: str) -> dict | None:
             return None
 
         # 2) Scrape track page for og:description → artist name
-        #    Reconstruct URL from validated track ID to prevent SSRF via redirects
-        track_id = parse_spotify_url(url)
-        safe_url = f"https://open.spotify.com/track/{track_id}" if track_id else url
+        #    URL is rebuilt from the validated track ID, never taken from
+        #    user input, so redirects cannot steer this request.
+        safe_url = f"https://open.spotify.com/track/{track_id}"
         author_name = ""
         try:
             page = await client.get(

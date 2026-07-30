@@ -6,7 +6,13 @@ from urllib.parse import quote
 
 import httpx
 
+from app.services.http_safe import follow_redirects_within
+
 logger = logging.getLogger(__name__)
+
+# Hosts the shortlink resolution may touch. The suffix match in
+# host_is_allowed also covers on.soundcloud.com and www.soundcloud.com.
+_SC_ALLOWED_HOSTS = frozenset({"soundcloud.com"})
 
 # Matches soundcloud.com/artist/track URLs
 _SC_URL_RE = re.compile(
@@ -22,27 +28,20 @@ def parse_soundcloud_url(url: str) -> bool:
     return bool(_SC_URL_RE.match(stripped) or _SC_SHORT_RE.match(stripped))
 
 
-def _is_soundcloud_host(url: str) -> bool:
-    """Verify that a resolved URL points to soundcloud.com."""
-    from urllib.parse import urlparse
-    host = urlparse(url).hostname
-    return host is not None and (host == "soundcloud.com" or host.endswith(".soundcloud.com"))
-
-
 async def _resolve_shortened_url(url: str, client: httpx.AsyncClient) -> str | None:
-    """Resolve on.soundcloud.com shortened URL to full soundcloud.com URL."""
-    try:
-        resp = await client.head(url, follow_redirects=True)
-        resolved = str(resp.url)
-        if _SC_URL_RE.match(resolved) and _is_soundcloud_host(resolved):
+    """Resolve on.soundcloud.com shortened URL to full soundcloud.com URL.
+
+    Redirects are followed hop by hop with the host checked before each
+    request, so a shortlink pointing off SoundCloud is refused instead of
+    fetched (CodeQL py/full-ssrf).
+    """
+    # Some endpoints answer HEAD without the redirect, hence the GET retry.
+    for method in ("HEAD", "GET"):
+        resolved = await follow_redirects_within(
+            client, url, _SC_ALLOWED_HOSTS, method=method
+        )
+        if resolved and _SC_URL_RE.match(resolved):
             return resolved
-        # HEAD might not redirect — try GET
-        resp = await client.get(url, follow_redirects=True)
-        resolved = str(resp.url)
-        if _SC_URL_RE.match(resolved) and _is_soundcloud_host(resolved):
-            return resolved
-    except Exception as exc:
-        logger.debug("SoundCloud URL resolution failed for %s: %s", url, exc)
     return None
 
 

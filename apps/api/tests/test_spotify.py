@@ -157,3 +157,18 @@ def test_identify_spotify_oembed_failure(client):
 
     assert resp.status_code == 502
     assert "Could not fetch Spotify metadata" in resp.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# fetch_oembed — SSRF guard (CodeQL py/full-ssrf)
+# ---------------------------------------------------------------------------
+
+async def test_fetch_oembed_refuses_non_spotify_url():
+    """A non-Spotify URL must be rejected before any request goes out.
+
+    The previous code fell back to the raw user URL when the track ID was
+    missing, which made a direct call to this function a full SSRF.
+    """
+    from app.services.spotify import fetch_oembed
+
+    assert await fetch_oembed("http://169.254.169.254/latest/meta-data/") is None
