@@ -96,7 +96,9 @@ app.include_router(identify.router)
 app.include_router(batch_ingest.router)
 
 
-@app.get("/health")
+# HEAD explizit erlauben: Uptime-Monitore (z. B. UptimeRobot) pruefen per HEAD,
+# und FastAPI beantwortet HEAD nicht automatisch fuer GET-Routen.
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health() -> dict:
     return {"status": "ok"}
 
