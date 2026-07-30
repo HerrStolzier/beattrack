@@ -4,19 +4,19 @@ version = "0.1.0"
 description = "Beattrack API — sonically similar song finder"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.135.0",
+    "fastapi>=0.141.1",
     "uvicorn[standard]>=0.34.0",
-    "pydantic>=2.11.0",
-    "supabase>=2.0.0",
+    "pydantic>=2.13.4",
+    "supabase>=2.31.0",
     "python-magic>=0.4.27",
-    "slowapi>=0.1.9",
+    "slowapi>=0.1.10",
     "procrastinate[asyncio]>=2.0.0",
-    "sse-starlette>=2.0.0",
+    "sse-starlette>=3.4.6",
     "python-multipart>=0.0.20",
-    "numpy>=1.26.0",
+    "numpy>=2.5.1",
     "essentia>=2.1b6.dev1110",
     "essentia-tensorflow>=2.1b6.dev1110",
-    "pyacoustid>=1.3.0",
+    "pyacoustid>=1.3.1",
 ]
 
 [project.optional-dependencies]
@@ -40,8 +40,8 @@ dev = [
     "httpx>=0.28.1",
     "pytest>=9.0.2",
     "pytest-asyncio>=0.24.0",
-    "ruff>=0.11.0",
-    "mypy>=1.15.0",
+    "ruff>=0.16.0",
+    "mypy>=2.3.0",
 ]
 
 [tool.ruff]
