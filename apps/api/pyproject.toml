@@ -14,7 +14,7 @@ dependencies = [
     "sse-starlette>=2.0.0",
     "python-multipart>=0.0.20",
     "numpy>=1.26.0",
-    "essentia>=2.1b6.dev1110",
+    "essentia>=2.1b6.dev1438",
     "essentia-tensorflow>=2.1b6.dev1110",
     "pyacoustid>=1.3.0",
 ]
