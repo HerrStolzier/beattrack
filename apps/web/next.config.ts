@@ -1,6 +1,20 @@
 import type { NextConfig } from "next";
 
+// Origin der Backend-API (ohne Pfad). Fallback = alte Railway-Adresse.
+const apiOrigin = (() => {
+  try {
+    return new URL(
+      process.env.NEXT_PUBLIC_API_URL ??
+        "https://beattrack-production.up.railway.app",
+    ).origin;
+  } catch {
+    return "";
+  }
+})();
+
 const nextConfig: NextConfig = {
+  // Eigenstaendiger Server-Build fuer den Docker-Container auf infra-01.
+  output: "standalone",
   eslint: {
     // ESLint runs via `bun lint` — skip during build to avoid
     // Bun workspace hoisting issues with eslint-config-next plugins
@@ -23,7 +37,9 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
               "font-src 'self'",
-              "connect-src 'self' https://beattrack-production.up.railway.app https://*.supabase.co",
+              // Die API-Adresse kommt aus der Umgebung, damit der Umzug
+              // zwischen Hostern keine Codeaenderung braucht.
+              `connect-src 'self' ${apiOrigin}`,
               "frame-src https://widget.deezer.com",
               "frame-ancestors 'none'",
             ].join("; "),

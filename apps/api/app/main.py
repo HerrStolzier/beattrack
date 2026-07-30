@@ -1,9 +1,6 @@
 import asyncio
-import atexit
 import logging
 import os
-import shutil
-import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -37,19 +34,17 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-async def _periodic_cleanup(temp_dir: str, max_age_minutes: int = 15, interval_minutes: int = 15):
-    """Periodically remove old temp files."""
+async def _periodic_cleanup(temp_dir: str, interval_minutes: int = 15):
+    """Räumt den Upload-Ordner job-bewusst auf (app.services.jobs).
+
+    Der Ordner ist ein mit dem Worker geteiltes Volume — er darf nie pauschal
+    geleert werden, sonst verliert der Worker Dateien laufender Jobs.
+    """
+    from app.services.jobs import cleanup_temp_files
     while True:
         await asyncio.sleep(interval_minutes * 60)
         try:
-            cutoff = time.time() - (max_age_minutes * 60)
-            temp_path = Path(temp_dir)
-            if not temp_path.exists():
-                continue
-            for f in temp_path.iterdir():
-                if f.is_file() and f.stat().st_mtime < cutoff:
-                    f.unlink(missing_ok=True)
-                    logger.debug("Cleaned up temp file: %s", f.name)
+            await asyncio.to_thread(cleanup_temp_files, temp_dir)
         except Exception as exc:
             logger.warning("Temp cleanup error: %s", exc)
 
@@ -59,10 +54,15 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Manage startup/shutdown lifecycle."""
     from app.routes.analyze import TEMP_DIR
 
+    # Procrastinate-Verbindung einmal pro Prozess oeffnen — ohne open()
+    # schlaegt jedes defer() fehl ("app is not open").
+    from app.workers import app as procrastinate_app
+    procrastinate_app.open()
+
     cleanup_task = asyncio.create_task(_periodic_cleanup(TEMP_DIR))
     yield
     cleanup_task.cancel()
-    shutil.rmtree(TEMP_DIR, ignore_errors=True)
+    procrastinate_app.close()
 
 
 app = FastAPI(
@@ -96,15 +96,9 @@ app.include_router(identify.router)
 app.include_router(batch_ingest.router)
 
 
-@app.get("/health")
+# HEAD explizit erlauben: Uptime-Monitore (z. B. UptimeRobot) pruefen per HEAD,
+# und FastAPI beantwortet HEAD nicht automatisch fuer GET-Routen.
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health() -> dict:
     return {"status": "ok"}
 
-
-# atexit als Fallback bei hartem Prozess-Kill
-def _atexit_cleanup():
-    from app.routes.analyze import TEMP_DIR
-    shutil.rmtree(TEMP_DIR, ignore_errors=True)
-
-
-atexit.register(_atexit_cleanup)

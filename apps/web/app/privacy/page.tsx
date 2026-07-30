@@ -67,30 +67,16 @@ export default function PrivacyPage() {
 
           {/* 3. Hosting & Infrastruktur */}
           <Section title="3. Hosting und Infrastruktur">
-            <p>Die Website wird über folgende Dienste betrieben:</p>
-            <ul className="list-inside list-disc space-y-2 pl-1">
-              <li>
-                <strong className="text-text-primary">Vercel Inc.</strong> (San Francisco, USA) — Hosting des
-                Frontends. Vercel verarbeitet beim Seitenaufruf technisch notwendige
-                Verbindungsdaten (IP-Adresse, Zeitstempel, User-Agent). Rechtsgrundlage:
-                Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse). Datenschutzerklärung:{" "}
-                <span className="text-text-tertiary">vercel.com/legal/privacy-policy</span>
-              </li>
-              <li>
-                <strong className="text-text-primary">Railway Corp.</strong> (San Francisco, USA) — Hosting des
-                Backends (API). Verarbeitet Verbindungsdaten bei API-Anfragen.
-                Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO.
-              </li>
-              <li>
-                <strong className="text-text-primary">Supabase Inc.</strong> (Singapur, Hosting: EU-Central/Frankfurt) —
-                Datenbank. Speichert Musikmerkmale und anonymes Feedback. Server-Standort
-                ist EU (Frankfurt). Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO.
-              </li>
-            </ul>
             <p>
-              Für Datenübermittlungen in die USA stützen sich die Anbieter auf
-              EU-Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO) bzw. das
-              EU-U.S. Data Privacy Framework.
+              Website, API und Datenbank werden gemeinsam auf Servern der{" "}
+              <strong className="text-text-primary">Hetzner Online GmbH</strong> (Industriestr. 25,
+              91710 Gunzenhausen, Deutschland; Serverstandort: Finnland, EU) betrieben.
+              Beim Seitenaufruf und bei API-Anfragen werden technisch notwendige
+              Verbindungsdaten (IP-Adresse, Zeitstempel, User-Agent) verarbeitet.
+              Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der
+              sicheren Bereitstellung). Ein Auftragsverarbeitungsvertrag nach
+              Art. 28 DSGVO mit Hetzner liegt vor. Eine Datenübermittlung in
+              Drittländer findet für Hosting und Datenbank nicht statt.
             </p>
           </Section>
 
@@ -99,8 +85,8 @@ export default function PrivacyPage() {
             <ul className="list-inside list-disc space-y-2 pl-1">
               <li>Hochgeladene Audiodateien werden ausschließlich zur Feature-Extraktion
                 (BPM, Tonart, Klangmerkmale) verarbeitet.</li>
-              <li>Die Verarbeitung erfolgt serverseitig auf Railway. Die Audiodatei wird
-                nach der Analyse (spätestens nach 15 Minuten) automatisch gelöscht.</li>
+              <li>Die Verarbeitung erfolgt serverseitig auf unserer eigenen Infrastruktur
+                (Hetzner, EU). Die Audiodatei wird nach der Analyse automatisch gelöscht.</li>
               <li>Es werden nur die extrahierten numerischen Merkmale (Vektoren)
                 gespeichert — keine Audiodaten.</li>
               <li>Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung —

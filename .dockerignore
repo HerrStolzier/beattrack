@@ -1,0 +1,9 @@
+**/node_modules
+**/.next
+.git
+**/.env*
+**/*.log
+.DS_Store
+apps/api/scripts/*.jsonl
+apps/api/scripts/*.json
+docs

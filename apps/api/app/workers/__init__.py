@@ -20,11 +20,21 @@ def get_database_url() -> str:
     return url
 
 
-# Procrastinate app — initialized lazily
+def _make_connector():
+    """Rollenabhängiger Connector.
+
+    Die Procrastinate-CLI (Worker-Container, ROLE=worker) verlangt einen
+    Async-Connector; die API deferiert synchron und braucht den Sync-Connector.
+    Beide Rollen teilen sich dieselben Task-Definitionen in diesem Modul.
+    """
+    conninfo = get_database_url()
+    if os.environ.get("ROLE") == "worker":
+        return procrastinate.PsycopgConnector(conninfo=conninfo)
+    return procrastinate.SyncPsycopgConnector(conninfo=conninfo)
+
+
 app = procrastinate.App(
-    connector=procrastinate.SyncPsycopgConnector(
-        conninfo=get_database_url(),
-    ),
+    connector=_make_connector(),
     worker_defaults={
         "listen_notify": False,  # Saves 1 connection, uses polling (5s interval)
     },
@@ -152,7 +162,7 @@ def analyze_audio(context, *, audio_path: str, job_id: str):
 
     logger.info("Starting analysis for job %s: %s", job_id, audio_path)
 
-    from app.routes.analyze import update_job_status
+    from app.services.jobs import update_job_status
 
     update_job_status(job_id, "processing", progress=0.1)
 

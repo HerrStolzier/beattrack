@@ -4,7 +4,6 @@ import json
 import logging
 import os
 import tempfile
-import time
 import uuid
 from pathlib import Path
 
@@ -14,6 +13,7 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from app.limiter import limiter
+from app.services import jobs
 from app.services.validation import validate_upload, validate_audio
 
 logger = logging.getLogger(__name__)
@@ -28,22 +28,8 @@ SSE_LIMITER = asyncio.Semaphore(50)  # Max 50 SSE connections
 TEMP_DIR = os.environ.get("BEATTRACK_TEMP_DIR", tempfile.mkdtemp(prefix="beattrack_"))
 Path(TEMP_DIR).mkdir(parents=True, exist_ok=True)
 
-# In-memory job status tracking (simple dict, sufficient for single-worker)
-# In production, this would be read from procrastinate_jobs table
-_job_status: dict[str, dict] = {}
-_JOB_TTL_SEC = 3600  # Remove completed/failed jobs after 1 hour
-
-
-def _cleanup_stale_jobs() -> None:
-    """Remove jobs older than _JOB_TTL_SEC from memory."""
-    now = time.time()
-    stale = [
-        jid for jid, job in _job_status.items()
-        if job.get("status") in ("completed", "failed")
-        and now - job.get("created_at", now) > _JOB_TTL_SEC
-    ]
-    for jid in stale:
-        del _job_status[jid]
+# Job-Zustand liegt in Postgres (app.services.jobs) — API und Worker sind
+# getrennte Container und teilen keinen Prozessspeicher mehr.
 
 
 class AnalyzeResponse(BaseModel):
@@ -85,14 +71,9 @@ async def upload_and_analyze(request: Request, file: UploadFile):
         audio_info = await loop.run_in_executor(None, validate_audio, temp_path)
 
         # 4. Track job status
-        _cleanup_stale_jobs()
-        _job_status[job_id] = {
-            "status": "queued",
-            "progress": 0.0,
-            "audio_path": temp_path,
-            "duration_sec": audio_info.get("duration_sec"),
-            "created_at": time.time(),
-        }
+        await asyncio.to_thread(
+            jobs.create_job, job_id, temp_path, audio_info.get("duration_sec")
+        )
 
         # 5. Enqueue analysis job
         try:
@@ -100,7 +81,8 @@ async def upload_and_analyze(request: Request, file: UploadFile):
             analyze_audio.defer(audio_path=temp_path, job_id=job_id)
         except Exception as exc:
             logger.error("Failed to enqueue job %s: %s", job_id, exc)
-            _job_status[job_id]["status"] = "failed"
+            await asyncio.to_thread(jobs.update_job_status, job_id, "failed", error="enqueue failed")
+            Path(temp_path).unlink(missing_ok=True)
             raise HTTPException(status_code=502, detail="Failed to start analysis.")
 
         return AnalyzeResponse(job_id=job_id, status="queued")
@@ -116,7 +98,7 @@ async def stream_progress(job_id: str):
     - result: full analysis result (on completed)
     - heartbeat: keepalive every 15s
     """
-    if job_id not in _job_status:
+    if await asyncio.to_thread(jobs.get_job, job_id) is None:
         raise HTTPException(status_code=404, detail="Job not found")
 
     if SSE_LIMITER._value == 0:
@@ -125,11 +107,13 @@ async def stream_progress(job_id: str):
     async def event_generator():
         async with SSE_LIMITER:
             heartbeat_interval = 15
-            stale_timeout = 300
+            # 900 s statt 300: abgestimmt auf die Hängend-Erkennung (300 s) in
+            # services.jobs — eine langsame echte Analyse wird nicht abgeschnitten.
+            stale_timeout = 900
             elapsed = 0.0
 
             while elapsed < stale_timeout:
-                job = _job_status.get(job_id)
+                job = await asyncio.to_thread(jobs.get_job, job_id)
                 if not job:
                     yield {"event": "error", "data": json.dumps({"detail": "Job not found"})}
                     return
@@ -185,7 +169,7 @@ async def get_results(job_id: str):
 
     Returns current job status. If completed, includes full results.
     """
-    job = _job_status.get(job_id)
+    job = await asyncio.to_thread(jobs.get_job, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -197,9 +181,3 @@ async def get_results(job_id: str):
         "error": job.get("error") if job["status"] == "failed" else None,
     })
 
-
-def update_job_status(job_id: str, status: str, **kwargs):
-    """Update job status from worker. Called by the analyze task."""
-    if job_id in _job_status:
-        _job_status[job_id]["status"] = status
-        _job_status[job_id].update(kwargs)

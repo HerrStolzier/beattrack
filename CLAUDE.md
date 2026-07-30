@@ -3,11 +3,13 @@
 Sonically similar song finder — findet Songs die ähnlich klingen.
 
 ## Stack
-- **Frontend**: Next.js 15 + TypeScript + TailwindCSS v4 + framer-motion → Vercel
-- **Backend**: Python 3.12+ FastAPI + Essentia → Railway (Dockerfile)
-- **Database**: Supabase PostgreSQL + pgvector (eu-central-1)
-- **Job Queue**: Procrastinate (Postgres-based, kein Redis)
-- **Build-Tools**: Bun (Frontend/Vercel), uv (Python/Backend)
+- **Frontend**: Next.js 15 + TypeScript + TailwindCSS v4 + framer-motion → Docker auf infra-01 (Hetzner)
+- **Backend**: Python 3.12+ FastAPI + Essentia → Docker auf infra-01 (`apps/api/Dockerfile`, ROLE=api)
+- **Worker**: Procrastinate-Worker als eigener Container (gleiches Image, ROLE=worker, cpus=1)
+- **Database**: eigene PostgreSQL 17 + pgvector auf infra-01; Zugriff via PostgREST unter `https://beattrack.app/rest/v1`
+- **Job Queue**: Procrastinate (Postgres-based, kein Redis); Job-Status in `analysis_jobs` (`app/services/jobs.py`)
+- **Build-Tools**: Bun (Frontend), uv (Python/Backend)
+- **Hosting-Details/Runbooks**: Repo `infra-migration` (docs/server.md, runbooks/)
 
 ## Monorepo-Struktur
 - `apps/web/` — Next.js Frontend
@@ -45,25 +47,33 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 - **Aktuell**: ~121K Songs. Genre-Backfill von Deezer Album API + MERT-Embedding-Extraction laufend
 - **Legacy (inaktiv)**: FMA-large, MTG-Jamendo — Seeder-Scripts existieren noch in `scripts/`, werden nicht mehr verwendet
 
-## Deployment
-- Railway: Root Directory `/apps/api`, Config `/apps/api/railway.toml`, Healthcheck `/health` (30s timeout), Restart ON_FAILURE (max 3). CLI: `railway logs`, `railway variables`
-- Vercel: Auto-deploy von `main`, `NEXT_PUBLIC_API_URL` zeigt auf Railway. Cron aktuell deaktiviert (CRON_SECRET Issue)
-- Supabase: Migrations via MCP (`project_id: qpkemujemfnymtgmtkfg`) oder `supabase db push`
-- Deploy-Status prüfen: `/deploy-check` (Config in `.claude/deploy.json`)
+## Deployment (seit 2026-07-30: infra-01, Hetzner)
+- Alles läuft als Docker-Container auf infra-01 (95.217.222.246, Helsinki), orchestriert über
+  `/opt/stack/docker-compose.yml` (Quelle: `infra-migration/stack/docker-compose.yml`).
+- Deploy: auf dem Server `cd /opt/apps/beattrack && git pull`, dann
+  `cd /opt/stack && docker compose build beattrack-api beattrack-web beattrack-worker && docker compose up -d`.
+- DNS/Registrar: beattrack.app liegt bei Vercel (nur noch Registrar+DNS, kein Hosting).
+- DB-Migrations: direkt gegen die eigene Postgres (`docker exec postgres psql -U postgres -d beattrack`).
+- Health-Cron: `/etc/cron.d/beattrack-health` auf infra-01. Uptime-Alarm: UptimeRobot (Konto Basti).
+- Legacy (bis zur Kündigung ~Aug 2026): Railway/Vercel-Hosting/Supabase laufen als Fallback weiter.
 
 ## Environment Variables (Backend)
-- `DATABASE_URL` — Supabase PostgreSQL Connection String (required)
-- `SUPABASE_URL` + `SUPABASE_ANON_KEY` — Supabase Client (required)
+- `DATABASE_URL` — Postgres Connection String (required; auf infra-01: stack-db)
+- `SUPABASE_URL` + `SUPABASE_ANON_KEY` — PostgREST-Endpunkt + anon-JWT (required)
+- `SUPABASE_SERVICE_ROLE_KEY` — service-JWT; auf infra-01 Pflicht (anon hat keinen songs-Zugriff)
+- `ROLE` — `api` (Default) oder `worker` (startet Procrastinate-Worker)
+- `BEATTRACK_TEMP_DIR` — gemeinsames Upload-Volume von API+Worker (`/data/uploads`)
 - `ACOUSTID_API_KEY` — Song-Identifikation via AcoustID (required)
 - `CORS_ORIGINS` — Erlaubte Origins (Railway: `beattrack.app,www.beattrack.app,beattrack.vercel.app`)
 - `SUPABASE_DB_URL` — Procrastinate-Connection (port 6543 Supavisor, optional fallback: DATABASE_URL)
 - `SENTRY_DSN` — Error-Tracking (optional)
 
 ## Entwicklung
+- Setup: `bun install` (Root) und `cd apps/api && uv sync` (Python-venv ist nicht Teil des Workspace-Kopiervorgangs — nach frischem Checkout/Kopie neu anlegen)
 - `cd apps/api && uvicorn app.main:app --reload` — Backend lokal
 - `cd apps/web && bun dev` — Frontend lokal
 - Backend-Tests: `cd apps/api && pytest`
-- Frontend-Tests: `cd apps/web && bun test` (Vitest, nicht Jest)
+- Frontend-Tests: `cd apps/web && bun run test` (Vitest, nicht Jest — siehe Gotchas: raw `bun test` funktioniert nicht)
 
 ## Batch Scripts (langlebig)
 - Scripts in `apps/api/scripts/` für DB-Operationen: `backfill_genre.py`, `extract_mert_batch.py`
@@ -79,6 +89,11 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - **compute_stats.py** — Z-Score Stats berechnen + normalisieren (generiert SQL, `--format sql` für stdout)
 - **cleanup_genres.py** — Songs nach Genre/Jahr filtern und löschen (`--execute`)
 - **seed_fma.py** / **seed_jamendo.py** — Legacy-Seeder (nicht mehr aktiv)
+
+## Datenbestände
+- Die großen Datendateien wurden NICHT in diesen Workspace kopiert: `apps/api/scripts/deezer_features.jsonl` (719M), `deezer_tracks.json` (214M), `seed_features.jsonl` (129M), `jamendo_features.jsonl` (81M)
+- Sie liegen weiterhin im Desktop-Original unter `/Users/ten.december/Desktop/projekte-codex/beattrack/apps/api/scripts/`
+- Kleinere Checkpoints sind mitkopiert: `mert_*`, `seed_*`, `feed_checkpoint.json`, `deezer_tracks_v1.json`
 
 ## Similarity Engine
 - **Tri-Signal Fusion**: MusiCNN 200d (HNSW-Index) + MERT 768d (re-ranking) + 44d handcrafted. Weights: 65/15/20 (with MERT) or 80/20 fallback
@@ -142,6 +157,8 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - **Package Manager**: `uv pip install ... --python .venv/bin/python` (kein pip im venv)
 - **Supabase MCP Project-ID**: MUSS `qpkemujemfnymtgmtkfg` sein. Bei "permission denied" → `list_projects` zum Verifizieren
 - **`body > *` CSS-Regel**: `globals.css` hatte `body > * { position: relative }` — überschreibt `position: fixed` auf allen body-Kindern (MeshGradient, MouseGlow, Overlays). Geändert zu `body > main`. Neue fixed-Overlays im body müssen das berücksichtigen
+- **Raw `bun test` vs. Vitest**: `bun test` nutzt Buns eigenen Test-Runner ohne Vitest/jsdom-Setup (`document is not defined`, `vi.mocked is not a function`). Immer `cd apps/web && bun run test` verwenden
+- **npm audit PostCSS-Finding**: `npm audit --workspaces --omit=dev` meldet `node_modules/next/node_modules/postcss <8.5.10` — stable Next.js pinnt internes `postcss@8.4.31`. Kein Canary-Upgrade nur fürs Audit; abwarten bis stable Next.js `postcss >=8.5.10` mitbringt (Details in `KNOWN_ERRORS.md`)
 
 ## Security
 - **Rate Limiting**: slowapi auf `/analyze` (10/min), `/identify/*` (20/min), `/feedback` (5/min geplant, aktuell 30/min)
