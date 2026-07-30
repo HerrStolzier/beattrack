@@ -54,9 +54,15 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Manage startup/shutdown lifecycle."""
     from app.routes.analyze import TEMP_DIR
 
+    # Procrastinate-Verbindung einmal pro Prozess oeffnen — ohne open()
+    # schlaegt jedes defer() fehl ("app is not open").
+    from app.workers import app as procrastinate_app
+    procrastinate_app.open()
+
     cleanup_task = asyncio.create_task(_periodic_cleanup(TEMP_DIR))
     yield
     cleanup_task.cancel()
+    procrastinate_app.close()
 
 
 app = FastAPI(
