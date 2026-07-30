@@ -3,8 +3,7 @@ name: Container Scan
 on:
   pull_request:
     paths:
-      - "apps/api/Dockerfile"
-      - "apps/web/Dockerfile"
+      - "**/Dockerfile"
       - ".github/workflows/container-scan.yml"
   schedule:
     # Montags 05:11 UTC — neue CVEs tauchen auch ohne Dockerfile-Aenderung auf
@@ -28,8 +27,15 @@ jobs:
         id: parse
         run: |
           set -euo pipefail
-          # Liest die Tags direkt aus den Dockerfiles, damit die Liste nicht driftet.
-          images=$(grep -hE '^FROM ' apps/api/Dockerfile apps/web/Dockerfile \
+          # Sucht alle getrackten Dockerfiles, statt Pfade festzuschreiben:
+          # apps/web/Dockerfile existiert noch nicht auf main, apps/api schon.
+          files=$(git ls-files -- '*Dockerfile')
+          if [ -z "$files" ]; then
+            echo "Kein Dockerfile gefunden — nichts zu scannen." >&2
+            exit 1
+          fi
+          echo "Dockerfiles: $(echo "$files" | tr '\n' ' ')"
+          images=$(echo "$files" | xargs grep -hE '^FROM ' \
             | awk '{print $2}' | sort -u | jq -R . | jq -sc .)
           echo "images=$images" >> "$GITHUB_OUTPUT"
           echo "Gefundene Base-Images: $images"
