@@ -4,7 +4,11 @@ Tests pure functions without DB mocking — the refactored helpers are
 designed to be testable in isolation.
 """
 
+from unittest.mock import MagicMock
+
+import numpy as np
 import pytest
+from fastapi import HTTPException
 
 from app.routes.similar import (
     _FusionWeights,
@@ -13,6 +17,7 @@ from app.routes.similar import (
     _cosine_similarity,
     _deduplicate_versions,
     _determine_weights,
+    _fetch_embedding,
     _parse_vector,
 )
 from app.services.genre import DEEZER_GENRE_MAP, map_deezer_genre
@@ -193,3 +198,66 @@ class TestGenreMapping:
 
     def test_map_has_expected_entries(self):
         assert len(DEEZER_GENRE_MAP) >= 10
+
+
+# ---------------------------------------------------------------------------
+# _fetch_embedding
+#
+# Supabase returns vector columns as JSON strings. Blend and vibe build
+# centroids from these, so unparsed values made numpy raise instead of
+# returning results.
+# ---------------------------------------------------------------------------
+
+def _song_row_mock(row):
+    sb = MagicMock()
+    builder = sb.table.return_value
+    for method in ("select", "eq", "single"):
+        getattr(builder, method).return_value = builder
+    builder.execute.return_value = MagicMock(data=row)
+    return sb
+
+
+class TestFetchEmbedding:
+    def test_parses_string_vectors(self):
+        sb = _song_row_mock({
+            "learned_embedding": "[0.1,0.2,0.3]",
+            "handcrafted_norm": "[1.5,2.5]",
+        })
+        emb, hc = _fetch_embedding(sb, "song-1")
+
+        assert emb == [0.1, 0.2, 0.3]
+        assert hc == [1.5, 2.5]
+
+    def test_centroid_arithmetic_works(self):
+        """The actual blend/vibe failure: numpy math on the returned vectors."""
+        sb = _song_row_mock({
+            "learned_embedding": "[0.0,2.0]",
+            "handcrafted_norm": None,
+        })
+        emb, _ = _fetch_embedding(sb, "song-1")
+
+        centroid = ((np.asarray(emb) + np.asarray(emb)) / 2).tolist()
+        assert centroid == [0.0, 2.0]
+        assert np.mean([emb, emb], axis=0).tolist() == [0.0, 2.0]
+
+    def test_passes_through_lists(self):
+        sb = _song_row_mock({
+            "learned_embedding": [0.1, 0.2],
+            "handcrafted_norm": [0.3],
+        })
+        assert _fetch_embedding(sb, "song-1") == ([0.1, 0.2], [0.3])
+
+    def test_missing_handcrafted_stays_none(self):
+        sb = _song_row_mock({"learned_embedding": "[0.1]", "handcrafted_norm": None})
+        assert _fetch_embedding(sb, "song-1")[1] is None
+
+    def test_unknown_song_is_404(self):
+        with pytest.raises(HTTPException) as exc:
+            _fetch_embedding(_song_row_mock(None), "nope")
+        assert exc.value.status_code == 404
+
+    def test_song_without_embedding_is_422(self):
+        sb = _song_row_mock({"learned_embedding": None, "handcrafted_norm": None})
+        with pytest.raises(HTTPException) as exc:
+            _fetch_embedding(sb, "song-1")
+        assert exc.value.status_code == 422

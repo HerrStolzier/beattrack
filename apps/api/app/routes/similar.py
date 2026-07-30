@@ -459,7 +459,11 @@ def _to_similar_songs(results: list[dict]) -> list[SimilarSong]:
 
 
 def _fetch_embedding(sb: Client, song_id: str) -> tuple[list[float], list[float] | None]:
-    """Fetch learned_embedding and handcrafted_norm for a song. Raises HTTPException on failure."""
+    """Fetch learned_embedding and handcrafted_norm for a song. Raises HTTPException on failure.
+
+    Both vectors are parsed: Supabase returns vector columns as JSON strings, and
+    the callers do arithmetic on them (centroids for blend and vibe).
+    """
     result = (
         sb.table("songs")
         .select("learned_embedding, handcrafted_norm")
@@ -469,10 +473,10 @@ def _fetch_embedding(sb: Client, song_id: str) -> tuple[list[float], list[float]
     )
     if not result.data:
         raise HTTPException(status_code=404, detail=f"Song {song_id} not found")
-    embedding = result.data.get("learned_embedding")
+    embedding = _parse_vector(result.data.get("learned_embedding"))
     if not embedding:
         raise HTTPException(status_code=422, detail=f"Song {song_id} has no embedding")
-    return embedding, result.data.get("handcrafted_norm")
+    return embedding, _parse_vector(result.data.get("handcrafted_norm"))
 
 
 # ---------------------------------------------------------------------------
