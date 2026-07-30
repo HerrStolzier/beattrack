@@ -30,7 +30,7 @@
     "eslint-config-next": "^15.5.20",
     "eslint-plugin-react-hooks": "^7.0.1",
     "jsdom": "^28.1.0",
-    "postcss": "^8.5.0",
+    "postcss": "^8.5.18",
     "tailwindcss": "^4.1.0",
     "typescript": "^6.0.3",
     "vitest": "^4"
