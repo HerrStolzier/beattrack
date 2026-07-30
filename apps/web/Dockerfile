@@ -23,6 +23,13 @@ ENV HOSTNAME=0.0.0.0
 
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 
+# Das Laufzeit-Image startet nur `node server.js`. npm, npx, corepack und yarn
+# werden nie aufgerufen, schleppen aber ihre eigenen Abhaengigkeiten mit — zuletzt
+# CVE-2026-59873 (node-tar). Was nicht im Image liegt, muss nicht gepatcht werden.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+           /opt/yarn-v* /usr/local/bin/yarn /usr/local/bin/yarnpkg
+
 # standalone kopiert public/ und .next/static NICHT mit.
 # public/ ist derzeit leer, existiert aber (per .gitkeep) — sonst bricht der COPY ab.
 COPY --from=builder /app/apps/web/public ./public
