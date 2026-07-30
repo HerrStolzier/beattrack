@@ -5,7 +5,13 @@ import re
 
 import httpx
 
+from app.services.http_safe import follow_redirects_within
+
 logger = logging.getLogger(__name__)
+
+# Hosts the share-link resolution may touch. The suffix match in
+# host_is_allowed also covers www.deezer.com and link.deezer.com.
+_DEEZER_ALLOWED_HOSTS = frozenset({"deezer.com", "deezer.page.link"})
 
 # Matches deezer.com/track/ID or deezer.com/xx/track/ID
 _DEEZER_TRACK_RE = re.compile(
@@ -50,19 +56,24 @@ async def fetch_metadata(url: str) -> dict | None:
         if m:
             track_id = m.group(1)
         else:
-            # Share link — follow redirects to find the real URL
-            try:
-                resp = await client.head(url.strip())
-                resolved = str(resp.url)
-                m = _DEEZER_TRACK_RE.match(resolved)
-                if m:
-                    track_id = m.group(1)
-                else:
-                    logger.warning("Deezer share link did not resolve to track: %s → %s", url, resolved)
-                    return None
-            except Exception as exc:
-                logger.warning("Failed to resolve Deezer share link %s: %s", url, exc)
+            # Share link — resolve it, but only within Deezer hosts.
+            # The caller is supposed to have run parse_deezer_url first;
+            # re-checking here keeps the function safe on its own.
+            stripped = url.strip()
+            if not _DEEZER_SHARE_RE.match(stripped):
+                logger.warning("Not a Deezer URL, refusing to fetch: %s", url)
                 return None
+
+            resolved = await follow_redirects_within(client, stripped, _DEEZER_ALLOWED_HOSTS)
+            if not resolved:
+                logger.warning("Failed to resolve Deezer share link: %s", url)
+                return None
+
+            m = _DEEZER_TRACK_RE.match(resolved)
+            if not m:
+                logger.warning("Deezer share link did not resolve to track: %s → %s", url, resolved)
+                return None
+            track_id = m.group(1)
 
         # Fetch track info from Deezer API
         try:
