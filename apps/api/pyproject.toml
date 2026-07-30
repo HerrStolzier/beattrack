@@ -5,7 +5,7 @@ description = "Beattrack API — sonically similar song finder"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.141.1",
-    "uvicorn[standard]>=0.34.0",
+    "uvicorn[standard]>=0.52.0",
     "pydantic>=2.13.4",
     "supabase>=2.31.0",
     "python-magic>=0.4.27",
