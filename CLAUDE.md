@@ -44,7 +44,11 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 - **Genre**: Electronic (Sub-Genres: Techno, House, IDM, Minimal Electronic, Dance, Downtempo, Chill-out, Dubstep, Drum & Bass, Trance, Breakbeat, Ambient, Electronic)
 - **Quelle**: Deezer API — kommerzielle Electronic-Tracks (30s Previews → Essentia-Extraktion)
 - **Crawl-Strategie**: 424 Seed-Artists → Top-Tracks + Related Artists (Tiefe 2, 25 Related pro Artist) mit Album-Genre-Filter
-- **Aktuell**: ~121K Songs. Genre-Backfill von Deezer Album API + MERT-Embedding-Extraction laufend
+- **Aktuell** (2026-07-31, gegen die Live-DB gezählt): **588.707 Songs**. Auto-Ingest und
+  Neighbor-Expansion haben den Katalog vervielfacht, die Backfills sind nicht mitgewachsen:
+  `learned_embedding` und `genre` 100 %, `mert_embedding` 314.101 (53 %),
+  `handcrafted_norm` 121.773 (21 %). Folge: Für ~79 % der Songs fehlen die Radar-Features,
+  Late Fusion fällt dort auf learned-only zurück
 - **Legacy (inaktiv)**: FMA-large, MTG-Jamendo — Seeder-Scripts existieren noch in `scripts/`, werden nicht mehr verwendet
 
 ## Deployment (seit 2026-07-30: infra-01, Hetzner)
@@ -55,7 +59,9 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 - DNS/Registrar: beattrack.app liegt bei Vercel (nur noch Registrar+DNS, kein Hosting).
 - DB-Migrations: direkt gegen die eigene Postgres (`docker exec postgres psql -U postgres -d beattrack`).
 - Health-Cron: `/etc/cron.d/beattrack-health` auf infra-01. Uptime-Alarm: UptimeRobot (Konto Basti).
-- Legacy (bis zur Kündigung ~Aug 2026): Railway/Vercel-Hosting/Supabase laufen als Fallback weiter.
+- Alt-Anbieter: Railway **gekündigt (2026-07-31)**, kein Fallback mehr. Vercel nur noch
+  Registrar/DNS. Supabase wird von der Produktion nicht mehr angesprochen (`SUPABASE_URL`
+  zeigt auf den eigenen PostgREST unter `https://beattrack.app`); das Projekt existiert noch.
 
 ## Environment Variables (Backend)
 - `DATABASE_URL` — Postgres Connection String (required; auf infra-01: stack-db)
@@ -64,7 +70,7 @@ Sonically similar song finder — findet Songs die ähnlich klingen.
 - `ROLE` — `api` (Default) oder `worker` (startet Procrastinate-Worker)
 - `BEATTRACK_TEMP_DIR` — gemeinsames Upload-Volume von API+Worker (`/data/uploads`)
 - `ACOUSTID_API_KEY` — Song-Identifikation via AcoustID (required)
-- `CORS_ORIGINS` — Erlaubte Origins (Railway: `beattrack.app,www.beattrack.app,beattrack.vercel.app`)
+- `CORS_ORIGINS` — Erlaubte Origins (auf infra-01 gesetzt auf `beattrack.app`; die www-Variante hängt der Code selbst an)
 - `SUPABASE_DB_URL` — Procrastinate-Connection (port 6543 Supavisor, optional fallback: DATABASE_URL)
 - `SENTRY_DSN` — Error-Tracking (optional)
 
@@ -145,7 +151,7 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - **Dockerfile**: Runtime braucht `ffmpeg` + `libmagic1`
 - **Spotify oEmbed**: Liefert keinen `author_name` — Artist muss via OG-Tag (`og:description`) von der Track-Page gescrapt werden (Pattern: `"Artist · Album · Song · Year"`)
 - **Essentia Extraction**: Kann bei `--workers >1` in Multiprocessing-Deadlock geraten (POSIX Semaphores). Fix: Prozess killen + `--resume`
-- **CORS www**: `CORS_ORIGINS` auf Railway muss BEIDE Varianten enthalten (`beattrack.app` + `www.beattrack.app`). Code auto-appended www wenn nur non-www gesetzt
+- **CORS www**: Beide Varianten müssen erlaubt sein. `CORS_ORIGINS=beattrack.app` genügt, der Code hängt `www.` selbst an — der Traefik-Router auf infra-01 akzeptiert ebenfalls beide Hosts
 - **pgvector HNSW + WHERE**: WHERE-Klauseln in der gleichen Query verhindern Index-Nutzung. Fix: Subquery-Pattern (innere Query = Index, äußere = Filter)
 - **Vercel CRON_SECRET**: Env-Var kann trailing Whitespace enthalten (inkl. Newline). Fix: `.trim()` auf beiden Seiten des Vergleichs in `apps/web/app/api/cron/route.ts` — bereits implementiert. Beim manuellen Setzen: `printf` statt `echo` verwenden
 - **Deezer iframe Autoplay**: Browser blockiert cross-origin autoplay — User muss im Widget selbst auf Play klicken
@@ -181,4 +187,4 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 ## Legal
 - **Lizenz**: AGPLv3 (wegen Essentia-Abhängigkeit)
 - **Seiten**: /impressum, /privacy, /nutzungsbedingungen
-- **Domain**: beattrack.app (Vercel, SSL managed)
+- **Domain**: beattrack.app (Registrar/DNS bei Vercel, Hosting auf infra-01; Let's-Encrypt-Zertifikat via Traefik)
