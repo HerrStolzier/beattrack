@@ -74,7 +74,12 @@ def gate_query(repo, flag):
     gate = repo / "scripts" / "review_gate.py"
     if not gate.exists():
         return None
-    r = subprocess.run(["python3", str(gate), flag], cwd=repo, capture_output=True, text=True)
+    r = subprocess.run(
+        ["python3", str(gate), flag],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    )
     if r.returncode != 0:
         return None
     return (r.stdout or "").strip() or None
@@ -111,14 +116,23 @@ def nul_separated(result):
     escapte Text ist kein existierender Pfad - `git add -N` scheitert daran mit
     "pathspec did not match any files", und seit der Fail-closed-Regel bricht
     damit JEDES Review in so einem Worktree ab (Cross-Model-Review 2026-07-28).
+
+    Schlaegt der git-Aufruf selbst fehl, kommt None zurueck, KEINE leere Liste:
+    "keine Pfade" und "Abfrage gescheitert" duerfen nicht zusammenfallen, sonst
+    laeuft das Review ohne intent-to-add-Marker weiter und zertifiziert
+    ungetrackte Dateien erneut ungesehen (Cross-Model-Review 2026-07-30, P2).
     """
     if result.returncode != 0:
-        return []
+        return None
     return [p for p in (result.stdout or "").split("\0") if p]
 
 
 def untracked_paths(repo):
-    """Ungetrackte, nicht ignorierte Dateien - dieselbe Menge wie im Gate."""
+    """Ungetrackte, nicht ignorierte Dateien - dieselbe Menge wie im Gate.
+
+    None bei gescheiterter git-Abfrage; der Aufrufer MUSS dann abbrechen
+    (fail closed, wie mark_intent_to_add).
+    """
     return nul_separated(
         subprocess.run(
             ["git", "ls-files", "--others", "--exclude-standard", "-z"],
@@ -163,10 +177,16 @@ def mark_intent_to_add(repo, paths):
     if not paths:
         return []
     r = subprocess.run(
-        ["git", "add", "-N", "--"] + paths, cwd=repo, capture_output=True, text=True
+        ["git", "add", "-N", "--", *paths],
+        cwd=repo,
+        capture_output=True,
+        text=True,
     )
     if r.returncode != 0:
-        print("FEHLER: ungetrackte Dateien liessen sich nicht in den Diff heben.", file=sys.stderr)
+        print(
+            "FEHLER: ungetrackte Dateien liessen sich nicht in den Diff heben.",
+            file=sys.stderr,
+        )
         print((r.stderr or "").strip(), file=sys.stderr)
         print(
             "Ohne sie waere das Review blind fuer neue Dateien - und wuerde den Stand\n"
@@ -183,17 +203,19 @@ def really_staged(repo):
     Trennscharf gegen intent-to-add: `git add -N` legt nur einen Platzhalter an,
     solche Eintraege tauchen in `git diff --cached` NICHT auf, echt gestagete
     dagegen schon.
+
+    None bei gescheiterter git-Abfrage - der Aufrufer darf dann NICHT
+    zuruecksetzen, sonst reset er womoeglich echt gestagete Arbeit.
     """
-    return set(
-        nul_separated(
-            subprocess.run(
-                ["git", "diff", "--cached", "--name-only", "-z"],
-                cwd=repo,
-                capture_output=True,
-                text=True,
-            )
+    staged = nul_separated(
+        subprocess.run(
+            ["git", "diff", "--cached", "--name-only", "-z"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
         )
     )
+    return None if staged is None else set(staged)
 
 
 def unmark_intent_to_add(repo, paths):
@@ -218,11 +240,24 @@ def unmark_intent_to_add(repo, paths):
     if not paths:
         return
     staged_meanwhile = really_staged(repo)
+    if staged_meanwhile is None:
+        # Nicht feststellbar, was inzwischen echt gestaged wurde: lieber die
+        # harmlosen Marker stehen lassen als fremde Arbeit zuruecksetzen.
+        print(
+            f"WARNUNG: {len(paths)} intent-to-add-Marker bleiben stehen "
+            "(git diff --cached scheiterte).",
+            file=sys.stderr,
+        )
+        print(f"  Selbst richten: git reset -- {' '.join(paths)}", file=sys.stderr)
+        return
     paths = [p for p in paths if p not in staged_meanwhile]
     if not paths:
         return
     r = subprocess.run(
-        ["git", "reset", "--quiet", "--"] + paths, cwd=repo, capture_output=True, text=True
+        ["git", "reset", "--quiet", "--", *paths],
+        cwd=repo,
+        capture_output=True,
+        text=True,
     )
     if r.returncode != 0:
         print(
@@ -231,7 +266,10 @@ def unmark_intent_to_add(repo, paths):
         )
         print((r.stderr or "").strip(), file=sys.stderr)
         print("Selbst zuruecksetzen mit:", file=sys.stderr)
-        print(f"  git reset -- {' '.join(shlex.quote(p) for p in paths)}", file=sys.stderr)
+        print(
+            f"  git reset -- {' '.join(shlex.quote(p) for p in paths)}",
+            file=sys.stderr,
+        )
 
 
 def find_codex():
@@ -258,7 +296,10 @@ def main():
     scope.add_argument(
         "--uncommitted",
         action="store_true",
-        help="staged + unstaged + untracked (Default; ungetrackte werden per git add -N sichtbar gemacht)",
+        help=(
+            "staged + unstaged + untracked "
+            "(Default; ungetrackte werden per git add -N sichtbar gemacht)"
+        ),
     )
     ap.add_argument("--prompt", help="zusaetzlicher Fokus fuer den Reviewer")
     ap.add_argument(
@@ -281,7 +322,10 @@ def main():
 
     codex = find_codex()
     if not codex:
-        print("FEHLER: codex-CLI nicht gefunden. Kein Zweitmodell = kein Review.", file=sys.stderr)
+        print(
+            "FEHLER: codex-CLI nicht gefunden. Kein Zweitmodell = kein Review.",
+            file=sys.stderr,
+        )
         print("Kein Review vorzutaeuschen ist besser als ein erfundenes.", file=sys.stderr)
         return 2
 
@@ -338,7 +382,22 @@ def main():
     # auszunehmen waere derselbe Blindfleck in einem anderen Modus
     # (Cross-Model-Review 2026-07-28). Nur --commit bleibt aussen vor: das ist
     # ein abgeschlossener Commit-Diff, in dem der Arbeitsbaum nichts zu suchen hat.
-    marked = [] if args.commit else mark_intent_to_add(repo, untracked_paths(repo))
+    if args.commit:
+        marked = []
+    else:
+        untracked = untracked_paths(repo)
+        if untracked is None:
+            # Fail closed: ohne diese Liste bekaeme das Zweitmodell neue
+            # Dateien nie zu sehen und wuerde den Stand trotzdem freigeben.
+            print(
+                "FEHLER: git konnte ungetrackte Dateien nicht auflisten "
+                "(git ls-files --others scheiterte).",
+                file=sys.stderr,
+            )
+            print("Lieber kein Review als ein falscher Beleg.", file=sys.stderr)
+            record_command(repo, f"agent_review --{mode.split('-')[0]}", 2)
+            return 2
+        marked = mark_intent_to_add(repo, untracked)
     if marked is None:
         record_command(repo, f"agent_review --{mode.split('-')[0]}", 2)
         return 2
