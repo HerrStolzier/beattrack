@@ -1,0 +1,469 @@
+#!/usr/bin/env python3
+"""Cross-Model-Review: ein ZWEITES Modell liest den Diff gegen.
+
+Sinn: Ein Modell, das seinen eigenen Code reviewt, findet vor allem, was es eh
+schon dachte. Der Wert liegt in der Modell-Diversitaet - nicht in Personas.
+
+  tools/agent_review                      # uncommittete Aenderungen (Default)
+  tools/agent_review --base main          # Diff gegen main
+  tools/agent_review --commit HEAD        # ein bestimmter Commit
+  tools/agent_review --repo kurier        # anderes Repo
+  tools/agent_review --prompt "Fokus: Fehlerbehandlung in der API"
+
+Das Ergebnis landet in <repo>/.agents/reviews/<ts>-<mode>.md und wird in
+.agents/command_runs.jsonl als Evidenz protokolliert - damit ist "wurde
+gegengelesen" ein belegbarer Claim (type: command) und keine Behauptung.
+
+Backend ist die lokale codex-CLI (`codex exec review`). Fehlt sie, bricht das
+Script ehrlich ab, statt ein Review vorzutaeuschen.
+
+Ungetrackte Dateien werden vor dem Lauf per `git add -N` in den Diff gehoben und
+danach wieder zurueckgesetzt - siehe mark_intent_to_add(). Ohne das reviewte das
+Zweitmodell neue Dateien nicht, waehrend das Gate sie mitfingerprintete.
+"""
+
+import argparse
+import datetime
+import json
+import os
+import pathlib
+import shlex
+import shutil
+import subprocess
+import sys
+
+# Bewusste Wahl, NICHT die codex-Konfiguration erben lassen:
+# ~/.codex/config.toml hat model_reasoning_effort = "low" - fuer interaktives
+# Arbeiten sinnvoll, fuer einen Reviewer falsch. Gegenlesen ist die haerteste
+# Denkaufgabe in der Kette, nicht die billigste.
+#
+# Modellwahl belegt (2026-07-14): gpt-5.5 und gpt-5.6-terra auf denselben Commit
+# angesetzt - terra fand alles von 5.5 PLUS einen dritten echten Bug und stufte
+# die schwerste Luecke korrekt als P1 ein (5.5: P2). gpt-5.6-sol waere staerker,
+# ist aber ueber einen ChatGPT-Account nicht nutzbar ("not supported when using
+# Codex with a ChatGPT account") - dafuer braeuchte es einen API-Key-Account.
+DEFAULT_MODEL = "gpt-5.6-terra"
+
+# Effort ist bei "medium" gedeckelt (Nutzervorgabe 2026-07-14). "high" ist
+# bewusst KEINE Option: ein Review-Lauf auf hohem Effort frisst spuerbar
+# Kontingent, und ein Gate, das das Kontingent leerlaeuft, blockiert am Ende
+# alles. Nicht die codex-Konfiguration erben lassen - die steht auf "low".
+EFFORT_CHOICES = ["low", "medium"]
+DEFAULT_EFFORT = "medium"
+
+
+def now():
+    return datetime.datetime.now().isoformat(timespec="seconds")
+
+
+def record_command(repo, command, exit_code):
+    agents = repo / ".agents"
+    agents.mkdir(exist_ok=True)
+    with (agents / "command_runs.jsonl").open("a", encoding="utf-8") as f:
+        f.write(
+            json.dumps(
+                {"command": command, "exit_code": exit_code, "ts": now()},
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+
+
+def gate_query(repo, flag):
+    """review_gate.py ist die einzige Quelle fuer Basislinie und Fingerabdruck."""
+    gate = repo / "scripts" / "review_gate.py"
+    if not gate.exists():
+        return None
+    r = subprocess.run(["python3", str(gate), flag], cwd=repo, capture_output=True, text=True)
+    if r.returncode != 0:
+        return None
+    return (r.stdout or "").strip() or None
+
+
+def worktree_fingerprint(repo):
+    """Fingerabdruck der geaenderten Code-Dateien.
+
+    Bewusst KEINE eigene Implementierung: scripts/review_gate.py ist die einzige
+    Quelle. Zwei Kopien wuerden auseinanderdriften und dann passt kein Review
+    mehr zu keinem Gate. Fehlt das Script, gibt es keinen Fingerabdruck - dann
+    wird auch kein last_review.json geschrieben (lieber kein Beleg als ein
+    falscher).
+    """
+    gate = repo / "scripts" / "review_gate.py"
+    if not gate.exists():
+        return None
+    r = subprocess.run(
+        ["python3", str(gate), "--fingerprint"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    )
+    if r.returncode != 0:
+        return None
+    return (r.stdout or "").strip() or None
+
+
+def nul_separated(result):
+    """Pfade aus einer -z-Ausgabe.
+
+    IMMER -z verwenden, nie splitlines(): ohne -z escaped git Pfade mit
+    Sonderzeichen ("sch\\303\\266n.py" statt schön.py, Umbrueche als \\n). Dieser
+    escapte Text ist kein existierender Pfad - `git add -N` scheitert daran mit
+    "pathspec did not match any files", und seit der Fail-closed-Regel bricht
+    damit JEDES Review in so einem Worktree ab (Cross-Model-Review 2026-07-28).
+    """
+    if result.returncode != 0:
+        return []
+    return [p for p in (result.stdout or "").split("\0") if p]
+
+
+def untracked_paths(repo):
+    """Ungetrackte, nicht ignorierte Dateien - dieselbe Menge wie im Gate."""
+    return nul_separated(
+        subprocess.run(
+            ["git", "ls-files", "--others", "--exclude-standard", "-z"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+        )
+    )
+
+
+def mark_intent_to_add(repo, paths):
+    """Ungetrackte Dateien in den Diff heben, den das Zweitmodell zu sehen bekommt.
+
+    Warum ueberhaupt: `codex exec review --uncommitted` sagt laut Hilfe "staged,
+    unstaged, and untracked" zu - haelt das aber nicht verlaesslich. Am
+    2026-07-27 reviewte es in investors-club-global eine Aenderung aus 7 neuen
+    Dateien, sah KEINE davon und meldete stattdessen, die Implementierung fehle.
+    In einem Mini-Repo klappte es. Der Unterschied ist nicht ermittelt und ist
+    auch egal: ein Gate darf nicht davon abhaengen, ob ein Modell zufaellig
+    nachschaut.
+
+    Das ist kein Kosmetikfehler. `review_gate.py` fingerprintet ungetrackte
+    Dateien MIT (changed_code_paths), das Review sah sie aber nicht - ein
+    erfolgreicher Lauf schrieb also last_review.json fuer einen Stand, den nie
+    jemand gelesen hat. Das Gate zertifizierte ungeprueften Code als geprueft,
+    genau die Klasse Fehler, gegen die es gebaut wurde.
+
+    `git add -N` legt nur einen leeren Blob in den Index: der Diff zeigt die
+    Datei als komplette Neuanlage, der Arbeitsbaum bleibt unberuehrt. Gilt fuer
+    `--uncommitted` UND `--base <sha>`, deckt also beide Default-Pfade ab.
+
+    Gibt die Pfade zurueck, die WIRKLICH markiert wurden - nur die duerfen
+    hinterher zurueckgesetzt werden. Ein pauschales `git reset` wuerde dem Nutzer
+    bewusst gestagete Aenderungen wegnehmen.
+
+    Bei einem Fehler (z.B. .git/index.lock von einem parallelen git-Prozess)
+    kommt None zurueck, KEINE leere Liste: der Aufrufer muss dann abbrechen.
+    Weiterlaufen hiesse, mit genau dem Blindfleck zu reviewen, gegen den diese
+    Funktion gebaut ist - und am Ende last_review.json dafuer zu schreiben
+    (Cross-Model-Review 2026-07-28, P1).
+    """
+    if not paths:
+        return []
+    r = subprocess.run(
+        ["git", "add", "-N", "--"] + paths, cwd=repo, capture_output=True, text=True
+    )
+    if r.returncode != 0:
+        print("FEHLER: ungetrackte Dateien liessen sich nicht in den Diff heben.", file=sys.stderr)
+        print((r.stderr or "").strip(), file=sys.stderr)
+        print(
+            "Ohne sie waere das Review blind fuer neue Dateien - und wuerde den Stand\n"
+            "trotzdem freigeben. Lieber kein Review als ein falscher Beleg.",
+            file=sys.stderr,
+        )
+        return None
+    return paths
+
+
+def really_staged(repo):
+    """Pfade mit echtem Index-Inhalt.
+
+    Trennscharf gegen intent-to-add: `git add -N` legt nur einen Platzhalter an,
+    solche Eintraege tauchen in `git diff --cached` NICHT auf, echt gestagete
+    dagegen schon.
+    """
+    return set(
+        nul_separated(
+            subprocess.run(
+                ["git", "diff", "--cached", "--name-only", "-z"],
+                cwd=repo,
+                capture_output=True,
+                text=True,
+            )
+        )
+    )
+
+
+def unmark_intent_to_add(repo, paths):
+    """Markierung zuruecknehmen: die Dateien sind danach wieder ungetrackt.
+
+    Nur die selbst markierten Pfade, nie der ganze Index (s.o.). Laeuft im
+    finally-Zweig, damit ein abgebrochener oder fehlgeschlagener Review den
+    Index des Nutzers nicht veraendert zuruecklaesst.
+
+    Ein Review dauert Minuten. Staged der Nutzer (oder eine parallele Session)
+    in dieser Zeit eine dieser Dateien wirklich, wuerde ein blindes `git reset`
+    ihm diese Arbeit wegnehmen. Deshalb kurz vor dem Zuruecksetzen erneut
+    pruefen, welche Pfade noch reine intent-to-add-Eintraege sind - nur die
+    anfassen (Cross-Model-Review 2026-07-28, P2).
+
+    Scheitert das Zuruecksetzen (Index-Lock), bleibt der Index veraendert. Das
+    still zu schlucken waere ein gebrochenes Versprechen, das niemand bemerkt -
+    also laut melden, mit dem Befehl zum Selberrichten. Die Gate-Korrektheit
+    haengt nicht daran: intent-to-add aendert keine Dateiinhalte, der
+    Fingerabdruck bleibt derselbe.
+    """
+    if not paths:
+        return
+    staged_meanwhile = really_staged(repo)
+    paths = [p for p in paths if p not in staged_meanwhile]
+    if not paths:
+        return
+    r = subprocess.run(
+        ["git", "reset", "--quiet", "--"] + paths, cwd=repo, capture_output=True, text=True
+    )
+    if r.returncode != 0:
+        print(
+            f"WARNUNG: {len(paths)} Datei(en) bleiben als intent-to-add im Index stehen.",
+            file=sys.stderr,
+        )
+        print((r.stderr or "").strip(), file=sys.stderr)
+        print("Selbst zuruecksetzen mit:", file=sys.stderr)
+        print(f"  git reset -- {' '.join(shlex.quote(p) for p in paths)}", file=sys.stderr)
+
+
+def find_codex():
+    """Die Tool-Shell hat nicht denselben PATH wie die Login-Shell."""
+    exe = shutil.which("codex")
+    if exe:
+        return exe
+    for cand in (
+        "/usr/local/bin/codex",
+        "/opt/homebrew/bin/codex",
+        os.path.expanduser("~/.local/bin/codex"),
+    ):
+        if os.path.isfile(cand) and os.access(cand, os.X_OK):
+            return cand
+    return None
+
+
+def main():
+    ap = argparse.ArgumentParser(add_help=True)
+    ap.add_argument("--repo", default=".", help="Repo-Pfad (Default: aktuelles Verzeichnis)")
+    scope = ap.add_mutually_exclusive_group()
+    scope.add_argument("--base", metavar="BRANCH", help="Diff gegen diesen Branch reviewen")
+    scope.add_argument("--commit", metavar="SHA", help="diesen Commit reviewen")
+    scope.add_argument(
+        "--uncommitted",
+        action="store_true",
+        help="staged + unstaged + untracked (Default; ungetrackte werden per git add -N sichtbar gemacht)",
+    )
+    ap.add_argument("--prompt", help="zusaetzlicher Fokus fuer den Reviewer")
+    ap.add_argument(
+        "--model",
+        default=DEFAULT_MODEL,
+        help=f"Modell des Zweitlesers (Default: {DEFAULT_MODEL})",
+    )
+    ap.add_argument(
+        "--effort",
+        default=DEFAULT_EFFORT,
+        choices=EFFORT_CHOICES,
+        help=f"Reasoning-Effort, gedeckelt bei medium (Default: {DEFAULT_EFFORT})",
+    )
+    args = ap.parse_args()
+
+    repo = pathlib.Path(args.repo).resolve()
+    if not (repo / ".git").exists():
+        print(f"FEHLER: kein Git-Repo: {repo}", file=sys.stderr)
+        return 2
+
+    codex = find_codex()
+    if not codex:
+        print("FEHLER: codex-CLI nicht gefunden. Kein Zweitmodell = kein Review.", file=sys.stderr)
+        print("Kein Review vorzutaeuschen ist besser als ein erfundenes.", file=sys.stderr)
+        return 2
+
+    # Standardfall: ALLES Ungepruefte lesen. Die Basislinie kommt vom Gate -
+    # sie schliesst lokale, noch nicht gegengelesene Commits ein. Frueher wurde
+    # nur der Arbeitsbaum geprueft; wer vorher committete, umging das Gate
+    # komplett (Cross-Model-Review 2026-07-14, P1).
+    head = (
+        subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True
+        ).stdout
+        or ""
+    ).strip()
+
+    cmd = [codex, "exec", "review"]
+    releases_worktree = False
+    if args.base:
+        scope_flags = ["--base", args.base]
+        scope_desc = f"die Aenderungen gegenueber Branch {args.base}"
+        mode = f"base-{args.base}"
+    elif args.commit:
+        scope_flags = ["--commit", args.commit]
+        scope_desc = f"die Aenderungen des Commits {args.commit}"
+        mode = f"commit-{args.commit[:8]}"
+    else:
+        base = gate_query(repo, "--baseline")
+        if base and base != head:
+            scope_flags = ["--base", base]
+            scope_desc = f"alle Aenderungen seit {base} (Commits und Arbeitsbaum)"
+            mode = "unreviewed"
+        else:
+            scope_flags = ["--uncommitted"]
+            scope_desc = "die uncommitteten Aenderungen (staged, unstaged und untracked)"
+            mode = "uncommitted"
+        releases_worktree = True
+    if args.model:
+        cmd += ["--model", args.model]
+    # Effort pro Aufruf setzen, statt den globalen "low"-Default zu erben.
+    # -c ueberschreibt config.toml nur fuer diesen Lauf; die interaktive
+    # codex-Nutzung des Users bleibt unangetastet.
+    cmd += ["-c", f"model_reasoning_effort={args.effort!r}".replace("'", '"')]
+    # Die codex-CLI erlaubt den Positional-Prompt nicht zusammen mit
+    # --base/--commit/--uncommitted (Custom-Instructions sind dort ein eigener,
+    # vierter Review-Modus). Mit --prompt wird der Scope deshalb in die
+    # Instruktion eingebettet statt als Flag uebergeben.
+    if args.prompt:
+        cmd += [f"Reviewe {scope_desc}. Zusaetzlicher Fokus: {args.prompt}"]
+    else:
+        cmd += scope_flags
+
+    # Ueberall, wo der Arbeitsbaum im Scope ist. Das schliesst --base ein:
+    # `git diff <base>` vergleicht den ARBEITSBAUM gegen die Basis, nicht HEAD -
+    # getrackte Worktree-Aenderungen sind dort also drin, und ungetrackte
+    # auszunehmen waere derselbe Blindfleck in einem anderen Modus
+    # (Cross-Model-Review 2026-07-28). Nur --commit bleibt aussen vor: das ist
+    # ein abgeschlossener Commit-Diff, in dem der Arbeitsbaum nichts zu suchen hat.
+    marked = [] if args.commit else mark_intent_to_add(repo, untracked_paths(repo))
+    if marked is None:
+        record_command(repo, f"agent_review --{mode.split('-')[0]}", 2)
+        return 2
+
+    print(f"Zweitmodell liest gegen: {repo.name} ({mode}) [{args.model}, effort={args.effort}]")
+    if marked:
+        print(f"  + {len(marked)} ungetrackte Datei(en) in den Diff gehoben")
+    print(f"$ {' '.join(cmd)}\n")
+
+    # Ueber die LOGIN-Shell starten: codex braucht CODEX_HOME/OPENAI_API_KEY aus
+    # der zshrc. Ein direkter subprocess erbt die nicht und laeuft in einen
+    # irrefuehrenden "Login abgelaufen"-Fehler.
+    shell_cmd = " ".join(shlex.quote(c) for c in cmd)
+    try:
+        proc = subprocess.run(["zsh", "-lic", shell_cmd], cwd=repo, capture_output=True, text=True)
+    finally:
+        unmark_intent_to_add(repo, marked)
+    output = (proc.stdout or "") + (proc.stderr or "")
+
+    # NUR echte codex-Fehlerzeilen auswerten, nicht die gesamte Ausgabe.
+    #
+    # Vorher wurde im kompletten Output gesucht - und der enthaelt den REVIEWTEN
+    # CODE. Sobald Codex dieses Script selbst reviewte, las der Detektor seine
+    # eigenen Suchmuster ("token_expired", "401 Unauthorized", ...) im Diff und
+    # meldete faelschlich "Login abgelaufen". Ein Mechanismus, der sich selbst
+    # liest und daran scheitert. codex meldet echte Fehler als "ERROR: ..." und
+    # endet dann mit exit != 0 - beides muss zutreffen.
+    error_lines = "\n".join(
+        line for line in output.splitlines() if line.strip().startswith("ERROR:")
+    )
+    failed = proc.returncode != 0
+
+    auth_broken = failed and any(
+        s in error_lines
+        for s in (
+            "token_expired",
+            "401 Unauthorized",
+            "refresh token was already used",
+            "Please log out and sign in again",
+        )
+    )
+    if auth_broken:
+        print("REVIEW NICHT GELAUFEN: codex-Login abgelaufen.", file=sys.stderr)
+        print("Behebung (interaktives Terminal noetig):  codex login", file=sys.stderr)
+        record_command(repo, f"agent_review --{mode.split('-')[0]}", 2)
+        return 2
+
+    # Kontingent erschoepft sieht sonst aus wie ein Review, das nichts gefunden hat.
+    # Auch hier nur echte Fehlerzeilen, aus demselben Grund.
+    quota_hit = failed and any(
+        s in error_lines
+        for s in ("hit your usage limit", "usage_limit_reached", "rate_limit_exceeded")
+    )
+    if quota_hit:
+        print("REVIEW NICHT GELAUFEN: codex-Kontingent erschoepft.", file=sys.stderr)
+        for line in output.splitlines():
+            if "usage limit" in line:
+                print(f"  {line.strip()}", file=sys.stderr)
+                break
+        print(
+            "Optionen: warten bis zum Reset, Plan upgraden, oder das Gate im Repo "
+            "abschalten (.agents/review_required loeschen).",
+            file=sys.stderr,
+        )
+        record_command(repo, f"agent_review --{mode.split('-')[0]}", 2)
+        return 2
+
+    print(output)
+
+    reviews = repo / ".agents" / "reviews"
+    reviews.mkdir(parents=True, exist_ok=True)
+    stamp = now().replace(":", "").replace("-", "")
+    out_file = reviews / f"{stamp}-{mode}.md"
+    out_file.write_text(
+        f"# Cross-Model-Review ({mode})\n\n"
+        f"- Zeitpunkt: {now()}\n"
+        f"- Repo: {repo.name}\n"
+        f"- Backend: {codex}\n"
+        f"- Exit: {proc.returncode}\n\n"
+        f"---\n\n{output}\n",
+        encoding="utf-8",
+    )
+
+    record_command(repo, f"tools/agent_review --{mode.split('-')[0]}", proc.returncode)
+
+    # Nur ein GELUNGENES Review des ARBEITSBAUMS darf ihn freigeben.
+    #
+    # Frueher wurde last_review.json auch nach --commit/--base geschrieben - mit
+    # dem Fingerabdruck des aktuellen Arbeitsbaums, obwohl Codex einen ganz
+    # anderen Diff gelesen hatte. Damit konnte man das Gate austricksen: einen
+    # alten Commit reviewen lassen und der ungeprueft daneben liegende Code galt
+    # als freigegeben. (Cross-Model-Review 2026-07-14, als P1 gemeldet.)
+    if proc.returncode == 0 and releases_worktree:
+        fp = worktree_fingerprint(repo)
+        if fp:
+            (reviews / "last_review.json").write_text(
+                json.dumps(
+                    {
+                        "ts": now(),
+                        "mode": mode,
+                        "head": head,
+                        "fingerprint": fp,
+                        "file": out_file.name,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+    elif proc.returncode == 0:
+        print(
+            f"HINWEIS: {mode}-Review gibt den Stand NICHT frei "
+            "(dafuer agent_review ohne --commit/--base).",
+            file=sys.stderr,
+        )
+
+    print(f"\nReview gespeichert: {out_file.relative_to(repo)}")
+    if proc.returncode != 0:
+        print(
+            "HINWEIS: Reviewer endete mit Fehler - Ergebnis ist unvollstaendig.",
+            file=sys.stderr,
+        )
+    return proc.returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main())

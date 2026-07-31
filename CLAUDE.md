@@ -188,3 +188,47 @@ Alle in `apps/api/scripts/`, ausführen mit `.venv/bin/python`:
 - **Lizenz**: AGPLv3 (wegen Essentia-Abhängigkeit)
 - **Seiten**: /impressum, /privacy, /nutzungsbedingungen
 - **Domain**: beattrack.app (Registrar/DNS bei Vercel, Hosting auf infra-01; Let's-Encrypt-Zertifikat via Traefik)
+
+## Abschluss
+
+Nicht-triviale Arbeit endet mit dem Standardabschluss:
+
+```bash
+python3 scripts/agent_finish.py --auto-claims
+```
+
+Der Stop-Hook erzwingt das. Schlägt der Check fehl, ist die Arbeit nicht fertig.
+Die technischen Projektchecks stehen versioniert in `.agents/project_check` —
+nicht im Guard-Script. Ändert sich der Check, ändert sich diese Datei.
+
+Commits brauchen hier `--no-verify`, weil der Husky-Pre-Commit-Hook `bun run lint`
+aufruft und der Frontend-Lint lokal kaputt ist (siehe Gotchas). In der CI läuft er.
+
+## Belegpflicht
+
+Keine Behauptung ohne lokale Evidenz. Belegbare Claim-Typen:
+`file`, `external_source`, `skipped_verification`, `command`.
+Siehe `scripts/claim_check.py`.
+
+Konkret für dieses Projekt: Ein Deploy gilt erst als erfolgt, wenn die Image-ID
+des laufenden Containers gewechselt hat und ein Aufruf von außen antwortet.
+Container-Uptime allein ist kein Beleg.
+
+## Doku darf nicht lügen
+
+Jeder Pfad, den WORKFLOWS.md / CHECKS.md / KNOWN_ERRORS.md in Backticks nennen,
+muss existieren. `scripts/doc_drift_check.py` erzwingt das bei jedem Abschluss.
+Laufzeit-Artefakte gehören nach `.agents/doc_paths_ignore`.
+
+## Gegenlesen lassen
+
+Ein Modell, das seinen eigenen Code reviewt, findet vor allem, was es ohnehin
+schon dachte. Deshalb liest ein ZWEITES Modell gegen:
+
+```bash
+scripts/agent_review --uncommitted
+```
+
+`.agents/review_required` liegt im Repo, das Gate ist also **scharf**: Der
+Abschluss blockiert, bis ein Review den aktuellen Code-Stand abdeckt. Ändert sich
+der Code danach, wird das Review ungültig. Reine Doku-Änderungen lösen es nicht aus.
