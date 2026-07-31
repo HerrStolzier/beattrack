@@ -18,9 +18,9 @@ Der Reviewer laeuft READ-ONLY mit Repo-Zugriff: der Plan wird gegen den echten
 Code geprueft, nicht im Vakuum. Ergebnis landet in <repo>/.agents/plan_reviews/
 und wird in .agents/command_runs.jsonl als Evidenz protokolliert.
 
-Zwei Backends, Default ist `glm`:
+Zwei Backends, Default ist `codex`:
+  --backend codex   die lokale codex-CLI (Default)
   --backend glm     GLM ueber z.ai (claude-CLI headless, braucht ZAI_API_KEY)
-  --backend codex   die lokale codex-CLI
 """
 
 import argparse
@@ -55,8 +55,8 @@ DEFAULT_EFFORT = "medium"
 # nichts. Ein Plan-Review, das nebenbei Code anfasst, waere kein Review mehr.
 DEFAULT_GLM_MODEL = "glm-5.2"
 ZAI_BASE_URL = "https://api.z.ai/api/anthropic"
-BACKENDS = ["glm", "codex"]
-DEFAULT_BACKEND = "glm"
+BACKENDS = ["codex", "glm"]
+DEFAULT_BACKEND = "codex"
 
 PLAN_INSTRUCTIONS = """Du pruefst einen PLAN, bevor er umgesetzt wird. Du arbeitest
 read-only in einem Repository, das du lesen kannst und sollst.

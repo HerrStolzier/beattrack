@@ -13,9 +13,9 @@ Der Ermittler laeuft READ-ONLY und liefert Hypothesen mit Belegstellen - KEINE
 Fixes. Das Ergebnis landet in <repo>/.agents/hunts/<ts>.md und wird in
 .agents/command_runs.jsonl als Evidenz protokolliert.
 
-Zwei Backends, Default ist `glm`:
+Zwei Backends, Default ist `codex`:
+  --backend codex   die lokale codex-CLI (Default)
   --backend glm     GLM ueber z.ai (claude-CLI headless, braucht ZAI_API_KEY)
-  --backend codex   die lokale codex-CLI
 
 Fehlt das gewaehlte Werkzeug oder der Zugang, bricht das Script ehrlich ab,
 statt eine Analyse vorzutaeuschen.
@@ -53,8 +53,8 @@ DEFAULT_EFFORT = "medium"
 # kann den Arbeitsbaum der laufenden Session nicht anfassen.
 DEFAULT_GLM_MODEL = "glm-5.2"
 ZAI_BASE_URL = "https://api.z.ai/api/anthropic"
-BACKENDS = ["glm", "codex"]
-DEFAULT_BACKEND = "glm"
+BACKENDS = ["codex", "glm"]
+DEFAULT_BACKEND = "codex"
 
 HUNT_INSTRUCTIONS = """Du bist ein Root-Cause-Ermittler in einem fremden Repository.
 Deine Aufgabe ist DIAGNOSE, nicht Reparatur. Du arbeitest read-only.

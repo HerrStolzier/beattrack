@@ -76,10 +76,10 @@ DEFAULT_EFFORT = "medium"
 # dokumentierte ANTHROPIC_AUTH_TOKEN wird ignoriert - deshalb beide setzen.
 DEFAULT_GLM_MODEL = "glm-5.2"
 ZAI_BASE_URL = "https://api.z.ai/api/anthropic"
-BACKENDS = ["glm", "codex"]
-DEFAULT_BACKEND = "glm"
+BACKENDS = ["codex", "glm"]
+DEFAULT_BACKEND = "codex"
 
-# GLM darf das Gate NICHT freigeben - auch nicht, seit es Default ist.
+# GLM darf das Gate NICHT freigeben.
 #
 # Der Vergleichslauf ist gefahren (2026-07-31, identische Frage an beide
 # Backends, agent_hunt in diesem Repo): GLM lieferte eine saubere, belegte
@@ -90,11 +90,14 @@ DEFAULT_BACKEND = "glm"
 # im Repo-Wurzelverzeichnis, die exakt dieses Problem bereits loest.
 #
 # Ein Reviewer, der eine vorhandene Datei uebersieht, die die Frage beantwortet,
-# ist als taegliche Zweitmeinung gut genug - aber nicht als Instanz, die
-# "wurde geprueft" beglaubigt. Deshalb: Default ja, Gate nein.
+# ist als Zweitmeinung auf Zuruf gut genug - aber nicht als Instanz, die
+# "wurde geprueft" beglaubigt.
 #
-# Wer das anders sehen will, stellt hier auf True. Dann gilt ein GLM-Review als
-# Freigabe des Arbeitsbaums.
+# Dazu ein struktureller Punkt, den das erste GLM-Plan-Review selbst fand: fuer
+# GLM gibt es kein Signal "der Lauf war inhaltlich gueltig". Ein Lauf mit Exit 0
+# und leerem Text wuerde das Gate oeffnen. Bevor diese Konstante auf True kann,
+# braucht es dieses Signal - und einen Vergleichslauf, der GLM nicht schlechter
+# abschneiden laesst als codex.
 GLM_RELEASES_GATE = False
 
 
