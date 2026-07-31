@@ -1,0 +1,264 @@
+#!/usr/bin/env python3
+"""Cross-Model-Plan-Review: ein ZWEITES Modell prueft den Plan VOR der Umsetzung.
+
+Sinn: Ein Fehler im Plan kostet nach der Implementierung ein Vielfaches. Das
+billigste Gegenlesen ist deshalb das frueheste - bevor Code existiert, der die
+falsche Annahme schon zementiert hat.
+
+  tools/agent_plan_review --file .agents/plans/20260722T140000-foo.md
+  tools/agent_plan_review "Plantext direkt als Argument"
+  tools/agent_plan_review --repo kurier --file plan.md
+
+Bewusst ein EIGENES Script, kein --plan-Flag an agent_review: agent_review hat
+Gate-Semantik (schreibt last_review.json, gibt den Arbeitsbaum frei). Ein
+Plan-Review darf das Gate NIE beruehren - ein Plan ist kein gepruefter Code.
+Diese Grenze ist hier strukturell (getrenntes Script) statt per if-Zweig.
+
+Codex laeuft READ-ONLY mit Repo-Zugriff: der Plan wird gegen den echten Code
+geprueft, nicht im Vakuum. Ergebnis landet in <repo>/.agents/plan_reviews/ und
+wird in .agents/command_runs.jsonl als Evidenz protokolliert.
+"""
+
+import argparse
+import datetime
+import json
+import os
+import pathlib
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+
+# Modell/Effort-Politik identisch zu agent_review (Begruendung dort):
+# terra ist das staerkste ueber ChatGPT-Account nutzbare Modell, Effort ist
+# bei "medium" gedeckelt - ein Werkzeug, das das Kontingent leerzieht,
+# blockiert am Ende auch das Review-Gate.
+DEFAULT_MODEL = "gpt-5.6-terra"
+EFFORT_CHOICES = ["low", "medium"]
+DEFAULT_EFFORT = "medium"
+
+PLAN_INSTRUCTIONS = """Du pruefst einen PLAN, bevor er umgesetzt wird. Du arbeitest
+read-only in einem Repository, das du lesen kannst und sollst.
+
+Deine Aufgabe ist NICHT, den Plan schoenzureden oder zu bestaetigen. Sie ist,
+die Stellen zu finden, an denen er scheitern wird. Ein Plan-Review, das nichts
+findet, ist nur dann wertvoll, wenn es das ehrlich sagt - nicht, wenn es
+Belangloses aufblaest.
+
+Pruefe den Plan GEGEN DEN ECHTEN CODE. Eine Annahme, die im Repo nachpruefbar
+ist, wird nachgeprueft - nicht geraten.
+
+Plan:
+---
+{plan}
+---
+{context_block}
+Antwortformat (Markdown):
+
+## Wackligste Annahme
+Die eine Annahme, an der der Plan am ehesten zerbricht. Mit Beleg aus dem Repo
+(Datei:Zeile) oder mit der Begruendung, warum sie im Repo nicht pruefbar ist.
+
+## Luecken und Risiken (absteigend nach Schwere)
+Pro Punkt:
+- **Was fehlt/bricht:** ein Satz
+- **Schwere:** P1 (Plan scheitert daran) / P2 (teure Nacharbeit) / P3 (Detail)
+- **Beleg:** Datei:Zeile oder "im Plan nicht adressiert"
+- **Vorschlag:** die kleinste Aenderung am Plan, die das behebt
+
+## Einfachere Alternative
+Gibt es einen Weg, der dasselbe Ziel mit weniger beweglichen Teilen erreicht?
+Wenn nein, sag das - "keine einfachere Alternative gefunden" ist eine gueltige
+Antwort und wertvoller als eine erfundene.
+
+## Was zum Verifizieren fehlt
+Welcher Schritt des Plans hat kein Kriterium, an dem man erkennt, ob er
+funktioniert hat?
+
+Keine Zeile Code schreiben. Keine Datei aendern. Nur der Plan steht zur
+Debatte."""
+
+
+def now():
+    return datetime.datetime.now().isoformat(timespec="seconds")
+
+
+def record_command(repo, command, exit_code):
+    agents = repo / ".agents"
+    agents.mkdir(exist_ok=True)
+    with (agents / "command_runs.jsonl").open("a", encoding="utf-8") as f:
+        f.write(
+            json.dumps(
+                {"command": command, "exit_code": exit_code, "ts": now()},
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+
+
+def find_codex():
+    """Die Tool-Shell hat nicht denselben PATH wie die Login-Shell."""
+    exe = shutil.which("codex")
+    if exe:
+        return exe
+    for cand in (
+        "/usr/local/bin/codex",
+        "/opt/homebrew/bin/codex",
+        os.path.expanduser("~/.local/bin/codex"),
+    ):
+        if os.path.isfile(cand) and os.access(cand, os.X_OK):
+            return cand
+    return None
+
+
+def main():
+    ap = argparse.ArgumentParser(add_help=True)
+    src = ap.add_mutually_exclusive_group(required=True)
+    src.add_argument("plan", nargs="?", help="Plantext direkt")
+    src.add_argument("--file", metavar="PFAD", help="Datei mit dem Plan")
+    ap.add_argument("--repo", default=".", help="Repo-Pfad (Default: aktuelles Verzeichnis)")
+    ap.add_argument("--context", help="zusaetzlicher Kontext (Ziel, Randbedingungen)")
+    ap.add_argument(
+        "--model",
+        default=DEFAULT_MODEL,
+        help=f"Modell des Zweitlesers (Default: {DEFAULT_MODEL})",
+    )
+    ap.add_argument(
+        "--effort",
+        default=DEFAULT_EFFORT,
+        choices=EFFORT_CHOICES,
+        help=f"Reasoning-Effort, gedeckelt bei medium (Default: {DEFAULT_EFFORT})",
+    )
+    args = ap.parse_args()
+
+    repo = pathlib.Path(args.repo).resolve()
+    if not (repo / ".git").exists():
+        print(f"FEHLER: kein Git-Repo: {repo}", file=sys.stderr)
+        return 2
+
+    if args.file:
+        plan_path = pathlib.Path(args.file)
+        if not plan_path.is_absolute():
+            plan_path = repo / plan_path
+        if not plan_path.exists():
+            print(f"FEHLER: Plandatei nicht gefunden: {plan_path}", file=sys.stderr)
+            return 2
+        plan = plan_path.read_text(encoding="utf-8")
+        source = str(plan_path)
+    else:
+        plan = args.plan
+        source = "(Argument)"
+
+    if not plan.strip():
+        print("FEHLER: leerer Plan. Nichts zu pruefen.", file=sys.stderr)
+        return 2
+
+    codex = find_codex()
+    if not codex:
+        print(
+            "FEHLER: codex-CLI nicht gefunden. Kein Zweitmodell = kein Plan-Review.",
+            file=sys.stderr,
+        )
+        print("Kein Review vorzutaeuschen ist besser als ein erfundenes.", file=sys.stderr)
+        return 2
+
+    context_block = f"\nZusaetzlicher Kontext:\n{args.context}\n" if args.context else ""
+    prompt = PLAN_INSTRUCTIONS.format(plan=plan, context_block=context_block)
+
+    # Read-only: der Reviewer liest den Plan UND das Repo, aendert aber nichts.
+    # Ein Plan-Review, das nebenbei Code anfasst, waere kein Review mehr.
+    cmd = [
+        codex,
+        "exec",
+        "--sandbox",
+        "read-only",
+        "--model",
+        args.model,
+        "-c",
+        f'model_reasoning_effort="{args.effort}"',
+        prompt,
+    ]
+
+    print(f"Zweitmodell prueft den Plan: {repo.name} [{args.model}, effort={args.effort}]")
+    print(f"Quelle: {source}\n")
+
+    # Ueber die LOGIN-Shell starten: codex braucht CODEX_HOME/OPENAI_API_KEY aus
+    # der zshrc. Ein direkter subprocess erbt die nicht und laeuft in einen
+    # irrefuehrenden "Login abgelaufen"-Fehler.
+    shell_cmd = " ".join(shlex.quote(c) for c in cmd)
+    proc = subprocess.run(["zsh", "-lic", shell_cmd], cwd=repo, capture_output=True, text=True)
+    output = (proc.stdout or "") + (proc.stderr or "")
+
+    # NUR echte codex-Fehlerzeilen auswerten, nicht die gesamte Ausgabe - der
+    # Output enthaelt den gelesenen PLAN und REPO-CODE, und der kann die
+    # Suchmuster selbst enthalten (agent_review ist genau daran schon einmal
+    # gescheitert: es las seine eigenen Muster im reviewten Diff).
+    error_lines = "\n".join(
+        line for line in output.splitlines() if line.strip().startswith("ERROR:")
+    )
+    failed = proc.returncode != 0
+
+    auth_broken = failed and any(
+        s in error_lines
+        for s in (
+            "token_expired",
+            "401 Unauthorized",
+            "refresh token was already used",
+            "Please log out and sign in again",
+        )
+    )
+    if auth_broken:
+        print("PLAN-REVIEW NICHT GELAUFEN: codex-Login abgelaufen.", file=sys.stderr)
+        print("Behebung (interaktives Terminal noetig):  codex login", file=sys.stderr)
+        record_command(repo, "agent_plan_review", 2)
+        return 2
+
+    quota_hit = failed and any(
+        s in error_lines
+        for s in ("hit your usage limit", "usage_limit_reached", "rate_limit_exceeded")
+    )
+    if quota_hit:
+        print("PLAN-REVIEW NICHT GELAUFEN: codex-Kontingent erschoepft.", file=sys.stderr)
+        for line in output.splitlines():
+            if "usage limit" in line:
+                print(f"  {line.strip()}", file=sys.stderr)
+                break
+        record_command(repo, "agent_plan_review", 2)
+        return 2
+
+    print(output)
+
+    out_dir = repo / ".agents" / "plan_reviews"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stamp = now().replace(":", "").replace("-", "")
+    first_line = next((ln for ln in plan.splitlines() if ln.strip()), "plan")
+    slug = re.sub(r"[^a-z0-9]+", "-", first_line.lower())[:40].strip("-") or "plan"
+    out_file = out_dir / f"{stamp}-{slug}.md"
+    out_file.write_text(
+        f"# Cross-Model-Plan-Review\n\n"
+        f"- Zeitpunkt: {now()}\n"
+        f"- Repo: {repo.name}\n"
+        f"- Plan-Quelle: {source}\n"
+        f"- Backend: {codex}\n"
+        f"- Exit: {proc.returncode}\n\n"
+        f"---\n\n{output}\n",
+        encoding="utf-8",
+    )
+
+    record_command(repo, "tools/agent_plan_review", proc.returncode)
+
+    # Bewusst KEIN last_review.json: ein geprueftes Konzept ist kein gepruefter
+    # Code. Das Gate vor dem Abschluss bleibt davon unberuehrt.
+    print(f"\nPlan-Review gespeichert: {out_file.relative_to(repo)}")
+    print("HINWEIS: gibt den Abschluss NICHT frei - dafuer agent_review.", file=sys.stderr)
+    if proc.returncode != 0:
+        print(
+            "HINWEIS: Reviewer endete mit Fehler - Ergebnis ist unvollstaendig.",
+            file=sys.stderr,
+        )
+    return proc.returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main())

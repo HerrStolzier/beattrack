@@ -1,0 +1,229 @@
+#!/usr/bin/env python3
+"""Cross-Model-Hunt: ein ZWEITES Modell sucht die Root Cause eines Bugs.
+
+Sinn: Ein Modell, das seinen eigenen Bug jagt, sucht dort, wo es den Code
+ohnehin schon verstanden zu haben glaubt. Der Wert liegt in der
+Modell-Diversitaet - ein frischer Blick ohne die Vorannahmen der Session.
+
+  tools/agent_hunt "Beschreibung des Problems"
+  tools/agent_hunt --repo kurier "Cronjob schreibt seit 3 Tagen keine Zeilen"
+  tools/agent_hunt --hint "Verdacht: ranker.ts" "Shorts bekommen falsches Topic"
+
+Codex laeuft READ-ONLY (Sandbox) und liefert Hypothesen mit Belegstellen -
+KEINE Fixes. Das Ergebnis landet in <repo>/.agents/hunts/<ts>.md und wird in
+.agents/command_runs.jsonl als Evidenz protokolliert.
+
+Backend ist die lokale codex-CLI (`codex exec`). Fehlt sie, bricht das Script
+ehrlich ab, statt eine Analyse vorzutaeuschen.
+"""
+
+import argparse
+import datetime
+import json
+import os
+import pathlib
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+
+# Modell/Effort-Politik identisch zu agent_review (Begruendung dort):
+# terra ist das staerkste ueber ChatGPT-Account nutzbare Modell, Effort ist
+# bei "medium" gedeckelt (Nutzervorgabe 2026-07-14) - ein Werkzeug, das das
+# Kontingent leerzieht, blockiert am Ende auch das Review-Gate.
+DEFAULT_MODEL = "gpt-5.6-terra"
+EFFORT_CHOICES = ["low", "medium"]
+DEFAULT_EFFORT = "medium"
+
+HUNT_INSTRUCTIONS = """Du bist ein Root-Cause-Ermittler in einem fremden Repository.
+Deine Aufgabe ist DIAGNOSE, nicht Reparatur. Du arbeitest read-only.
+
+Problem:
+{problem}
+{hint_block}
+Vorgehen:
+1. Reproduziere den Fehlerpfad gedanklich anhand des Codes (Dateien lesen,
+   greppen, Git-History ansehen - was immer read-only geht).
+2. Bilde Hypothesen und pruefe jede gegen den tatsaechlichen Code, bevor du
+   sie meldest. Eine Hypothese ohne Belegstelle ist keine.
+3. Unterscheide klar: belegte Ursache vs. plausible Vermutung.
+
+Antwortformat (Markdown):
+## Root-Cause-Hypothesen (absteigend nach Konfidenz)
+Pro Hypothese:
+- **These:** ein Satz
+- **Konfidenz:** hoch / mittel / niedrig
+- **Beleg:** Datei:Zeile plus kurzes Zitat des relevanten Codes
+- **Mechanismus:** wie genau fuehrt das zum beobachteten Verhalten
+- **Verifikation:** welcher konkrete Check/Testlauf wuerde die These bestaetigen
+  oder widerlegen (nur benennen, nicht ausfuehren, wenn er Schreibzugriff braucht)
+
+## Ausgeschlossen
+Was du geprueft und verworfen hast, mit Begruendung.
+
+Keine Fixes vorschlagen, bevor die Ursache steht. Wenn du nichts Belastbares
+findest, sag das ehrlich - eine leere Hypothesenliste ist besser als eine
+erfundene."""
+
+
+def now():
+    return datetime.datetime.now().isoformat(timespec="seconds")
+
+
+def record_command(repo, command, exit_code):
+    agents = repo / ".agents"
+    agents.mkdir(exist_ok=True)
+    with (agents / "command_runs.jsonl").open("a", encoding="utf-8") as f:
+        f.write(
+            json.dumps(
+                {"command": command, "exit_code": exit_code, "ts": now()},
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+
+
+def find_codex():
+    """Die Tool-Shell hat nicht denselben PATH wie die Login-Shell."""
+    exe = shutil.which("codex")
+    if exe:
+        return exe
+    for cand in (
+        "/usr/local/bin/codex",
+        "/opt/homebrew/bin/codex",
+        os.path.expanduser("~/.local/bin/codex"),
+    ):
+        if os.path.isfile(cand) and os.access(cand, os.X_OK):
+            return cand
+    return None
+
+
+def main():
+    ap = argparse.ArgumentParser(add_help=True)
+    ap.add_argument("problem", help="Beschreibung des beobachteten Fehlverhaltens")
+    ap.add_argument("--repo", default=".", help="Repo-Pfad (Default: aktuelles Verzeichnis)")
+    ap.add_argument(
+        "--hint",
+        help="optionaler Hinweis (Verdachtsdateien, Zeitpunkt, Repro-Schritte)",
+    )
+    ap.add_argument(
+        "--model",
+        default=DEFAULT_MODEL,
+        help=f"Modell des Ermittlers (Default: {DEFAULT_MODEL})",
+    )
+    ap.add_argument(
+        "--effort",
+        default=DEFAULT_EFFORT,
+        choices=EFFORT_CHOICES,
+        help=f"Reasoning-Effort, gedeckelt bei medium (Default: {DEFAULT_EFFORT})",
+    )
+    args = ap.parse_args()
+
+    repo = pathlib.Path(args.repo).resolve()
+    if not (repo / ".git").exists():
+        print(f"FEHLER: kein Git-Repo: {repo}", file=sys.stderr)
+        return 2
+
+    codex = find_codex()
+    if not codex:
+        print("FEHLER: codex-CLI nicht gefunden. Kein Zweitmodell = kein Hunt.", file=sys.stderr)
+        print("Keine Analyse vorzutaeuschen ist besser als eine erfundene.", file=sys.stderr)
+        return 2
+
+    hint_block = f"\nHinweis vom Auftraggeber:\n{args.hint}\n" if args.hint else ""
+    prompt = HUNT_INSTRUCTIONS.format(problem=args.problem, hint_block=hint_block)
+
+    # Read-only-Sandbox: der Ermittler diagnostiziert, er repariert nicht.
+    # Damit kann er auch keinen Zustand zerstoeren, waehrend die Session
+    # parallel am selben Arbeitsbaum haengt.
+    cmd = [
+        codex,
+        "exec",
+        "--sandbox",
+        "read-only",
+        "--model",
+        args.model,
+        "-c",
+        f'model_reasoning_effort="{args.effort}"',
+        prompt,
+    ]
+
+    print(f"Zweitmodell ermittelt in: {repo.name} [{args.model}, effort={args.effort}]")
+    print(f"Problem: {args.problem}\n")
+
+    # Ueber die LOGIN-Shell starten: codex braucht CODEX_HOME/OPENAI_API_KEY aus
+    # der zshrc. Ein direkter subprocess erbt die nicht und laeuft in einen
+    # irrefuehrenden "Login abgelaufen"-Fehler.
+    shell_cmd = " ".join(shlex.quote(c) for c in cmd)
+    proc = subprocess.run(["zsh", "-lic", shell_cmd], cwd=repo, capture_output=True, text=True)
+    output = (proc.stdout or "") + (proc.stderr or "")
+
+    # NUR echte codex-Fehlerzeilen auswerten, nicht die gesamte Ausgabe - der
+    # Output enthaelt gelesenen REPO-CODE, und der kann die Suchmuster selbst
+    # enthalten (agent_review ist genau daran schon einmal gescheitert).
+    error_lines = "\n".join(
+        line for line in output.splitlines() if line.strip().startswith("ERROR:")
+    )
+    failed = proc.returncode != 0
+
+    auth_broken = failed and any(
+        s in error_lines
+        for s in (
+            "token_expired",
+            "401 Unauthorized",
+            "refresh token was already used",
+            "Please log out and sign in again",
+        )
+    )
+    if auth_broken:
+        print("HUNT NICHT GELAUFEN: codex-Login abgelaufen.", file=sys.stderr)
+        print("Behebung (interaktives Terminal noetig):  codex login", file=sys.stderr)
+        record_command(repo, "agent_hunt", 2)
+        return 2
+
+    quota_hit = failed and any(
+        s in error_lines
+        for s in ("hit your usage limit", "usage_limit_reached", "rate_limit_exceeded")
+    )
+    if quota_hit:
+        print("HUNT NICHT GELAUFEN: codex-Kontingent erschoepft.", file=sys.stderr)
+        for line in output.splitlines():
+            if "usage limit" in line:
+                print(f"  {line.strip()}", file=sys.stderr)
+                break
+        record_command(repo, "agent_hunt", 2)
+        return 2
+
+    print(output)
+
+    hunts = repo / ".agents" / "hunts"
+    hunts.mkdir(parents=True, exist_ok=True)
+    stamp = now().replace(":", "").replace("-", "")
+    slug = re.sub(r"[^a-z0-9]+", "-", args.problem.lower())[:40].strip("-") or "hunt"
+    out_file = hunts / f"{stamp}-{slug}.md"
+    out_file.write_text(
+        f"# Cross-Model-Hunt\n\n"
+        f"- Zeitpunkt: {now()}\n"
+        f"- Repo: {repo.name}\n"
+        f"- Problem: {args.problem}\n"
+        + (f"- Hinweis: {args.hint}\n" if args.hint else "")
+        + f"- Backend: {codex}\n"
+        f"- Exit: {proc.returncode}\n\n"
+        f"---\n\n{output}\n",
+        encoding="utf-8",
+    )
+
+    record_command(repo, "tools/agent_hunt", proc.returncode)
+
+    print(f"\nHunt gespeichert: {out_file.relative_to(repo)}")
+    if proc.returncode != 0:
+        print(
+            "HINWEIS: Ermittler endete mit Fehler - Ergebnis ist unvollstaendig.",
+            file=sys.stderr,
+        )
+    return proc.returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main())

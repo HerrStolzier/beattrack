@@ -1,0 +1,7 @@
+set -e
+# Beide Test-Suiten. Bewusst ohne Build und Lint: der Web-Build kostet ~25 s und
+# der Frontend-Lint ist lokal kaputt (Bun-Workspace-Hoisting, siehe CLAUDE.md);
+# beides deckt die CI ab. uv run statt .venv/bin/..., damit ein frischer
+# Checkout ohne vorheriges "uv sync" nicht scheitert.
+(cd apps/api && uv run pytest -q)
+(cd apps/web && bun run test)

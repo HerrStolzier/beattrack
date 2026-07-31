@@ -1,0 +1,5 @@
+# Pfade, die die Doku nennen darf, obwohl sie nicht im Repo liegen.
+# Laufzeit-Artefakte und Dateien auf dem Server, kein Doku-Fehler.
+last_review.json
+/opt/stack/docker-compose.yml
+/etc/cron.d/beattrack-health

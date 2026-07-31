@@ -1,5 +1,10 @@
 # Known Errors
 
+> **Zweck:** Bekannte Fehler in Beattrack mit Symptom, Ursache und Lösung.
+> **Scope:** Test-Runner, Audit-Befunde, Build- und Laufzeit-Stolpersteine. Nicht: allgemeine Gotchas (die stehen in CLAUDE.md).
+> **Suchbegriffe:** bun, vitest, test, runner, audit, postcss, npm, pip-audit, essentia, libmagic, libpq
+> **Stand:** 2026-07-31
+
 ## Raw `bun test` Fails With Missing DOM APIs
 
 ### Symptom
@@ -30,7 +35,12 @@ Stable Next.js versions currently pin an internal `postcss@8.4.31`. A canary ver
 
 ### Loesung
 
-Keep stable Next.js, keep top-level PostCSS updated, and re-check when a stable Next.js release ships with internal `postcss >=8.5.10`. Track the decision in `docs/security-remediation-2026-05-20.md`.
+Keep stable Next.js, keep top-level PostCSS updated, and re-check when a stable Next.js release ships with internal `postcss >=8.5.10`.
+
+This entry is the record of that decision. An earlier version pointed at a
+security-remediation note under docs/ that only ever existed on the unmerged
+`codex/beattrack-improvement-plan` branch and never reached `main` — the same gap
+that left two SQL migrations untracked until PR #21.
 
 ## Python Audit Reports Optional Model Dependencies
 
