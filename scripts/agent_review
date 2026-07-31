@@ -56,14 +56,24 @@ DEFAULT_EFFORT = "medium"
 # mit der claude-CLI im Headless-Modus. Sinn ist derselbe wie bei codex -
 # Modell-Diversitaet -, nur mit einem anderen Kontingent.
 #
-# WICHTIG: `--bare` schaltet die CLAUDE.md-Autoerkennung ab. Ohne das laedt der
+# WICHTIG - Isolierung braucht `--safe-mode`, nicht `--bare`. Ohne sie laedt der
 # Reviewer die globale ~/.claude/CLAUDE.md des Nutzers mit (Chat-Stil,
 # Orchestrierungs-Doktrin) - Regeln, die einen Reviewer nur verwirren und
-# Kontingent kosten. Der Projektkontext kommt gezielt ueber --add-dir zurueck.
+# Kontingent kosten.
 #
-# `--bare` authentifiziert ausschliesslich ueber ANTHROPIC_API_KEY; das von z.ai
-# dokumentierte ANTHROPIC_AUTH_TOKEN wird dabei ignoriert. Deshalb werden beide
-# gesetzt.
+# Empirisch belegt (2026-07-31): mit `--bare --tools ""` zitierte ein GLM-Lauf
+# weiterhin woertlich Ueberschriften aus der globalen CLAUDE.md - ohne Werkzeuge,
+# also aus dem Kontext. Die Hilfe verspricht zwar "CLAUDE.md auto-discovery"
+# abzuschalten, das meint aber nur den Verzeichnisbaum, nicht die Nutzerebene.
+# Mit `--safe-mode` antwortete derselbe Test "NICHTS VORHANDEN".
+#
+# `--safe-mode` schaltet auch die Projekt-CLAUDE.md ab. Fuer einen Reviewer ist
+# das richtig: er soll den Diff gegen den Code pruefen, nicht gegen die
+# Arbeitsanweisungen des Repos. Die Dateien liest er ueber --add-dir.
+#
+# `--bare` bleibt zusaetzlich gesetzt (keine Hooks, kein Keychain). Nebenwirkung:
+# es authentifiziert ausschliesslich ueber ANTHROPIC_API_KEY, das von z.ai
+# dokumentierte ANTHROPIC_AUTH_TOKEN wird ignoriert - deshalb beide setzen.
 DEFAULT_GLM_MODEL = "glm-5.2"
 ZAI_BASE_URL = "https://api.z.ai/api/anthropic"
 BACKENDS = ["codex", "glm"]
@@ -432,6 +442,7 @@ def run_glm_review(repo, claude_bin, key, model, diff_cmd, scope_desc, extra_pro
             "-p",
             prompt,
             "--bare",
+            "--safe-mode",
             "--add-dir",
             str(repo),
             "--add-dir",
@@ -453,6 +464,26 @@ def run_glm_review(repo, claude_bin, key, model, diff_cmd, scope_desc, extra_pro
     # derselbe Selbstlese-Fehler, den die codex-Erkennung schon einmal hatte.
     err = (proc.stderr or "").lower()
     failed = proc.returncode != 0
+
+    # Zu alte claude-CLI: --safe-mode/--bare/--tools gibt es erst ab einer
+    # gewissen Version, und ein unbekanntes Flag bricht den Lauf sofort ab.
+    # Ohne diese Meldung sieht das aus wie ein Review, das nichts gefunden hat
+    # (Cross-Model-Review 2026-07-31, P2).
+    if failed and "unknown option" in err:
+        flag = ""
+        for line in (proc.stderr or "").splitlines():
+            if "unknown option" in line.lower():
+                flag = line.strip()
+                break
+        return (
+            output,
+            proc.returncode,
+            (
+                f"claude-CLI kennt ein benoetigtes Flag nicht ({flag}). "
+                "Vermutlich zu alt - Abhilfe: claude update. "
+                "Getestet mit 2.1.220."
+            ),
+        )
     if failed and any(
         s in err for s in ("401", "unauthorized", "invalid api key", "authentication_error")
     ):
