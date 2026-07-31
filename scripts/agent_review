@@ -38,17 +38,29 @@ import tempfile
 # Arbeiten sinnvoll, fuer einen Reviewer falsch. Gegenlesen ist die haerteste
 # Denkaufgabe in der Kette, nicht die billigste.
 #
-# Modellwahl belegt (2026-07-14): gpt-5.5 und gpt-5.6-terra auf denselben Commit
-# angesetzt - terra fand alles von 5.5 PLUS einen dritten echten Bug und stufte
-# die schwerste Luecke korrekt als P1 ein (5.5: P2). gpt-5.6-sol waere staerker,
-# ist aber ueber einen ChatGPT-Account nicht nutzbar ("not supported when using
-# Codex with a ChatGPT account") - dafuer braeuchte es einen API-Key-Account.
-DEFAULT_MODEL = "gpt-5.6-terra"
+# Modellwahl, zwei Schritte:
+#
+# 2026-07-14: gpt-5.5 und gpt-5.6-terra auf denselben Commit angesetzt - terra
+# fand alles von 5.5 PLUS einen dritten echten Bug und stufte die schwerste
+# Luecke korrekt als P1 ein (5.5: P2). sol war damals ueber einen
+# ChatGPT-Account gesperrt.
+#
+# 2026-07-31: Die Sperre gilt nicht mehr (`codex exec --model gpt-5.6-sol`
+# laeuft durch, nachgemessen). Deshalb hier sol - das staerkste verfuegbare
+# Modell fuer die haerteste Aufgabe der Kette.
+#
+# Bewusst NUR hier: agent_hunt und agent_plan_review bleiben auf terra. Beide
+# beruehren das Gate nicht, und alle drei teilen denselben Kontingent-Pool -
+# ein teures Modell ueberall waere der schnellste Weg, das Gate per leerem
+# Kontingent selbst zu blockieren.
+DEFAULT_MODEL = "gpt-5.6-sol"
 
-# Effort ist bei "medium" gedeckelt (Nutzervorgabe 2026-07-14). "high" ist
-# bewusst KEINE Option: ein Review-Lauf auf hohem Effort frisst spuerbar
-# Kontingent, und ein Gate, das das Kontingent leerlaeuft, blockiert am Ende
-# alles. Nicht die codex-Konfiguration erben lassen - die steht auf "low".
+# Effort ist bei "medium" gedeckelt (Nutzervorgabe 2026-07-14, bei der
+# Umstellung auf sol am 2026-07-31 ausdruecklich bestaetigt). "high" ist bewusst
+# KEINE Option: ein Review-Lauf auf hohem Effort frisst spuerbar Kontingent, und
+# ein Gate, das das Kontingent leerlaeuft, blockiert am Ende alles. Mit sol
+# gilt das erst recht. Nicht die codex-Konfiguration erben lassen - die steht
+# auf "low".
 EFFORT_CHOICES = ["low", "medium"]
 DEFAULT_EFFORT = "medium"
 

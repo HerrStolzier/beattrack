@@ -34,10 +34,11 @@ import shutil
 import subprocess
 import sys
 
-# Modell/Effort-Politik identisch zu agent_review (Begruendung dort):
-# terra ist das staerkste ueber ChatGPT-Account nutzbare Modell, Effort ist
-# bei "medium" gedeckelt - ein Werkzeug, das das Kontingent leerzieht,
-# blockiert am Ende auch das Review-Gate.
+# Bewusst terra, NICHT sol: agent_review laeuft seit 2026-07-31 auf sol, weil
+# es das Gate bedient und ein Fehler dort am teuersten ist. Hier bleibt terra.
+# Alle drei Werkzeuge teilen EINEN Kontingent-Pool - sol ueberall waere der
+# schnellste Weg, das Review-Gate per leerem Kontingent selbst zu blockieren.
+# Effort bleibt bei "medium" gedeckelt, gleiche Begruendung wie dort.
 DEFAULT_MODEL = "gpt-5.6-terra"
 EFFORT_CHOICES = ["low", "medium"]
 DEFAULT_EFFORT = "medium"
