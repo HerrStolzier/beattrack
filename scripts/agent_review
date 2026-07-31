@@ -31,6 +31,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 
 # Bewusste Wahl, NICHT die codex-Konfiguration erben lassen:
 # ~/.codex/config.toml hat model_reasoning_effort = "low" - fuer interaktives
@@ -50,6 +51,29 @@ DEFAULT_MODEL = "gpt-5.6-terra"
 # alles. Nicht die codex-Konfiguration erben lassen - die steht auf "low".
 EFFORT_CHOICES = ["low", "medium"]
 DEFAULT_EFFORT = "medium"
+
+# Zweites Backend: GLM ueber den Anthropic-kompatiblen z.ai-Endpunkt, gefahren
+# mit der claude-CLI im Headless-Modus. Sinn ist derselbe wie bei codex -
+# Modell-Diversitaet -, nur mit einem anderen Kontingent.
+#
+# WICHTIG: `--bare` schaltet die CLAUDE.md-Autoerkennung ab. Ohne das laedt der
+# Reviewer die globale ~/.claude/CLAUDE.md des Nutzers mit (Chat-Stil,
+# Orchestrierungs-Doktrin) - Regeln, die einen Reviewer nur verwirren und
+# Kontingent kosten. Der Projektkontext kommt gezielt ueber --add-dir zurueck.
+#
+# `--bare` authentifiziert ausschliesslich ueber ANTHROPIC_API_KEY; das von z.ai
+# dokumentierte ANTHROPIC_AUTH_TOKEN wird dabei ignoriert. Deshalb werden beide
+# gesetzt.
+DEFAULT_GLM_MODEL = "glm-5.2"
+ZAI_BASE_URL = "https://api.z.ai/api/anthropic"
+BACKENDS = ["codex", "glm"]
+DEFAULT_BACKEND = "codex"
+
+# GLM darf das Gate NICHT freigeben. Ob es als Zweitleser dieselbe Qualitaet
+# liefert wie codex, ist unbelegt - und ein Gate auf einem unbelegten Reviewer
+# ist ein Gate, das nichts garantiert. Erst ein Vergleichslauf auf denselben
+# Diff, dann ggf. diese Konstante umstellen.
+GLM_RELEASES_GATE = False
 
 
 def now():
@@ -300,6 +324,155 @@ def find_codex():
     return None
 
 
+def find_claude():
+    """Wie find_codex, nur fuer die claude-CLI (GLM-Backend)."""
+    exe = shutil.which("claude")
+    if exe:
+        return exe
+    for cand in (
+        "/usr/local/bin/claude",
+        "/opt/homebrew/bin/claude",
+        os.path.expanduser("~/.local/bin/claude"),
+    ):
+        if os.path.isfile(cand) and os.access(cand, os.X_OK):
+            return cand
+    return None
+
+
+def zai_key():
+    """z.ai-Key aus der Umgebung, sonst aus der Login-Shell nachladen.
+
+    Gleicher PATH-/Env-Grund wie bei codex: die Tool-Shell erbt die zshrc nicht.
+    """
+    key = os.environ.get("ZAI_API_KEY", "").strip()
+    if key:
+        return key
+    r = subprocess.run(
+        ["zsh", "-lic", "print -rn -- ${ZAI_API_KEY:-}"],
+        capture_output=True,
+        text=True,
+    )
+    return (r.stdout or "").strip()
+
+
+GLM_REVIEW_PROMPT = """Du bist Zweitleser in einem Cross-Model-Review. Ein anderes \
+Modell hat diesen Code geschrieben. Deine Aufgabe ist, Fehler zu finden, die es \
+selbst uebersehen hat.
+
+Zu reviewen: {scope_desc}
+Der vollstaendige Diff liegt in dieser Datei: {diff_file}
+
+Vorgehen:
+1. Lies den Diff.
+2. Pruefe verdaechtige Stellen im echten Code nach (Read/Grep/Glob im Repo {repo}).
+   Der Diff zeigt nur Ausschnitte - Kontext holst du dir aus den Dateien.
+3. Melde nur, was wirklich schiefgehen kann.
+
+Format pro Fund:
+[P1|P2|P3] <datei>:<zeile> - <ein Satz zum Problem>
+  Szenario: <konkrete Eingabe oder Zustand -> falsches Ergebnis / Absturz>
+
+P1 = Korrektheit, Sicherheit, Datenverlust. P2 = ernst, aber begrenzt.
+P3 = Wartbarkeit.
+
+Regeln:
+- Keine Stilkritik ohne Wirkung, kein Lob, keine Zusammenfassung des Diffs.
+- Behaupte nichts ueber Code, den du nicht gelesen hast.
+- Findest du nichts Ernstes, schreib genau das in einem Satz.
+{extra}"""
+
+
+def run_glm_review(repo, claude_bin, key, model, diff_cmd, scope_desc, extra_prompt):
+    """Review ueber GLM (z.ai) mit der claude-CLI im Headless-Modus.
+
+    Rueckgabe: (output, returncode, fatal). `fatal` ist ein Text, wenn der Lauf
+    gar nicht erst zustande kam - dann ist `output` wertlos.
+
+    Der Diff wird hier selbst erzeugt und in eine Datei ausserhalb des Repos
+    gelegt: die claude-CLI hat keinen eingebauten Review-Modus wie
+    `codex exec review`, und ein Diff im Repo wuerde in genau dem Arbeitsbaum
+    landen, den das Gate fingerprintet.
+
+    Werkzeuge sind auf Read/Grep/Glob begrenzt - ein Reviewer, der schreiben
+    kann, koennte den Stand veraendern, den er beglaubigt.
+    """
+    r = subprocess.run(diff_cmd, cwd=repo, capture_output=True, text=True)
+    if r.returncode != 0:
+        return "", 2, f"git-Diff scheiterte: {(r.stderr or '').strip()}"
+    diff = r.stdout or ""
+    if not diff.strip():
+        return "", 2, "Leerer Diff - es gibt nichts zu reviewen."
+
+    tmpdir = tempfile.mkdtemp(prefix="agent_review_glm_")
+    try:
+        diff_file = pathlib.Path(tmpdir) / "review.diff"
+        diff_file.write_text(diff, encoding="utf-8")
+        prompt = GLM_REVIEW_PROMPT.format(
+            scope_desc=scope_desc,
+            diff_file=diff_file,
+            repo=repo,
+            extra=(
+                f"\nZusaetzlicher Fokus des Auftraggebers: {extra_prompt}\n" if extra_prompt else ""
+            ),
+        )
+        env = dict(os.environ)
+        env.update(
+            {
+                "ANTHROPIC_BASE_URL": ZAI_BASE_URL,
+                # Beide setzen: --bare liest nur ANTHROPIC_API_KEY, z.ai
+                # dokumentiert ANTHROPIC_AUTH_TOKEN.
+                "ANTHROPIC_API_KEY": key,
+                "ANTHROPIC_AUTH_TOKEN": key,
+                "API_TIMEOUT_MS": "3000000",
+                "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+            }
+        )
+        cmd = [
+            claude_bin,
+            "-p",
+            prompt,
+            "--bare",
+            "--add-dir",
+            str(repo),
+            "--add-dir",
+            tmpdir,
+            "--model",
+            model,
+            "--tools",
+            "Read,Grep,Glob",
+        ]
+        proc = subprocess.run(cmd, cwd=repo, env=env, capture_output=True, text=True)
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+    output = (proc.stdout or "") + (proc.stderr or "")
+
+    # Nur stderr auf Fehlermuster pruefen, nie den ganzen Output: stdout ist die
+    # Review-Prosa und zitiert den gelesenen Code. Sucht man dort nach "401",
+    # meldet ein Review dieses Scripts sich selbst als kaputte Anmeldung -
+    # derselbe Selbstlese-Fehler, den die codex-Erkennung schon einmal hatte.
+    err = (proc.stderr or "").lower()
+    failed = proc.returncode != 0
+    if failed and any(
+        s in err for s in ("401", "unauthorized", "invalid api key", "authentication_error")
+    ):
+        return (
+            output,
+            proc.returncode,
+            (
+                "z.ai-Anmeldung abgelehnt. ZAI_API_KEY pruefen "
+                "(Konsole: https://z.ai/manage-apikey/apikey-list)."
+            ),
+        )
+    if failed and any(s in err for s in ("rate limit", "quota", "usage limit", "insufficient")):
+        return (
+            output,
+            proc.returncode,
+            ("z.ai-Kontingent erschoepft. Warten bis zum Reset oder Tier anheben."),
+        )
+    return output, proc.returncode, None
+
+
 def main():
     ap = argparse.ArgumentParser(add_help=True)
     ap.add_argument("--repo", default=".", help="Repo-Pfad (Default: aktuelles Verzeichnis)")
@@ -316,9 +489,21 @@ def main():
     )
     ap.add_argument("--prompt", help="zusaetzlicher Fokus fuer den Reviewer")
     ap.add_argument(
+        "--backend",
+        default=DEFAULT_BACKEND,
+        choices=BACKENDS,
+        help=(
+            f"Zweitmodell-Backend (Default: {DEFAULT_BACKEND}). "
+            "glm laeuft ueber z.ai und gibt das Gate NICHT frei."
+        ),
+    )
+    ap.add_argument(
         "--model",
-        default=DEFAULT_MODEL,
-        help=f"Modell des Zweitlesers (Default: {DEFAULT_MODEL})",
+        default=None,
+        help=(
+            f"Modell des Zweitlesers (Default: {DEFAULT_MODEL} bei codex, "
+            f"{DEFAULT_GLM_MODEL} bei glm)"
+        ),
     )
     ap.add_argument(
         "--effort",
@@ -333,14 +518,34 @@ def main():
         print(f"FEHLER: kein Git-Repo: {repo}", file=sys.stderr)
         return 2
 
-    codex = find_codex()
-    if not codex:
-        print(
-            "FEHLER: codex-CLI nicht gefunden. Kein Zweitmodell = kein Review.",
-            file=sys.stderr,
-        )
-        print("Kein Review vorzutaeuschen ist besser als ein erfundenes.", file=sys.stderr)
-        return 2
+    # Backend aufloesen. Fehlt das Werkzeug oder der Zugang, wird hier
+    # abgebrochen - ein Review, das nicht laufen kann, darf nicht so aussehen,
+    # als haette es nichts gefunden.
+    key = ""
+    if args.backend == "glm":
+        backend_bin = find_claude()
+        if not backend_bin:
+            print("FEHLER: claude-CLI nicht gefunden (Backend glm).", file=sys.stderr)
+            print("Kein Review vorzutaeuschen ist besser als ein erfundenes.", file=sys.stderr)
+            return 2
+        key = zai_key()
+        if not key:
+            print(
+                "FEHLER: ZAI_API_KEY nicht gesetzt (Backend glm). In ~/.zshrc eintragen.",
+                file=sys.stderr,
+            )
+            return 2
+        args.model = args.model or DEFAULT_GLM_MODEL
+    else:
+        backend_bin = find_codex()
+        if not backend_bin:
+            print(
+                "FEHLER: codex-CLI nicht gefunden. Kein Zweitmodell = kein Review.",
+                file=sys.stderr,
+            )
+            print("Kein Review vorzutaeuschen ist besser als ein erfundenes.", file=sys.stderr)
+            return 2
+        args.model = args.model or DEFAULT_MODEL
 
     # Standardfall: ALLES Ungepruefte lesen. Die Basislinie kommt vom Gate -
     # sie schliesst lokale, noch nicht gegengelesene Commits ein. Frueher wurde
@@ -353,14 +558,19 @@ def main():
         or ""
     ).strip()
 
-    cmd = [codex, "exec", "review"]
+    # scope_flags fahren das codex-Backend, diff_cmd das GLM-Backend: die
+    # claude-CLI hat keinen eingebauten Review-Modus, dort wird der Diff selbst
+    # erzeugt. Beide muessen denselben Umfang beschreiben - sonst reviewt das
+    # eine Backend etwas anderes als das andere.
     releases_worktree = False
     if args.base:
         scope_flags = ["--base", args.base]
+        diff_cmd = ["git", "diff", "--stat", "--patch", args.base]
         scope_desc = f"die Aenderungen gegenueber Branch {args.base}"
         mode = f"base-{args.base}"
     elif args.commit:
         scope_flags = ["--commit", args.commit]
+        diff_cmd = ["git", "show", "--stat", "--patch", args.commit]
         scope_desc = f"die Aenderungen des Commits {args.commit}"
         mode = f"commit-{args.commit[:8]}"
     else:
@@ -378,27 +588,31 @@ def main():
             return 2
         if base and base != head:
             scope_flags = ["--base", base]
+            diff_cmd = ["git", "diff", "--stat", "--patch", base]
             scope_desc = f"alle Aenderungen seit {base} (Commits und Arbeitsbaum)"
             mode = "unreviewed"
         else:
             scope_flags = ["--uncommitted"]
+            diff_cmd = ["git", "diff", "--stat", "--patch", "HEAD"]
             scope_desc = "die uncommitteten Aenderungen (staged, unstaged und untracked)"
             mode = "uncommitted"
         releases_worktree = True
-    if args.model:
-        cmd += ["--model", args.model]
-    # Effort pro Aufruf setzen, statt den globalen "low"-Default zu erben.
-    # -c ueberschreibt config.toml nur fuer diesen Lauf; die interaktive
-    # codex-Nutzung des Users bleibt unangetastet.
-    cmd += ["-c", f"model_reasoning_effort={args.effort!r}".replace("'", '"')]
-    # Die codex-CLI erlaubt den Positional-Prompt nicht zusammen mit
-    # --base/--commit/--uncommitted (Custom-Instructions sind dort ein eigener,
-    # vierter Review-Modus). Mit --prompt wird der Scope deshalb in die
-    # Instruktion eingebettet statt als Flag uebergeben.
-    if args.prompt:
-        cmd += [f"Reviewe {scope_desc}. Zusaetzlicher Fokus: {args.prompt}"]
-    else:
-        cmd += scope_flags
+
+    cmd = []
+    if args.backend == "codex":
+        cmd = [backend_bin, "exec", "review", "--model", args.model]
+        # Effort pro Aufruf setzen, statt den globalen "low"-Default zu erben.
+        # -c ueberschreibt config.toml nur fuer diesen Lauf; die interaktive
+        # codex-Nutzung des Users bleibt unangetastet.
+        cmd += ["-c", f"model_reasoning_effort={args.effort!r}".replace("'", '"')]
+        # Die codex-CLI erlaubt den Positional-Prompt nicht zusammen mit
+        # --base/--commit/--uncommitted (Custom-Instructions sind dort ein eigener,
+        # vierter Review-Modus). Mit --prompt wird der Scope deshalb in die
+        # Instruktion eingebettet statt als Flag uebergeben.
+        if args.prompt:
+            cmd += [f"Reviewe {scope_desc}. Zusaetzlicher Fokus: {args.prompt}"]
+        else:
+            cmd += scope_flags
 
     # Ueberall, wo der Arbeitsbaum im Scope ist. Das schliesst --base ein:
     # `git diff <base>` vergleicht den ARBEITSBAUM gegen die Basis, nicht HEAD -
@@ -426,20 +640,38 @@ def main():
         record_command(repo, f"agent_review --{mode.split('-')[0]}", 2)
         return 2
 
-    print(f"Zweitmodell liest gegen: {repo.name} ({mode}) [{args.model}, effort={args.effort}]")
+    effort_desc = f", effort={args.effort}" if args.backend == "codex" else ""
+    print(
+        f"Zweitmodell liest gegen: {repo.name} ({mode}) [{args.backend}: {args.model}{effort_desc}]"
+    )
     if marked:
         print(f"  + {len(marked)} ungetrackte Datei(en) in den Diff gehoben")
-    print(f"$ {' '.join(cmd)}\n")
 
-    # Ueber die LOGIN-Shell starten: codex braucht CODEX_HOME/OPENAI_API_KEY aus
-    # der zshrc. Ein direkter subprocess erbt die nicht und laeuft in einen
-    # irrefuehrenden "Login abgelaufen"-Fehler.
-    shell_cmd = " ".join(shlex.quote(c) for c in cmd)
+    glm_fatal = None
     try:
-        proc = subprocess.run(["zsh", "-lic", shell_cmd], cwd=repo, capture_output=True, text=True)
+        if args.backend == "glm":
+            print(f"$ {' '.join(diff_cmd)} -> claude -p (--bare, Read/Grep/Glob)\n")
+            output, returncode, glm_fatal = run_glm_review(
+                repo, backend_bin, key, args.model, diff_cmd, scope_desc, args.prompt
+            )
+        else:
+            print(f"$ {' '.join(cmd)}\n")
+            # Ueber die LOGIN-Shell starten: codex braucht CODEX_HOME/
+            # OPENAI_API_KEY aus der zshrc. Ein direkter subprocess erbt die
+            # nicht und laeuft in einen irrefuehrenden "Login abgelaufen"-Fehler.
+            shell_cmd = " ".join(shlex.quote(c) for c in cmd)
+            proc = subprocess.run(
+                ["zsh", "-lic", shell_cmd], cwd=repo, capture_output=True, text=True
+            )
+            output = (proc.stdout or "") + (proc.stderr or "")
+            returncode = proc.returncode
     finally:
         unmark_intent_to_add(repo, marked)
-    output = (proc.stdout or "") + (proc.stderr or "")
+
+    if glm_fatal:
+        print(f"REVIEW NICHT GELAUFEN (glm): {glm_fatal}", file=sys.stderr)
+        record_command(repo, f"agent_review --backend glm --{mode.split('-')[0]}", 2)
+        return 2
 
     # NUR echte codex-Fehlerzeilen auswerten, nicht die gesamte Ausgabe.
     #
@@ -452,7 +684,9 @@ def main():
     error_lines = "\n".join(
         line for line in output.splitlines() if line.strip().startswith("ERROR:")
     )
-    failed = proc.returncode != 0
+    # Diese Muster sind codex-Sprache. Beim GLM-Backend hat run_glm_review
+    # bereits auf stderr geprueft und meldet ueber glm_fatal.
+    failed = returncode != 0 and args.backend == "codex"
 
     auth_broken = failed and any(
         s in error_lines
@@ -499,13 +733,14 @@ def main():
         f"# Cross-Model-Review ({mode})\n\n"
         f"- Zeitpunkt: {now()}\n"
         f"- Repo: {repo.name}\n"
-        f"- Backend: {codex}\n"
-        f"- Exit: {proc.returncode}\n\n"
+        f"- Backend: {args.backend} ({backend_bin}, Modell {args.model})\n"
+        f"- Exit: {returncode}\n\n"
         f"---\n\n{output}\n",
         encoding="utf-8",
     )
 
-    record_command(repo, f"tools/agent_review --{mode.split('-')[0]}", proc.returncode)
+    backend_flag = "" if args.backend == DEFAULT_BACKEND else f" --backend {args.backend}"
+    record_command(repo, f"tools/agent_review{backend_flag} --{mode.split('-')[0]}", returncode)
 
     # Nur ein GELUNGENES Review des ARBEITSBAUMS darf ihn freigeben.
     #
@@ -514,7 +749,12 @@ def main():
     # anderen Diff gelesen hatte. Damit konnte man das Gate austricksen: einen
     # alten Commit reviewen lassen und der ungeprueft daneben liegende Code galt
     # als freigegeben. (Cross-Model-Review 2026-07-14, als P1 gemeldet.)
-    if proc.returncode == 0 and releases_worktree:
+    #
+    # GLM ist zusaetzlich ganz vom Gate ausgenommen (GLM_RELEASES_GATE): dass es
+    # als Zweitleser dieselbe Qualitaet liefert wie codex, ist unbelegt. Ein Gate
+    # auf einem unbelegten Reviewer garantiert nichts.
+    gate_backend_ok = args.backend == "codex" or GLM_RELEASES_GATE
+    if returncode == 0 and releases_worktree and gate_backend_ok:
         fp = worktree_fingerprint(repo)
         if fp:
             (reviews / "last_review.json").write_text(
@@ -532,7 +772,13 @@ def main():
                 + "\n",
                 encoding="utf-8",
             )
-    elif proc.returncode == 0:
+    elif returncode == 0 and not gate_backend_ok:
+        print(
+            "HINWEIS: GLM-Review gibt den Stand NICHT frei - das Gate bleibt zu. "
+            "Fuer die Freigabe: agent_review ohne --backend glm.",
+            file=sys.stderr,
+        )
+    elif returncode == 0:
         print(
             f"HINWEIS: {mode}-Review gibt den Stand NICHT frei "
             "(dafuer agent_review ohne --commit/--base).",
@@ -540,12 +786,12 @@ def main():
         )
 
     print(f"\nReview gespeichert: {out_file.relative_to(repo)}")
-    if proc.returncode != 0:
+    if returncode != 0:
         print(
             "HINWEIS: Reviewer endete mit Fehler - Ergebnis ist unvollstaendig.",
             file=sys.stderr,
         )
-    return proc.returncode
+    return returncode
 
 
 if __name__ == "__main__":
