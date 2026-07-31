@@ -76,7 +76,11 @@ def test_update_job_status_writes_progress():
     row = builder.update.call_args[0][0]
     assert row["status"] == "processing"
     assert row["progress"] == 0.5
+    # Not just the payload: a dropped execute() or a wrong table would leave the
+    # worker's progress unwritten while this test still passed.
+    sb.table.assert_called_with("analysis_jobs")
     builder.eq.assert_called_with("id", "test-job-status-001")
+    builder.execute.assert_called_once()
 
 
 def test_update_job_status_completed_carries_result():
@@ -111,6 +115,11 @@ def test_get_job_unknown_returns_none():
     builder.execute.return_value = MagicMock(data=[])
     with patch("app.services.jobs.get_supabase", return_value=sb):
         assert jobs.get_job("nonexistent-id") is None
+
+    # The mock answers empty for any query, so pin the scoping explicitly:
+    # without the id filter get_job could hand back a different job's row.
+    sb.table.assert_called_with("analysis_jobs")
+    builder.eq.assert_called_with("id", "nonexistent-id")
 
 
 def test_get_job_reports_stalled_job_as_failed():
