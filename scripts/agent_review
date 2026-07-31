@@ -76,13 +76,25 @@ DEFAULT_EFFORT = "medium"
 # dokumentierte ANTHROPIC_AUTH_TOKEN wird ignoriert - deshalb beide setzen.
 DEFAULT_GLM_MODEL = "glm-5.2"
 ZAI_BASE_URL = "https://api.z.ai/api/anthropic"
-BACKENDS = ["codex", "glm"]
-DEFAULT_BACKEND = "codex"
+BACKENDS = ["glm", "codex"]
+DEFAULT_BACKEND = "glm"
 
-# GLM darf das Gate NICHT freigeben. Ob es als Zweitleser dieselbe Qualitaet
-# liefert wie codex, ist unbelegt - und ein Gate auf einem unbelegten Reviewer
-# ist ein Gate, das nichts garantiert. Erst ein Vergleichslauf auf denselben
-# Diff, dann ggf. diese Konstante umstellen.
+# GLM darf das Gate NICHT freigeben - auch nicht, seit es Default ist.
+#
+# Der Vergleichslauf ist gefahren (2026-07-31, identische Frage an beide
+# Backends, agent_hunt in diesem Repo): GLM lieferte eine saubere, belegte
+# Analyse und verwarf sechs Alternativhypothesen begruendet. Codex fand
+# zusaetzlich zwei Dinge, die GLM entgingen: den eigentlichen Mechanismus
+# (tools/guard vergleicht per MD5 ueber die ganze Datei, deshalb zaehlt schon
+# reine Formatierung als Drift) und eine seit 2026-07-28 existierende ruff.toml
+# im Repo-Wurzelverzeichnis, die exakt dieses Problem bereits loest.
+#
+# Ein Reviewer, der eine vorhandene Datei uebersieht, die die Frage beantwortet,
+# ist als taegliche Zweitmeinung gut genug - aber nicht als Instanz, die
+# "wurde geprueft" beglaubigt. Deshalb: Default ja, Gate nein.
+#
+# Wer das anders sehen will, stellt hier auf True. Dann gilt ein GLM-Review als
+# Freigabe des Arbeitsbaums.
 GLM_RELEASES_GATE = False
 
 
