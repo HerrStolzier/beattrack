@@ -85,6 +85,20 @@ class TestSongCountEndpoint:
         assert response.status_code == 200
         assert response.json() == {"count": 32871}
 
+    def test_song_count_does_not_fetch_rows(self, client, supabase_mock):
+        """head=True keeps the body empty; without it PostgREST ships every id."""
+        from app.db import get_supabase
+        from app.main import app
+
+        sb, builder = supabase_mock
+        builder.execute.return_value = type("R", (), {"count": 32871})()
+        app.dependency_overrides[get_supabase] = lambda: sb
+
+        client.get("/songs/count/total")
+
+        assert builder.select.call_args.kwargs.get("head") is True
+        assert builder.select.call_args.kwargs.get("count") == "exact"
+
 
 class TestFeaturesEndpoint:
     """Tests for GET /songs/{id}/features."""

@@ -34,8 +34,13 @@ class SongCount(BaseModel):
 async def get_song_count(
     sb: Client = Depends(get_supabase),
 ) -> SongCount:
-    """Return total number of songs in the database."""
-    result = sb.table("songs").select("id", count="exact").execute()
+    """Return total number of songs in the database.
+
+    head=True keeps the response body empty. Without it PostgREST ships every
+    id in the catalog just so the count can be read off the header, which grew
+    into a multi-second request (and a statement timeout on the old instance).
+    """
+    result = sb.table("songs").select("id", count="exact", head=True).execute()
     return SongCount(count=result.count or 0)
 
 
