@@ -69,8 +69,20 @@ def record_command(repo, command, exit_code):
         )
 
 
+class GateQueryError(RuntimeError):
+    """Das Gate ist da, konnte aber nicht antworten - Umfang unbekannt."""
+
+
 def gate_query(repo, flag):
-    """review_gate.py ist die einzige Quelle fuer Basislinie und Fingerabdruck."""
+    """review_gate.py ist die einzige Quelle fuer Basislinie und Fingerabdruck.
+
+    None heisst NUR "in diesem Repo gibt es kein Gate". Ein gescheiterter Aufruf
+    wirft, statt ebenfalls None zu liefern: Sonst fiel das Script stillschweigend
+    auf --uncommitted zurueck, reviewte also weniger als angenommen, und schrieb
+    anschliessend ueber worktree_fingerprint trotzdem einen Beleg - der auch
+    lokale Commits abdeckte, die nie jemand gelesen hatte.
+    (Cross-Model-Review 2026-07-31, P1.)
+    """
     gate = repo / "scripts" / "review_gate.py"
     if not gate.exists():
         return None
@@ -81,7 +93,8 @@ def gate_query(repo, flag):
         text=True,
     )
     if r.returncode != 0:
-        return None
+        detail = (r.stderr or "").strip() or f"Exit {r.returncode}"
+        raise GateQueryError(f"review_gate.py {flag}: {detail}")
     return (r.stdout or "").strip() or None
 
 
@@ -351,7 +364,18 @@ def main():
         scope_desc = f"die Aenderungen des Commits {args.commit}"
         mode = f"commit-{args.commit[:8]}"
     else:
-        base = gate_query(repo, "--baseline")
+        try:
+            base = gate_query(repo, "--baseline")
+        except GateQueryError as e:
+            print(f"FEHLER: {e}", file=sys.stderr)
+            print(
+                "Ohne Basislinie ist der Review-Umfang unbekannt - der Lauf wuerde "
+                "weniger lesen als er anschliessend beglaubigt.",
+                file=sys.stderr,
+            )
+            print("Lieber kein Review als ein falscher Beleg.", file=sys.stderr)
+            record_command(repo, "agent_review --unreviewed", 2)
+            return 2
         if base and base != head:
             scope_flags = ["--base", base]
             scope_desc = f"alle Aenderungen seit {base} (Commits und Arbeitsbaum)"
