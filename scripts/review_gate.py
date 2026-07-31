@@ -38,16 +38,124 @@ DOC_SUFFIXES = {".md", ".txt", ".rst", ".adoc", ".log"}
 # Verzeichnisse, die nie reviewt werden (Guard-Laufzeitdaten, Build-Output).
 IGNORED_PREFIXES = (".agents/", "dist/", "build/", ".build/")
 
+# ... mit Ausnahme der versionierten Regeln des Guards selbst. Sie liegen unter
+# .agents/ und waeren damit vom Praefix-Filter erfasst gewesen: Wer
+# project_check abschwaecht oder review_required loescht, aendert WAS geprueft
+# wird bzw. OB geprueft wird - und ausgerechnet das lief ohne Gegenlesen durch.
+# Ein Gate, das seine eigenen Regeln nicht schuetzt, ist keins.
+# (Cross-Model-Review 2026-07-31, P1.)
+POLICY_PATHS = frozenset(
+    {
+        ".agents/project_check",
+        ".agents/review_required",
+        ".agents/doc_paths_ignore",
+        ".agents/.gitignore",
+    }
+)
+
 
 def is_code(rel):
+    if rel in POLICY_PATHS:
+        return True
     if rel.startswith(IGNORED_PREFIXES):
         return False
     return pathlib.PurePosixPath(rel).suffix.lower() not in DOC_SUFFIXES
 
 
+class GitError(RuntimeError):
+    """Eine git-Abfrage ist gescheitert: Ergebnis unbekannt, NICHT leer."""
+
+
 def git(*args):
+    """Fail closed - ein gescheiterter Aufruf ist kein leeres Ergebnis.
+
+    Frueher lieferte diese Funktion bei jedem Fehler "". changed_code_paths()
+    las das als "nichts geaendert", und das Gate meldete OK. Ein gesperrter
+    Index, ein kaputtes Repo oder ein Rechteproblem liess damit ungepruefen
+    Code durch - genau im Moment, in dem das Gate haette halten muessen.
+    (Cross-Model-Review 2026-07-31, P1.)
+    """
     r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
+    if r.returncode != 0:
+        detail = (r.stderr or "").strip() or f"Exit {r.returncode}"
+        raise GitError(f"git {' '.join(args)}: {detail}")
     return r.stdout or ""
+
+
+def upstream_ref():
+    """Upstream-Branch oder None, wenn keiner gesetzt ist.
+
+    "Kein Upstream" ist ein normaler Zustand. Ein Repo, das nicht antwortet,
+    ist es nicht: Faellt baseline() dann still auf HEAD zurueck, sind lokale,
+    ungepruefte Commits nicht mehr im Diff und das Gate meldet "keine
+    Aenderungen". Unterschieden wird ueber die Frage, ob das Repo ueberhaupt
+    noch antwortet - nicht ueber den Text der Fehlermeldung, der an Sprache und
+    git-Version haengt. (Cross-Model-Review 2026-07-31, zweite Runde.)
+    """
+    r = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if r.returncode == 0:
+        return r.stdout.strip() or None
+
+    # Fehlgeschlagen. Ist ueberhaupt einer konfiguriert? Wenn nein, ist das der
+    # Normalfall. Wenn doch, konnte git ihn nur nicht aufloesen - dann ist die
+    # Basislinie unbekannt, und still auf HEAD zurueckzufallen wuerde lokale,
+    # ungepruefte Commits aus dem Diff nehmen. (Dritte Review-Runde.)
+    branch = subprocess.run(
+        ["git", "symbolic-ref", "--short", "-q", "HEAD"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if branch.returncode != 0:
+        return None  # detached HEAD oder kein Repo: kein Upstream-Begriff
+    name = branch.stdout.strip()
+    configured = subprocess.run(
+        ["git", "config", "--get", f"branch.{name}.merge"],
+        cwd=ROOT,
+        capture_output=True,
+    )
+    if configured.returncode != 0:
+        return None  # kein Upstream gesetzt - normaler Zustand
+    detail = (r.stderr or "").strip() or f"Exit {r.returncode}"
+    raise GitError(f"Upstream fuer {name} konfiguriert, aber nicht aufloesbar: {detail}")
+
+
+def gate_armed():
+    """Ist das Gate scharf?
+
+    Auch dann, wenn die Flagge im Arbeitsbaum schon geloescht ist, aber noch in
+    HEAD steht: Sonst liesse sich das Gate mit einem `rm` lautlos abschalten,
+    und ausgerechnet die Abschaltung waere das Einzige, was nie gegengelesen
+    wird. Ist die Loeschung committet, ist das Gate aus - dann steht sie im
+    Diff und jemand hat sie gesehen. (Cross-Model-Review 2026-07-31, P1.)
+
+    Ob die Flagge in HEAD steht, muss git beantworten. Kann git das nicht, ist
+    die Antwort unbekannt - und "unbekannt" darf nicht "aus" heissen, sonst
+    schaltet ein defektes Repo das Gate ab (zweite Review-Runde).
+    """
+    if FLAG.exists():
+        return True
+    if not (ROOT / ".git").exists():
+        # Gar kein Repo (auch kein Worktree-Verweis): hier gab es nie eine
+        # Flagge, und ohne Historie kann das Gate ohnehin nichts pruefen.
+        return False
+    if not rev_exists("HEAD"):
+        # Repo da, HEAD aber unlesbar: ob die Flagge einmal drin war, ist nicht
+        # feststellbar. Ein defektes Repo darf das Gate nicht abschalten.
+        return True
+    # ls-tree statt cat-file: cat-file liefert fuer "Pfad nicht in HEAD" und fuer
+    # echte Fehler denselben Code (128) und taugt damit nicht zur Unterscheidung.
+    # ls-tree endet mit 0 und leerer Ausgabe, wenn der Pfad fehlt.
+    try:
+        in_head = git("ls-tree", "--name-only", "HEAD", "--", ".agents/review_required")
+    except GitError:
+        return True
+    return bool(in_head.strip())
 
 
 def rev_exists(ref):
@@ -77,7 +185,7 @@ def baseline():
                 return head
         except Exception:
             pass
-    upstream = git("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}").strip()
+    upstream = upstream_ref()
     if upstream and rev_exists(upstream):
         return upstream
     return "HEAD"
@@ -87,7 +195,13 @@ def changed_code_paths(base=None):
     """Ungeprueftes: Commits seit der Basislinie + Arbeitsbaum + ungetrackt."""
     base = base or baseline()
     paths = set()
-    for rel in git("diff", "--name-only", base).splitlines():
+    # --no-renames: Bei erkannter Umbenennung nennt git nur den NEUEN Pfad. Ein
+    # `git mv .agents/review_required .agents/review_required.disabled` waere so
+    # unsichtbar geblieben - der neue Name faellt unter den .agents/-Filter, der
+    # alte tauchte nie auf, und das Gate meldete "keine Code-Aenderungen",
+    # waehrend gerade die Reviewpflicht abgeraeumt wurde. Ohne Rename-Erkennung
+    # erscheinen beide Pfade. (Cross-Model-Review 2026-07-31, vierte Runde.)
+    for rel in git("diff", "--no-renames", "--name-only", base).splitlines():
         if rel.strip():
             paths.add(rel.strip())
     for rel in git("ls-files", "--others", "--exclude-standard").splitlines():
@@ -139,19 +253,32 @@ def fail(msg):
 
 
 def main():
+    # Die Abfragemodi duerfen bei einem git-Fehler nichts ausgeben: agent_review
+    # liest sie und wuerde eine leere Zeile als gueltige Antwort verbuchen.
     if "--fingerprint" in sys.argv:
-        print(fingerprint())
+        try:
+            print(fingerprint())
+        except GitError as e:
+            print(f"REVIEW-GATE: Fingerabdruck nicht ermittelbar - {e}", file=sys.stderr)
+            return 2
         return 0
 
     if "--baseline" in sys.argv:
-        print(git("rev-parse", baseline()).strip())
+        try:
+            print(git("rev-parse", baseline()).strip())
+        except GitError as e:
+            print(f"REVIEW-GATE: Basislinie nicht ermittelbar - {e}", file=sys.stderr)
+            return 2
         return 0
 
-    if not FLAG.exists():
+    if not gate_armed():
         print("REVIEW-GATE: uebersprungen (kein .agents/review_required)")
         return 0
 
-    changed = changed_code_paths()
+    try:
+        changed = changed_code_paths()
+    except GitError as e:
+        return fail(f"Stand nicht feststellbar, {e}")
     if not changed:
         print("REVIEW-GATE: OK (keine Code-Aenderungen - nichts gegenzulesen)")
         return 0
@@ -164,7 +291,12 @@ def main():
     except Exception as e:
         return fail(f"last_review.json nicht lesbar: {e}")
 
-    if last.get("fingerprint") != fingerprint():
+    try:
+        current = fingerprint()
+    except GitError as e:
+        return fail(f"Fingerabdruck nicht ermittelbar, {e}")
+
+    if last.get("fingerprint") != current:
         return fail(
             f"Review ist veraltet (vom {last.get('ts', '?')}) - der Code hat sich seitdem geaendert"
         )
