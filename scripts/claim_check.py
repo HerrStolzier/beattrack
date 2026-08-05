@@ -21,7 +21,16 @@ RUNS = ROOT / ".agents" / "command_runs.jsonl"
 
 
 def load_command_successes():
-    ok = set()
+    """Der LETZTE gueltige Lauf pro Befehl zaehlt, nicht irgendein Erfolg.
+
+    Frueher war das ein Erfolgs-Set: ein gruener Lauf von vor Wochen belegte
+    den Befehl fuer immer, selbst wenn derselbe Befehl gestern fehlschlug.
+    Jetzt gilt die Dateireihenfolge als Zeitachse - kaputte Zeilen werden
+    ignoriert, pro exaktem Befehls-String gewinnt der letzte gueltige
+    Exit-Code. Bewusst KEIN Ablaufdatum: deterministisch statt uhrzeitabhaengig.
+    (Ist-Zustand-Analyse 2026-08-04, Plan Welle 2.)
+    """
+    last = {}
     if RUNS.exists():
         for line in RUNS.read_text(encoding="utf-8").splitlines():
             line = line.strip()
@@ -31,9 +40,10 @@ def load_command_successes():
                 e = json.loads(line)
             except Exception:
                 continue
-            if e.get("exit_code") == 0 and e.get("command"):
-                ok.add(e["command"].strip())
-    return ok
+            cmd = (e.get("command") or "").strip()
+            if cmd and isinstance(e.get("exit_code"), int):
+                last[cmd] = e["exit_code"]
+    return {cmd for cmd, rc in last.items() if rc == 0}
 
 
 def check_claim(c, cmd_ok):
