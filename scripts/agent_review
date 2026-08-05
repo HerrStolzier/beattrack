@@ -10,9 +10,12 @@ schon dachte. Der Wert liegt in der Modell-Diversitaet - nicht in Personas.
   tools/agent_review --repo kurier        # anderes Repo
   tools/agent_review --prompt "Fokus: Fehlerbehandlung in der API"
 
-Das Ergebnis landet in <repo>/.agents/reviews/<ts>-<mode>.md und wird in
+Das Ergebnis landet im gemeinsamen Review-Speicher (`review_gate.py --store`,
+per Default <git-common-dir>/workflow-guard/reviews/) und wird in
 .agents/command_runs.jsonl als Evidenz protokolliert - damit ist "wurde
 gegengelesen" ein belegbarer Claim (type: command) und keine Behauptung.
+Der Speicher haengt bewusst am gemeinsamen git-Verzeichnis statt am Arbeitsbaum:
+sonst stirbt der Beleg mit `git worktree remove` (siehe store_dir() im Gate).
 
 Backend ist die lokale codex-CLI (`codex exec review`). Fehlt sie, bricht das
 Script ehrlich ab, statt ein Review vorzutaeuschen.
@@ -24,6 +27,7 @@ Zweitmodell neue Dateien nicht, waehrend das Gate sie mitfingerprintete.
 
 import argparse
 import datetime
+import fcntl
 import json
 import os
 import pathlib
@@ -159,20 +163,112 @@ def gate_query(repo, flag):
     return (r.stdout or "").strip() or None
 
 
-def worktree_fingerprint(repo):
-    """Fingerabdruck der geaenderten Code-Dateien.
+# So viele Belege bleiben im gemeinsamen Log stehen. Muss zu MAX_RECORDS in
+# review_gate.py passen: was hier weggeworfen wird, kann das Gate nicht mehr
+# finden. Es ist eine kurze Historie, kein Archiv - sie existiert nur, damit
+# parallele Worktrees sich nicht gegenseitig entwerten.
+RECORD_HISTORY = 20
 
-    Bewusst KEINE eigene Implementierung: scripts/review_gate.py ist die einzige
-    Quelle. Zwei Kopien wuerden auseinanderdriften und dann passt kein Review
-    mehr zu keinem Gate. Fehlt das Script, gibt es keinen Fingerabdruck - dann
-    wird auch kein last_review.json geschrieben (lieber kein Beleg als ein
-    falscher).
+
+def review_store(repo):
+    """Wohin der Beleg gehoert - die Antwort gibt das Gate, nicht dieses Script.
+
+    Aus demselben Grund wie beim Fingerabdruck: zwei Meinungen ueber den Ort
+    heissen, dass einer hierhin schreibt und der andere dort liest - und das
+    Gate findet nie einen Beleg. Fehlt das Gate-Script, bleibt es beim alten
+    Arbeitsbaum-Pfad; ohne Gate gibt es ohnehin nichts freizugeben.
+    """
+    told = gate_answer(repo, "--store")
+    return pathlib.Path(told) if told else repo / ".agents" / "reviews"
+
+
+def claim_file(store, name):
+    """Einen freien Dateinamen im gemeinsamen Speicher belegen - atomar.
+
+    Der Zeitstempel im Namen ist sekundengenau, und seit alle Arbeitsbaeume
+    denselben Speicher teilen, koennen zwei Reviews im selben Modus in derselben
+    Sekunde landen. Vorher lagen sie in getrennten Verzeichnissen, jetzt wuerde
+    der zweite den ersten ueberschreiben - und beide Belege zeigten auf dieselbe
+    Datei. Ausgerechnet das laengere Review waere weg.
+    (Cross-Model-Review 2026-08-04, P2.)
+
+    O_EXCL statt "existiert die Datei schon?": zwischen Frage und Antwort passt
+    der andere Prozess.
+    """
+    stem, dot, ext = name.partition(".")
+    n = 0
+    while True:
+        cand = store / (name if n == 0 else f"{stem}-{n}{dot}{ext}")
+        try:
+            fd = os.open(cand, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            n += 1
+            continue
+        os.close(fd)
+        return cand
+
+
+def append_record(store, record):
+    """Beleg an die gemeinsame Historie haengen und sie kurz halten.
+
+    Angehaengt statt neu geschrieben: parallele Worktrees schreiben in dieselbe
+    Datei, und ein Lesen-Aendern-Schreiben wuerde dabei fremde Zeilen verlieren.
+    Gekuerzt wird erst, wenn die Datei deutlich zu lang ist - selten, und dann
+    faellt hoechstens ein laengst ueberholter Beleg weg.
+
+    Das Kuerzen ist aber trotzdem ein Lesen-Aendern-Schreiben: Prozess A liest
+    die Zeilen, B haengt seinen Beleg an, A schreibt seinen Schnappschuss zurueck
+    und Bs Beleg ist weg - der Nachbar-Worktree muesste sein Review wiederholen.
+    Deshalb laufen Anhaengen und Kuerzen unter einer Dateisperre, und ersetzt
+    wird per os.replace: ein Leser sieht so entweder die alte oder die neue
+    Datei, nie eine halb geschriebene. (Cross-Model-Review 2026-08-04, P2.)
+
+    Die Sperre liegt auf einer EIGENEN Datei, nicht auf dem Log: das Log wird
+    beim Kuerzen ersetzt, und eine Sperre auf der ersetzten Datei bewacht danach
+    niemanden mehr.
+
+    Ohne Sperre wird NUR angehaengt, nie gekuerzt: das Anhaengen einer Zeile ist
+    auch ungesperrt gutartig, das Kuerzen nicht - es ginge ueber eine gemeinsame
+    temporaere Datei und koennte einen fremden Schnappschuss zerreissen. Dann
+    waechst das Log eben. Ein zu langes Log kostet nichts, ein verlorener Beleg
+    ein ganzes Review. (Cross-Model-Review 2026-08-04, dritte Runde.)
+    """
+    log = store / "records.jsonl"
+    lock = store / "records.lock"
+    line = json.dumps(record, ensure_ascii=False) + "\n"
+    with lock.open("a", encoding="utf-8") as lk:
+        try:
+            fcntl.flock(lk.fileno(), fcntl.LOCK_EX)
+            locked = True
+        except OSError:
+            # Dateisystem ohne flock (Netzlaufwerk): ungesperrt anhaengen ist
+            # immer noch besser als den Beleg gar nicht zu schreiben.
+            locked = False
+        with log.open("a", encoding="utf-8") as f:
+            f.write(line)
+        if not locked:
+            return
+        try:
+            lines = [ln for ln in log.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        except OSError:
+            return
+        if len(lines) > 2 * RECORD_HISTORY:
+            tmp = log.with_name(log.name + ".tmp")
+            tmp.write_text("\n".join(lines[-RECORD_HISTORY:]) + "\n", encoding="utf-8")
+            os.replace(tmp, log)
+
+
+def gate_answer(repo, *flags):
+    """Antwort des Gates oder None - die stille Variante von gate_query().
+
+    Fuer den Beleg am Ende: laesst sich etwas nicht ermitteln, wird eben kein
+    Beleg geschrieben. Lieber kein Beleg als ein falscher.
     """
     gate = repo / "scripts" / "review_gate.py"
     if not gate.exists():
         return None
     r = subprocess.run(
-        ["python3", str(gate), "--fingerprint"],
+        ["python3", str(gate), *flags],
         cwd=repo,
         capture_output=True,
         text=True,
@@ -180,6 +276,50 @@ def worktree_fingerprint(repo):
     if r.returncode != 0:
         return None
     return (r.stdout or "").strip() or None
+
+
+def worktree_fingerprint(repo, base=None):
+    """Fingerabdruck der geaenderten Code-Dateien.
+
+    Bewusst KEINE eigene Implementierung: scripts/review_gate.py ist die einzige
+    Quelle. Zwei Kopien wuerden auseinanderdriften und dann passt kein Review
+    mehr zu keinem Gate. Fehlt das Script, gibt es keinen Fingerabdruck - dann
+    wird auch kein last_review.json geschrieben (lieber kein Beleg als ein
+    falscher).
+
+    `base` festzunageln ist noetig, weil dieser Wert zweimal erhoben wird - vor
+    und nach dem Review. Ohne feste Basislinie kann ein Beleg aus einem
+    parallelen Worktree sie dazwischen verschieben, und ein korrektes Review
+    faellt durch die Gleichheitspruefung.
+    """
+    if base:
+        return gate_answer(repo, "--fingerprint", base)
+    return gate_answer(repo, "--fingerprint")
+
+
+def git_head(repo):
+    """Aktueller HEAD oder leerer String."""
+    return (
+        subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True
+        ).stdout
+        or ""
+    ).strip()
+
+
+def reviewed_state(repo, base):
+    """Was der Reviewer sieht - HEAD und Fingerabdruck gegen eine FESTE Basis.
+
+    Wird einmal vor und einmal nach dem Review erhoben. Stimmen beide nicht
+    ueberein, hat sich waehrend des Laufs etwas bewegt (Nachbar-Worktree,
+    eigener Commit, Editor) - dann darf kein Beleg entstehen.
+
+    Die Basislinie steckt bewusst NICHT im Vergleich, sondern wird von aussen
+    festgenagelt: sie kann sich waehrend des Laufs voellig legitim nach vorn
+    bewegen, wenn nebenan ein Review fertig wird. Das aendert nichts daran, was
+    dieser Reviewer gelesen hat - er hat dann sogar mehr gesehen als noetig.
+    """
+    return (git_head(repo), worktree_fingerprint(repo, base))
 
 
 def nul_separated(result):
@@ -609,18 +749,14 @@ def main():
     # sie schliesst lokale, noch nicht gegengelesene Commits ein. Frueher wurde
     # nur der Arbeitsbaum geprueft; wer vorher committete, umging das Gate
     # komplett (Cross-Model-Review 2026-07-14, P1).
-    head = (
-        subprocess.run(
-            ["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True
-        ).stdout
-        or ""
-    ).strip()
+    head = git_head(repo)
 
     # scope_flags fahren das codex-Backend, diff_cmd das GLM-Backend: die
     # claude-CLI hat keinen eingebauten Review-Modus, dort wird der Diff selbst
     # erzeugt. Beide muessen denselben Umfang beschreiben - sonst reviewt das
     # eine Backend etwas anderes als das andere.
     releases_worktree = False
+    base = None
     if args.base:
         scope_flags = ["--base", args.base]
         diff_cmd = ["git", "diff", "--stat", "--patch", args.base]
@@ -678,6 +814,19 @@ def main():
     # auszunehmen waere derselbe Blindfleck in einem anderen Modus
     # (Cross-Model-Review 2026-07-28). Nur --commit bleibt aussen vor: das ist
     # ein abgeschlossener Commit-Diff, in dem der Arbeitsbaum nichts zu suchen hat.
+    # Stand VOR dem Review festhalten - erhoben, bevor `git add -N` etwas
+    # markiert, damit er mit der Erhebung danach (nach dem Zuruecksetzen)
+    # vergleichbar ist.
+    #
+    # Die Basislinie wird NICHT neu erfragt, sondern ist genau die von oben, aus
+    # der der Diff gebaut wurde. Eine zweite Abfrage koennte eine andere Antwort
+    # bekommen: schreibt eine parallele Sitzung dazwischen einen Beleg mit
+    # aelterem Stand, rutscht die Basislinie nach HINTEN. Der Beleg deckte dann
+    # mehr ab, als im Diff stand - genau der Fehler, den diese Pruefung
+    # verhindern soll. (Cross-Model-Review 2026-08-04, dritte Runde.)
+    pinned_base = (base or head) if releases_worktree else None
+    pre_state = reviewed_state(repo, pinned_base) if releases_worktree else None
+
     if args.commit:
         marked = []
     else:
@@ -783,10 +932,10 @@ def main():
 
     print(output)
 
-    reviews = repo / ".agents" / "reviews"
+    reviews = review_store(repo)
     reviews.mkdir(parents=True, exist_ok=True)
     stamp = now().replace(":", "").replace("-", "")
-    out_file = reviews / f"{stamp}-{mode}.md"
+    out_file = claim_file(reviews, f"{stamp}-{mode}.md")
     out_file.write_text(
         f"# Cross-Model-Review ({mode})\n\n"
         f"- Zeitpunkt: {now()}\n"
@@ -813,23 +962,45 @@ def main():
     # auf einem unbelegten Reviewer garantiert nichts.
     gate_backend_ok = args.backend == "codex" or GLM_RELEASES_GATE
     if returncode == 0 and releases_worktree and gate_backend_ok:
-        fp = worktree_fingerprint(repo)
-        if fp:
+        # Die Basislinie gehoert IN den Beleg: der Fingerabdruck haengt an ihr,
+        # und ohne sie rechnet das Gate spaeter gegen eine andere und findet nie
+        # eine Uebereinstimmung. Genommen wird die VOM ANFANG des Laufs - sie
+        # beschreibt den Umfang, den der Reviewer gelesen hat.
+        #
+        # Der Stand wird hier GEGEN den Stand von vorher geprueft. Frueher
+        # entstand der Fingerabdruck erst nach dem Review, waehrend der HEAD im
+        # Beleg aus der Zeit davor stammte: bewegte sich der Arbeitsbaum
+        # dazwischen, beschrieb der Beleg einen Stand, den der Reviewer nie
+        # gesehen hat - und das Gate gab ihn spaeter frei. Ungleich heisst
+        # deshalb: kein Beleg, neu reviewen. (Cross-Model-Review 2026-08-04, P1.)
+        base_covered = pinned_base
+        post_state = reviewed_state(repo, base_covered)
+        head_now, fp = post_state
+        if pre_state != post_state:
+            print(
+                "HINWEIS: Der Stand hat sich waehrend des Reviews geaendert - "
+                "kein Beleg geschrieben, das Gate bleibt zu.",
+                file=sys.stderr,
+            )
+            print(
+                "Der Reviewer hat einen anderen Stand gelesen als den jetzigen. "
+                "Review nach Abschluss der Aenderungen wiederholen.",
+                file=sys.stderr,
+            )
+        elif fp and base_covered:
+            record = {
+                "ts": now(),
+                "mode": mode,
+                "base": base_covered,
+                "head": head_now,
+                "fingerprint": fp,
+                "file": out_file.name,
+            }
             (reviews / "last_review.json").write_text(
-                json.dumps(
-                    {
-                        "ts": now(),
-                        "mode": mode,
-                        "head": head,
-                        "fingerprint": fp,
-                        "file": out_file.name,
-                    },
-                    ensure_ascii=False,
-                    indent=2,
-                )
-                + "\n",
+                json.dumps(record, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
             )
+            append_record(reviews, record)
     elif returncode == 0 and not gate_backend_ok:
         print(
             "HINWEIS: GLM-Review gibt den Stand NICHT frei - das Gate bleibt zu. "
@@ -843,7 +1014,14 @@ def main():
             file=sys.stderr,
         )
 
-    print(f"\nReview gespeichert: {out_file.relative_to(repo)}")
+    try:
+        where = out_file.relative_to(repo)
+    except ValueError:
+        # Der Speicher haengt am gemeinsamen git-Verzeichnis. Aus einem Worktree
+        # heraus liegt er damit ausserhalb des Arbeitsbaums - dann den ganzen
+        # Pfad zeigen, sonst findet ihn niemand wieder.
+        where = out_file
+    print(f"\nReview gespeichert: {where}")
     if returncode != 0:
         print(
             "HINWEIS: Reviewer endete mit Fehler - Ergebnis ist unvollstaendig.",
