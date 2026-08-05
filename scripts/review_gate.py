@@ -26,6 +26,7 @@ keinem Gate.
 
 import hashlib
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -330,6 +331,30 @@ def _baseline():
     return "HEAD"
 
 
+def nul_paths(*args):
+    """Pfadliste NUL-separiert abfragen - die einzige Form, die git nie quotet.
+
+    Ohne `-z` quotet git Pfade mit Umlaut/Sonderzeichen (core.quotepath) und
+    escapet Zeilenumbrueche: `"sch\\303\\266n.py"` existiert als Datei nie, ihr
+    Inhalt ging als Konstante "geloescht" in den Fingerabdruck ein, und
+    Aenderungen an der echten Datei blieben fuer das Gate unsichtbar. Zugleich
+    galt eine gequotete `.md`-Datei wegen des Suffixes `.md"` als Code.
+    (Ist-Zustand-Analyse 2026-08-04, per Repro belegt.)
+
+    Bewusst als Bytes gelesen und mit os.fsdecode dekodiert: git liefert bei
+    `-z` die rohen Pfad-Bytes. Ein Name, der kein gueltiges UTF-8 ist, wuerde
+    mit text=True als UnicodeDecodeError durchschlagen - das Gate koennte in
+    so einem Repo nie wieder einen Fingerabdruck bilden. fsdecode rundet die
+    Bytes verlustfrei durch Pfad-Operationen (surrogateescape).
+    (Cross-Model-Review 2026-08-05, P2.)
+    """
+    r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True)
+    if r.returncode != 0:
+        detail = r.stderr.decode("utf-8", "replace").strip() or f"Exit {r.returncode}"
+        raise GitError(f"git {' '.join(args)}: {detail}")
+    return [os.fsdecode(p) for p in (r.stdout or b"").split(b"\0") if p]
+
+
 def changed_code_paths(base=None):
     """Ungeprueftes: Commits seit der Basislinie + Arbeitsbaum + ungetrackt."""
     base = base or baseline()
@@ -340,12 +365,8 @@ def changed_code_paths(base=None):
     # alte tauchte nie auf, und das Gate meldete "keine Code-Aenderungen",
     # waehrend gerade die Reviewpflicht abgeraeumt wurde. Ohne Rename-Erkennung
     # erscheinen beide Pfade. (Cross-Model-Review 2026-07-31, vierte Runde.)
-    for rel in git("diff", "--no-renames", "--name-only", base).splitlines():
-        if rel.strip():
-            paths.add(rel.strip())
-    for rel in git("ls-files", "--others", "--exclude-standard").splitlines():
-        if rel.strip():
-            paths.add(rel.strip())
+    paths.update(nul_paths("diff", "--no-renames", "--name-only", "-z", base))
+    paths.update(nul_paths("ls-files", "--others", "--exclude-standard", "-z"))
     return sorted(p for p in paths if is_code(p))
 
 
@@ -372,8 +393,16 @@ def _fingerprint(base):
             digest = hashlib.sha256(f.read_bytes()).hexdigest()
         except OSError:
             digest = "geloescht"
-        parts.append(f"{rel}:{digest}")
-    return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()
+        # Laengen-Praefix macht die Serialisierung eindeutig. Seit Pfade mit
+        # Zeilenumbruch roh durchkommen, konnte EIN gebastelter Dateiname wie
+        # "a.py:<hash>\nb.py" die Eintraege ZWEIER reviewter Dateien imitieren -
+        # gleicher Fingerabdruck, ungepruefter Code. Mit "<laenge>:<pfad>:" ist
+        # jede Zeichenkette nur noch auf eine Weise lesbar. Aendert den
+        # Fingerabdruck bestehender Belege mit offenen Aenderungen: das Gate
+        # fordert dort EINMAL ein frisches Review - zu viel pruefen, nie zu
+        # wenig. (Cross-Model-Review 2026-08-05, P1.)
+        parts.append(f"{len(rel)}:{rel}:{digest}")
+    return hashlib.sha256("\n".join(parts).encode("utf-8", "surrogatepass")).hexdigest()
 
 
 def review_tool():
@@ -416,7 +445,7 @@ def main():
         # unterscheiden sich, und ein voellig korrektes Review wuerde verworfen.
         # (Cross-Model-Review 2026-08-04, zweite Runde.)
         i = sys.argv.index("--fingerprint")
-        rest = sys.argv[i + 1:]
+        rest = sys.argv[i + 1 :]
         pinned = rest[0] if rest and not rest[0].startswith("-") else None
         try:
             print(fingerprint(pinned))
