@@ -1,79 +1,71 @@
-# Checks
+# Prüfungen und Nachweise
 
-> **Zweck:** Welche Prüfungen dieses Projekt kennt und wann welche greift.
-> **Scope:** Standardabschluss, technischer Projektcheck, Review-Gate, CI, Deploy-Verifikation. Nicht: Inhalt der Tests selbst.
-> **Suchbegriffe:** check, test, pytest, vitest, bun, uv, ci, review, gate, deploy, verifikation, agent_finish, trivy, codeql
-> **Stand:** 2026-07-31
+> **Zweck:** Passende Verifikation ohne unnötige Testläufe.
+> **Scope:** Dokumentation, Anwendung, Daten, CI und Live-Abnahme.
+> **Suchbegriffe:** test, pytest, vitest, build, lint, e2e, deploy
+> **Stand:** 2026-09-15
 
 ## Standardabschluss
 
-```bash
-python3 scripts/agent_finish.py --auto-claims
-```
+Prüfungen nach Änderungswirkung auswählen. Keine automatische Komplettserie nur wegen einer Dokumentationsänderung. Nach ausreichenden bestandenen Prüfungen abschließen; erneut prüfen bei neuen Änderungen, Fehlern oder konkreten offenen Fragen.
 
-Läuft auch automatisch als Stop-Hook (`.claude/settings.json`). Umfasst
-Struktur-Guard, Doc-Drift, Projektcheck, Review-Gate und Claim-Check.
-
-## Technischer Projektcheck
-
-Hinterlegt in `.agents/project_check`: beide Test-Suiten, rund 20 Sekunden.
-
-```bash
-(cd apps/api && uv run pytest -q)     # 164 Tests
-(cd apps/web && bun run test)         # 67 Tests (Vitest)
-```
-
-Bewusst **nicht** enthalten:
-
-- **Web-Build** (`bun run build`) — kostet ~25 s pro Abschluss, die CI baut ohnehin.
-- **Frontend-Lint** — lokal kaputt durch Bun-Workspace-Hoisting von
-  `@next/eslint-plugin-next`, läuft nur in der CI. Deshalb committen Agenten hier
-  mit `--no-verify`, sonst blockt der Husky-Pre-Commit-Hook jeden Commit.
-- **Raw `bun test`** — nutzt Buns eigenen Runner ohne jsdom-Setup und schlägt fehl.
-  Immer `bun run test`.
-
-## Review-Gate (scharf seit 2026-07-31)
-
-`.agents/review_required` liegt im Repo, damit blockiert `scripts/review_gate.py`
-den Abschluss, bis ein Cross-Model-Review den aktuellen **Code**-Stand abdeckt.
-Reine Doku-Änderungen (`.md`, `.txt`) lösen das Gate nicht aus.
-
-```bash
-scripts/agent_review --uncommitted        # Standardfall
-scripts/agent_review --base main          # Diff gegen main
-scripts/agent_review --commit <SHA>       # ein bestimmter Commit
-```
-
-Modell und Effort sind gesetzt (`gpt-5.6-terra`, `medium`) und werden nicht
-angehoben. Ein fehlgeschlagenes Review (Login abgelaufen, Kontingent leer)
-schreibt kein `last_review.json` und gilt **nicht** als Beleg.
-
-## CI (GitHub Actions)
-
-Läuft auf Pull Requests gegen `main`:
-
-| Workflow | Prüft |
+| Änderung | Erforderlicher Nachweis |
 |---|---|
-| `ci.yml` | Frontend Lint + Type-Check + Build + Vitest, Backend pytest + pip-audit |
-| `codeql.yml` | Code-Scanning TypeScript + Python |
-| `container-scan.yml` | Trivy über die Base-Images aller Dockerfiles |
-| `secret-scan.yml` | gitleaks über die volle History |
+| Dokumentation | Fakten/Quellen, lokale Links und Pfade, widerspruchsfreie Zustände, git diff --check |
+| Frontend-Verhalten | Betroffene Vitest-Tests, Typprüfung/Build nach Wirkung, echter Browserweg |
+| API-/Rankinglogik | Gezielte pytest-Tests, realistische DB-Datentypen, betroffener API-/Benutzerweg |
+| Upload/Worker | Verarbeitung bis zum sichtbaren Ergebnis, Persistenz und Cleanup; isolierte Fehler-/Neustarttests |
+| Datenmigration/Normalisierung | Kopie, Vorher-/Nachher-Zählung, Vektorgültigkeit, Skalenkonsistenz, Rückweg |
+| Deployment | Zielcommit/Images, passende Logs, externe Abfrage und betroffene Funktion |
 
-**Bekannt rot:** `Scan node:22-alpine` meldet CVE-2026-59873 (node-tar in npm).
-Kein Node-Base-Image hat den Fix bisher. npm ist aus unserem Runtime-Image
-entfernt, der Scan prüft aber den Original-Tag und kann das nicht sehen.
-Bewusst so belassen.
+## Vorhandene lokale Befehle
 
-## Deploy-Verifikation
+Aus dem jeweiligen Paket, nach eingerichteter Testumgebung:
 
-Nach jedem Deploy auf infra-01 von außen prüfen, nicht nur Container-Status:
+```sh
+# apps/web
+bun run test --run
+bunx --no-install tsc --noEmit
+bun run build
+bun run lint
 
-```bash
-curl -s https://beattrack.app/api/health
-curl -s -o /dev/null -w '%{http_code}\n' https://beattrack.app
+# apps/api
+uv run --frozen pytest tests/ -q
 ```
 
-Container-Uptime allein beweist nichts: Ein `git pull` ohne `docker compose build`
-plus `docker compose up -d` lässt die alten Images weiterlaufen. Gegenprobe über
-die Image-ID (`docker inspect beattrack-api --format '{{.Image}}'`) oder über eine
-Datei, die es nur im neuen Stand gibt.
+Raw bun test umgeht Vitest/jsdom. bun run test ohne --run kann im Watch-Modus bleiben. Der Frontend-Lint nutzt derzeit next lint; lokale Probleme mit Workspace-Hoisting sind historisch dokumentiert, nicht für jede Maschine bewiesen. Bei Problemen tatsächlichen Fehler berichten, keine pauschale Erfolgsbehauptung oder Abschaltung.
+
+Die bestehenden Struktur-/Pfadprüfer können für Dokumentation gezielt verwendet werden:
+
+```sh
+python3 scripts/workflow_check.py
+python3 scripts/doc_drift_check.py
+git diff --check
+```
+
+Der Pfadprüfer erfasst nur WORKFLOWS, CHECKS und KNOWN_ERRORS. Neue Markdown-Dateien und relative Links zusätzlich prüfen; sein Erfolg ist kein vollständiger Linkcheck.
+
+## CI
+
+| Workflow | Tatsächlicher Scope |
+|---|---|
+| .github/workflows/ci.yml | Push auf main und PR gegen main: Backend pytest/pip-audit, Frontend Lint/Typprüfung/Build/Vitest |
+| .github/workflows/codeql.yml | Statische Codeanalyse; kein Beleg einer vollständigen Sicherheitsabnahme |
+| .github/workflows/secret-scan.yml | gitleaks über Git-Historie |
+| .github/workflows/container-scan.yml | Dockerfile-bezogene PRs, Wochenplan/manuell; Basisimages und Konfiguration |
+
+CI-Ergebnisse immer einem Commit und Datum zuordnen. Die 164 Backend- und 67 Frontendtests vom 17.08.2026 sind historische Belege; sie ersetzen keine Prüfung neuer Änderungen. Containerbefunde betreffen im vorhandenen Workflow Original-Basisimages, nicht automatisch fertige laufende App-Images.
+
+## End-to-End-Grenze
+
+Eine vollständige versionierte Playwright-Suite wurde nicht gefunden. Manueller Browsernachweis, API-Test, Unit-Test und historische Upload-Prüfung getrennt berichten. Keine neue Live-Datei hochladen, Metadaten ingesten oder Testbewertungen absenden, wenn der Auftrag nur lesend ist.
+
+## Historische Guard-Werkzeuge
+
+scripts/agent_finish.py und weitere Guard-Scripts sind vorhandene Kopien, siehe scripts/README.md. Das Review-Gate wurde auf main deaktiviert; die Aktivierungsdatei fehlt. Keine Pflicht zur Reaktivierung oder zusätzlichen Modellprüfung.
+
+Der Sammelbefehl führt weiterhin den Inhalt von .agents/project_check aus und kann umfangreiche Tests bzw. Watch-Modus starten. Er ist kein sinnvoller Standard für reine Dokumentation. Die Dokumentationsrunde ändert diese historischen Scripts und Hooks nicht.
+
+## Wartung im Dokumentations-PR #47
+
+Der erforderliche Backend-Check scheiterte am 15.09. vor pytest am Audit der Entwicklungsabhängigkeit pip 26.1.2 (PYSEC-2026-3721). Das Lockfile aktualisiert gezielt pip auf die im Audit genannte korrigierte Version 26.2. Keine Audit-Ausnahme und keine Abschaltung des Checks; erneute CI ist vor Merge erforderlich.

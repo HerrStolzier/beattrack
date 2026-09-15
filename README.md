@@ -1,37 +1,38 @@
-# beattrack
+# Beattrack
 
-[![CI](https://github.com/HerrStolzier/beattrack/actions/workflows/ci.yml/badge.svg)](https://github.com/HerrStolzier/beattrack/actions/workflows/ci.yml)
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue.svg)](https://www.typescriptlang.org/)
+Musik anhand ihres Klangs entdecken: ähnliche Songs, Sonic Blend und Vibe aus einem Electronic-Katalog. Open Source unter [AGPL-3.0](LICENSE).
 
-Find songs that sound alike — sonic similarity search powered by audio fingerprinting and vector embeddings.
+**Live:** [beattrack.app](https://beattrack.app) · **API:** [Health](https://beattrack.app/api/health)
+
+## Einstieg
+
+| Frage | Dokument |
+|---|---|
+| Ziel, Umfang und Stand? | [Projektübersicht](project.md) |
+| Was kommt als Nächstes? | [Roadmap](docs/roadmap.md) |
+| Wie funktionieren Code und Datenfluss? | [Architektur](docs/architecture.md) |
+| Wo und wie läuft Produktion? | [Infrastruktur](docs/infrastructure.md) |
+| Wie richte ich Entwicklung ein? | [Entwicklung](docs/development.md) |
+| Wie ändere und prüfe ich etwas? | [Workflows](WORKFLOWS.md), [Checks](CHECKS.md) |
+| Welche Probleme sind bekannt? | [Bekannte Fehler](KNOWN_ERRORS.md) |
+| Welche Entscheidungen gelten? | [Entscheidungen](docs/decisions.md) |
+| Woher stammen die Aussagen? | [Bestandsaufnahme vom 15.09.2026](docs/status-2026-09-15.md) |
 
 ## Stack
 
-- **Frontend:** Next.js 15, React 19, TypeScript, Tailwind CSS
-- **Backend:** FastAPI, Python 3.12, Essentia, Chromaprint/pyacoustid
-- **Monorepo:** Bun workspaces
+- Web: Next.js 15, React 19, TypeScript, Tailwind CSS 4.
+- API: FastAPI/Python, Essentia und MusiCNN; MERT als ergänzende Modellpipeline.
+- Speicherung: PostgreSQL 17 mit pgvector, Zugriff über PostgREST.
+- Hintergrundaufgaben: Procrastinate, eigener Worker und gemeinsames Upload-Volume.
+- Produktion: Docker Compose auf Hetzner; Traefik für HTTPS und Routing.
+- Abhängigkeiten: Bun und uv. Aufgelöste Versionen stehen in den Lockfiles.
 
-## Development
+## Aktuelle Grenze
 
-```bash
-bun install
-bun run dev        # Frontend (apps/web)
-```
+Die geprüften Suchwege liefern live Ergebnisse. Radar und die Kombination mehrerer Klangsignale sind beeinträchtigt; ein großer Teil der Merkmale ist noch nicht normalisiert. Details und Prüfgrenzen stehen im datierten Statusbericht. Eine erreichbare Website beweist nicht alle Funktionen.
 
-```bash
-cd apps/api
-uv sync --extra dev
-uv run uvicorn app.main:app --reload
-```
+## Historische Pläne
 
-## Testing
+[PLAN.md](PLAN.md), [PLAN2.0.md](PLAN2.0.md), [PLAN3.0.md](PLAN3.0.md) und der [alte Skalierungsplan](docs/scaling-plan.md) bleiben als Entwicklungsgeschichte erhalten. Neue Prioritäten werden ausschließlich in der aktuellen Roadmap gepflegt.
 
-```bash
-bun run test       # Frontend unit tests
-uv run pytest      # Backend tests
-```
-
-## License
-
-AGPL-3.0 — see [LICENSE](./LICENSE)
+Sicherheitsprobleme bitte gemäß [SECURITY.md](SECURITY.md) vertraulich melden.

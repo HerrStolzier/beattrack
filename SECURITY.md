@@ -58,7 +58,8 @@ are in the [README](README.md).
 ## Supported versions
 
 The project has no tagged releases. Only the current `main` branch is supported;
-fixes land there and deploy from there.
+fixes land there. A merge does not prove production deployment. The Hetzner
+stack is deployed separately; see [deployment workflow](WORKFLOWS.md).
 
 ## What already runs
 
