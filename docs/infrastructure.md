@@ -15,7 +15,7 @@ Stand: 2026-09-15. Messungen: [Statusbericht](status-2026-09-15.md). Kanonische 
 
 Die öffentliche Anwendung ist unter https://beattrack.app erreichbar. Vercel bleibt laut Betreiberdokumentation Registrar/DNS-Anbieter; Railway ist laut Dokumentation gekündigt, die alte API-Adresse antwortete am 15.09. mit „Application not found“.
 
-**Wichtige Abweichung:** GitHub enthält weiterhin erfolgreiche Vercel-Preview-Deployments (zuletzt 07.09.2026) und ein Production-Deployment des main-Commits vom 17.08.2026. Auf dem letzten main-Commit existieren außerdem Vercel- und Railway-Statuskontexte. Deshalb ist „Vercel nur DNS“ keine ausreichende Freigabegrundlage für Push/Merge. Die Preview vom 07.09. ist in GitHub als erfolgreich mit einer Vercel-URL registriert. Push/Merge können daher externe Veröffentlichung auslösen; diese Wirkung vor der nächsten Aktion konkret freigeben lassen. Nicht eigenständig abschalten.
+**Historische Deployment-Einträge, aktueller Trigger ungeklärt:** Basti bestätigt am 15.09.2026, dass Vercel gekündigt ist und Beattrack auf Hetzner läuft. Die Domain wurde erneut mit HTTP 200 vom Hetzner-Server geprüft. GitHub enthält Vercel-Erfolgseinträge vom 07.09. (Preview) und 17.08. (Umgebungsname Production). Die geprüfte Preview-URL leitet heute zur Vercel-Anmeldung weiter. Diese Einträge belegen frühere Statusmeldungen, keinen aktiven kostenpflichtigen Vertrag und keinen heute wirksamen Deployment-Trigger. Production ist hier eine GitHub-Umgebungsbezeichnung, kein Nachweis des Hostings von beattrack.app. Vor Push/Merge bei Bedarf den aktuellen Trigger prüfen; aus historischen Einträgen allein keine zusätzliche Veröffentlichung behaupten. Integrationen nicht eigenständig ändern.
 
 ## Zugriff und Geheimnisse
 

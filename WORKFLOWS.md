@@ -12,7 +12,7 @@
 3. Auf einem benannten Branch, standardmäßig mit Präfix codex/, atomar arbeiten.
 4. Passende Prüfungen aus [CHECKS.md](CHECKS.md) durchführen; betroffene Dokumente aktualisieren.
 5. Diff prüfen und gezielt eigene Dateien committen. Unbekannte Artefakte nicht mit git add -A übernehmen.
-6. Vor Push und Merge tatsächliche Hosting-Nebenwirkungen prüfen. GitHub zeigte am 15.09. weiterhin Vercel-Preview-Deployments; ein altes Hosting-Dokument widerlegt das nicht.
+6. Vor Push und Merge tatsächliche Hosting-Nebenwirkungen prüfen. GitHub enthält historische Vercel-Preview-Einträge. Diese beweisen keinen aktuell wirksamen Trigger; Basti hat die Vercel-Kündigung bestätigt.
 7. Bei konkreter Veröffentlichungsfreigabe Push/PR, erforderliche Checks und geprüften Merge durchführen. Fehlt sie, mit lokalem Commit und konkreter Beschreibung der externen Wirkung zur Freigabe vorlegen.
 8. Ergebnis, Prüfungen, Commit/PR und Veröffentlichungsstand nennen.
 

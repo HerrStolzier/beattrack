@@ -8,7 +8,7 @@ Lies zuerst [project.md](project.md), dann nur auftragsrelevante Dokumente. Offe
 
 - Erklären, recherchieren und planen verändert weder Anwendung noch Produktion.
 - Bei Umsetzung notwendige reversible Änderungen im vereinbarten Umfang durchführen und prüfen. Nutzeränderungen und unbekannte Daten erhalten.
-- Routine-Commits, Pushes und geprüfte Merges gehören zum autorisierten Umsetzungsauftrag. Vor Push/Merge Hosting-Integrationen prüfen: automatische Preview- oder Produktionsveröffentlichungen können zusätzliche Freigabe erfordern. GitHub zeigt weiterhin Vercel-Deployments.
+- Routine-Commits, Pushes und geprüfte Merges gehören zum autorisierten Umsetzungsauftrag. Vor Push/Merge Hosting-Integrationen prüfen: automatische Preview- oder Produktionsveröffentlichungen können zusätzliche Freigabe erfordern. Historische GitHub-Deployment-Einträge beweisen keinen aktuellen Hosting-Trigger oder Vertragsstatus.
 - Live-Deployment, Installation neuer Software, destruktive Aktionen, neue Zugriffsrechte oder wesentliche Zielerweiterungen brauchen konkrete Freigabe. Bestehende Freigaben nicht wiederholt erfragen.
 - Keine Secrets in Repository, Ausgabe, Berichte oder Beispiele aufnehmen.
 
