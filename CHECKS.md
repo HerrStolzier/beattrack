@@ -65,3 +65,7 @@ Eine vollständige versionierte Playwright-Suite wurde nicht gefunden. Manueller
 scripts/agent_finish.py und weitere Guard-Scripts sind vorhandene Kopien, siehe scripts/README.md. Das Review-Gate wurde auf main deaktiviert; die Aktivierungsdatei fehlt. Keine Pflicht zur Reaktivierung oder zusätzlichen Modellprüfung.
 
 Der Sammelbefehl führt weiterhin den Inhalt von .agents/project_check aus und kann umfangreiche Tests bzw. Watch-Modus starten. Er ist kein sinnvoller Standard für reine Dokumentation. Die Dokumentationsrunde ändert diese historischen Scripts und Hooks nicht.
+
+## Wartung im Dokumentations-PR #47
+
+Der erforderliche Backend-Check scheiterte am 15.09. vor pytest am Audit der Entwicklungsabhängigkeit pip 26.1.2 (PYSEC-2026-3721). Das Lockfile aktualisiert gezielt pip auf die im Audit genannte korrigierte Version 26.2. Keine Audit-Ausnahme und keine Abschaltung des Checks; erneute CI ist vor Merge erforderlich.
