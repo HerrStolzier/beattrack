@@ -11,6 +11,7 @@ from pydantic import BaseModel, field_validator
 from supabase import Client
 
 from app.db import get_supabase
+from app.services.vectors import parse_vector as _parse_vector
 
 logger = logging.getLogger(__name__)
 
@@ -132,15 +133,6 @@ def _extract_dims(vec: list[float], dims: list[int]) -> list[float]:
     return [vec[i] for i in dims if i < len(vec)]
 
 
-def _parse_vector(raw) -> list[float] | None:
-    """Parse a vector that may come as string from Supabase."""
-    if raw is None:
-        return None
-    if isinstance(raw, str):
-        return json.loads(raw)
-    return raw
-
-
 @dataclass
 class _FusionWeights:
     learned: float
@@ -203,7 +195,7 @@ def _compute_hc_similarity(
 
 def _apply_late_fusion(
     results: list[dict],
-    query_handcrafted: list[float],
+    query_handcrafted: list[float] | None,
     sb: Client,
     focus: str | None = None,
     query_genre: str | None = None,
@@ -223,20 +215,40 @@ def _apply_late_fusion(
         .in_("id", result_ids)
         .execute()
     )
+    genre_weights = _get_genre_weights(sb, query_genre) if not focus else None
+    return _fuse_candidates(
+        results, query_handcrafted, vec_result.data or [],
+        focus=focus, query_mert=query_mert, genre_weights=genre_weights,
+    )
+
+
+def _fuse_candidates(
+    results: list[dict],
+    query_handcrafted,
+    vectors: list[dict],
+    *,
+    focus: str | None = None,
+    query_mert=None,
+    genre_weights: dict[str, float] | None = None,
+) -> list[dict]:
+    """Pure scoring shared with the offline listening experiment.
+
+    Choose weights per candidate. Missing optional signals are not evidence of
+    dissimilarity. Internal signal labels make experiment coverage auditable.
+    """
+    query_handcrafted = _parse_vector(query_handcrafted, 44)
+    query_mert = _parse_vector(query_mert, 768)
     hc_map: dict[str, list[float]] = {}
     mert_map: dict[str, list[float]] = {}
-    for row in vec_result.data or []:
+    for row in vectors:
         rid = str(row["id"])
-        hc = _parse_vector(row.get("handcrafted_norm"))
+        hc = _parse_vector(row.get("handcrafted_norm"), 44)
         if hc:
             hc_map[rid] = hc
-        mert = _parse_vector(row.get("mert_embedding"))
+        mert = _parse_vector(row.get("mert_embedding"), 768)
         if mert:
             mert_map[rid] = mert
 
-    has_mert = bool(query_mert and mert_map)
-    genre_weights = _get_genre_weights(sb, query_genre) if not focus else None
-    weights = _determine_weights(focus, has_mert, genre_weights)
     focus_dims = FOCUS_DIMENSIONS.get(focus) if focus else None
 
     fused: list[dict] = []
@@ -245,20 +257,25 @@ def _apply_late_fusion(
         learned_sim: float = row.get("similarity", 0.0)
         hc_vec = hc_map.get(rid)
 
-        if not hc_vec:
-            fused.append({**row, "similarity": learned_sim})
-            continue
+        result_mert = mert_map.get(rid)
+        has_mert = bool(query_mert and result_mert)
+        weights = _determine_weights(focus, has_mert, genre_weights)
+        numerator = weights.learned * learned_sim
+        denominator = weights.learned
+        signals = ["musicnn"]
+        if query_handcrafted and hc_vec:
+            numerator += weights.hc * _compute_hc_similarity(
+                query_handcrafted, hc_vec, focus_dims, genre_weights,
+            )
+            denominator += weights.hc
+            signals.append("handcrafted")
+        if query_mert and result_mert:
+            numerator += weights.mert * _cosine_similarity(query_mert, result_mert)
+            denominator += weights.mert
+            signals.append("mert")
 
-        hc_sim = _compute_hc_similarity(query_handcrafted, hc_vec, focus_dims, genre_weights)
-
-        mert_sim = 0.0
-        if has_mert:
-            result_mert = mert_map.get(rid)
-            if result_mert and query_mert:
-                mert_sim = _cosine_similarity(query_mert, result_mert)
-
-        fused_score = weights.learned * learned_sim + weights.mert * mert_sim + weights.hc * hc_sim
-        fused.append({**row, "similarity": fused_score})
+        score = learned_sim if len(signals) == 1 else numerator / denominator
+        fused.append({**row, "similarity": score, "_signals": signals})
 
     fused.sort(key=lambda x: x["similarity"], reverse=True)
     return fused
@@ -279,13 +296,19 @@ def _deduplicate_versions(results: list[dict]) -> list[dict]:
     Results must be pre-sorted by similarity descending.
     """
     seen: dict[str, dict] = {}  # key: "artist||base_title" → best result
+    seen_recordings: set[int] = set()
     deduped: list[dict] = []
 
     for r in results:
+        recording = r.get("deezer_id")
+        if recording is not None and recording in seen_recordings:
+            continue
         key = f"{r['artist'].lower()}||{_base_title(r['title'])}"
         if key not in seen:
             seen[key] = r
             deduped.append(r)
+            if recording is not None:
+                seen_recordings.add(recording)
         # else: skip — first occurrence has highest score (pre-sorted)
 
     return deduped
@@ -402,9 +425,9 @@ async def find_similar(
     focus = body.focus
 
     # 3. Late fusion with handcrafted + MERT features
-    query_handcrafted: list[float] | None = query_song.get("handcrafted_norm")
-    query_mert = _parse_vector(query_song.get("mert_embedding"))
-    if query_handcrafted and results:
+    query_handcrafted = _parse_vector(query_song.get("handcrafted_norm"), 44)
+    query_mert = _parse_vector(query_song.get("mert_embedding"), 768)
+    if (query_handcrafted or query_mert) and results:
         try:
             results = _apply_late_fusion(
                 results, query_handcrafted, sb,

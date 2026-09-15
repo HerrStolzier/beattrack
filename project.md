@@ -12,6 +12,7 @@ Die zuletzt dokumentierte Produktentscheidung lautet: unmonetarisiert. Daraus en
 
 - Dieses Dokument: Ziel, Umfang und Orientierung.
 - [Roadmap](docs/roadmap.md): priorisierte Arbeitspakete und Abnahmekriterien.
+- [Aktives Ziel und Hörvergleich](docs/listening-feasibility.md): Lieblingssong → klanglich passende Entdeckungen; technische Vorbereitung und offene Hörabnahme.
 - [Architektur](docs/architecture.md): Zusammenhänge und Code-Einstiegspunkte.
 - [Infrastruktur](docs/infrastructure.md): Produktionsmodell, Zuständigkeiten und Risiken.
 - [Entwicklung](docs/development.md): Voraussetzungen und lokale Abläufe.
@@ -33,6 +34,10 @@ Aktueller Code und direkte Messungen haben bei Tatsachen Vorrang vor älteren Be
 | Radar, Fokus, kombinierte Klangbewertung | Implementiert, bekannte Daten- und Verarbeitungsprobleme |
 | Journey, DJ-Modus, Playlist, Verlauf | Implementiert; vollständige Funktionsabnahme offen |
 | Feedback und A/B-Ereignisse | Implementiert; Wirksamkeit des Lernens nicht nachgewiesen |
+
+## Aktueller Umsetzungsauftrag
+
+Am 15.09. wurde der begrenzte Machbarkeitstest ausdrücklich beauftragt. Ranking-Reparaturen, Titelsuche und ein reproduzierbarer Hörvergleich werden lokal umgesetzt und geprüft. Der Nachweis musikalischer Qualität bleibt bis zu Bastis Hörurteilen und einer unabhängigen Gegenprobe offen. Live-Veröffentlichungen benötigen konkrete Freigabe.
 
 ## Umfang der Dokumentationsrunde
 

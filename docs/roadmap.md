@@ -1,19 +1,23 @@
 # Roadmap und Umsetzungsplan
 
-Stand: 2026-09-15 · **Vorgeschlagen; Umsetzung nicht gestartet.**
+Stand: 2026-09-15 · **Machbarkeitstest autorisiert und in Arbeit; weitere Ausbaupakete bleiben vorgeschlagen.**
 
 Grundlage: [Bestandsaufnahme](status-2026-09-15.md). Die bisherigen PLAN-Dateien sind historische Entwürfe. Reihenfolge nach Nutzerwirkung, Datenintegrität und Betriebsrisiko; keine verbindlichen Termine ohne Diagnose und Umfangsschätzung.
+
+## Aktueller Schwerpunkt: musikalische Machbarkeit
+
+Die bestätigte Vision und das aktive Ziel stehen im [Hörvergleichsplan](listening-feasibility.md). R5 beginnt jetzt parallel zur begrenzten Reparatur aus R2 und dem Einstieg aus R6. Der erste Hörvergleich nutzt einen kleinen, lokal konsistent normalisierten Bestand aus R3; eine katalogweite Umstellung ist keine Voraussetzung für diese erste Messung. Nach Hörurteilen und unabhängiger Gegenprobe wird der weitere Ausbau priorisiert.
 
 ## Übersicht
 
 | Reihenfolge | ID | Ergebnis | Abhängigkeit | Status |
 |---|---|---|---|---|
 | 1 | R1 | Versionen, Updates und Veröffentlichungspfade geklärt | keine | offen |
-| 2 | R2 | Radar und kombinierte Klangbewertung zuverlässig | reproduzierbarer Stand aus R1 | offen |
+| 2 | R2 | Radar und kombinierte Klangbewertung zuverlässig | reproduzierbarer Stand aus R1 | lokal teilweise repariert; siehe Hörvergleich |
 | 3 | R3 | Konsistente Merkmale für den vorhandenen Katalog | R2, Sicherung und Umstellungsplan | offen |
 | 4 | R4 | Upload und Identifikation vollständig geprüft | R1, R2 | offen |
-| 5 | R5 | Gemessene Empfehlungsqualität | R2, R3 | offen |
-| 6 | R6 | Verständlicher Einstieg und konsistente Ergebnisaktionen | R2; R5 für Score-Kommunikation | offen |
+| parallel ab jetzt | R5 | Gemessene Empfehlungsqualität | R2, R3 auf Stichprobe | technisch vorbereitet; Hörurteile offen |
+| 6 | R6 | Verständlicher Einstieg und konsistente Ergebnisaktionen | R2; R5 für Score-Kommunikation | Titelsuche lokal geprüft; weitere Aktionen offen |
 | 7 | R7 | MERT nach belegtem Nutzen ausgebaut | R5 | offen |
 | begleitend | R8 | Wiederherstellung, Rechte und Überwachung belegt | R1 für Veröffentlichungen | offen |
 

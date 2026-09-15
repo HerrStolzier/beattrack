@@ -1,5 +1,6 @@
 """Tests for songs features endpoint and _compute_radar."""
 import pytest
+import json
 from app.routes.songs import _compute_radar, RadarFeatures
 
 
@@ -137,3 +138,29 @@ class TestFeaturesEndpoint:
 
         response = client.get("/songs/test-id/features")
         assert response.status_code == 422
+
+    @pytest.mark.parametrize("raw", ["[1]", "broken", "[NaN]", None])
+    def test_invalid_features_are_unavailable(self, client, supabase_mock, raw):
+        from app.db import get_supabase
+        from app.main import app
+        sb, builder = supabase_mock
+        builder.execute.return_value.data = {"handcrafted_norm": raw}
+        app.dependency_overrides[get_supabase] = lambda: sb
+        assert client.get("/songs/test-id/features").status_code == 422
+
+    def test_postgrest_json_text_in_single_and_batch(self, client, supabase_mock):
+        from app.db import get_supabase
+        from app.main import app
+        sb, builder = supabase_mock
+        text = json.dumps([0.5] * 44)
+        builder.execute.return_value.data = {"handcrafted_norm": text}
+        app.dependency_overrides[get_supabase] = lambda: sb
+        single = client.get("/songs/test-id/features")
+        assert single.status_code == 200
+        builder.execute.return_value.data = [
+            {"id": "test-id", "handcrafted_norm": text},
+            {"id": "invalid", "handcrafted_norm": "broken"},
+        ]
+        batch = client.post("/songs/features/batch", json={"song_ids": ["test-id", "invalid"]})
+        assert batch.status_code == 200
+        assert batch.json() == [{"song_id": "test-id", "features": single.json()}]

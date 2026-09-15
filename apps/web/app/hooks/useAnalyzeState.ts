@@ -159,6 +159,8 @@ export function useAnalyzeState(initialUrl?: string | null): AnalyzeState {
 
   const handleYouTubeMatch = useCallback(
     async (identifyResult: IdentifyResponse) => {
+      setResult(null);
+      setError(null);
       setYtResult(identifyResult);
       setPhase("youtube-result");
 
@@ -189,7 +191,8 @@ export function useAnalyzeState(initialUrl?: string | null): AnalyzeState {
             return [...prev, ...newIds].slice(-200);
           });
         } catch {
-          // Similar search failed, but YouTube match still valid
+          setError("Der Song wurde gefunden, aber die Suche nach ähnlicher Musik ist fehlgeschlagen. Bitte erneut versuchen.");
+          setPhase("error");
         }
         return;
       }
