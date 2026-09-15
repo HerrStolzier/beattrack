@@ -62,3 +62,7 @@ Der Basisimage-Scan vom 14.09. scheiterte für Python, Node und Bun mit kritisch
 ## Offene Nachweise
 
 Restore des aktuellen Dumps, externe Alarmzustellung, repräsentative Hörqualität, vollständige Upload-/Journey-/Playlist-/DJ-Abnahme und komplette effektive Produktionsrechte. Weder „alles kaputt“ noch „alles bestanden“ ist aus Teiltests ableitbar.
+
+## Lokale Korrekturen im Machbarkeitstest (15.09.)
+
+Textvektor-Verarbeitung, kandidatenspezifische MERT-Gewichtung, Aufnahme-Dubletten und Titelsuche wurden lokal bearbeitet und geprüft. Details und Grenzen: [Prüfbericht](docs/listening-checks-2026-09-15.md). Dies aktualisiert keinen Produktionsbefund: Hetzner wurde nicht neu veröffentlicht. Die Radar-Skalierung bleibt offen.

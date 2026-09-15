@@ -52,6 +52,9 @@ vi.mock("../app/components/UrlInput", () => ({
       <button onClick={() => onMatch({ matched: false, song: null, parsed_artist: "DJ Test", parsed_title: "Beat", message: "Nicht im Katalog" })}>
         NoMatch
       </button>
+      <button onClick={() => onMatch({ matched: true, song: { id: "seed", title: "Believe", artist: "Eli Brown" }, parsed_title: "Believe" })}>
+        Match
+      </button>
     </div>
   ),
 }));
@@ -62,7 +65,7 @@ vi.mock("../app/components/SimilarResults", () => ({
   ),
 }));
 
-import { uploadAudio } from "@/lib/api";
+import { uploadAudio, findSimilar } from "@/lib/api";
 const mockUpload = vi.mocked(uploadAudio);
 
 describe("AnalyzeView", () => {
@@ -75,6 +78,14 @@ describe("AnalyzeView", () => {
     expect(screen.getByTestId("upload-zone")).toBeInTheDocument();
     expect(screen.getByTestId("url-input")).toBeInTheDocument();
     expect(screen.getAllByText("oder").length).toBeGreaterThan(0);
+  });
+
+  it("shows a recoverable error when a matched song's similarity request fails", async () => {
+    vi.mocked(findSimilar).mockRejectedValue(new Error("Unavailable"));
+    render(<AnalyzeView />);
+    await userEvent.click(screen.getByText("Match"));
+    expect(await screen.findByText(/Suche nach ähnlicher Musik ist fehlgeschlagen/)).toBeInTheDocument();
+    expect(screen.queryByTestId("similar-results")).not.toBeInTheDocument();
   });
 
   it("transitions to uploading state on file select", async () => {

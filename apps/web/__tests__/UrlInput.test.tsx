@@ -5,6 +5,7 @@ import UrlInput from "../app/components/UrlInput";
 // Mock API
 vi.mock("@/lib/api", () => ({
   identifyUrl: vi.fn(),
+  searchSongs: vi.fn(),
   detectPlatform: vi.fn((url: string) => {
     if (/youtube|youtu\.be/.test(url)) return "youtube";
     if (/soundcloud/.test(url)) return "soundcloud";
@@ -13,7 +14,7 @@ vi.mock("@/lib/api", () => ({
   }),
 }));
 
-import { identifyUrl } from "@/lib/api";
+import { identifyUrl, searchSongs } from "@/lib/api";
 const mockIdentifyUrl = vi.mocked(identifyUrl);
 
 describe("UrlInput", () => {
@@ -70,5 +71,30 @@ describe("UrlInput", () => {
     fireEvent.click(screen.getByTestId("url-submit"));
 
     await waitFor(() => expect(onMatch).toHaveBeenCalledWith(mockResult));
+  });
+
+  it("searches titles and lets the user choose the recording", async () => {
+    const song = { id: "remix", title: "Example (Remix)", artist: "Artist", album: "Album" };
+    vi.mocked(searchSongs).mockResolvedValue([song as any]);
+    const onMatch = vi.fn();
+    render(<UrlInput onMatch={onMatch} />);
+    const input = screen.getByRole("textbox", { name: "Titel, Künstler oder Song-Link" });
+    fireEvent.change(input, { target: { value: "Example" } });
+    fireEvent.submit(input.closest("form")!);
+    fireEvent.click(await screen.findByRole("button", { name: /Example \(Remix\)/ }));
+    expect(searchSongs).toHaveBeenCalledWith("Example", { limit: 10 });
+    expect(identifyUrl).not.toHaveBeenCalled();
+    expect(onMatch).toHaveBeenCalledWith(expect.objectContaining({ matched: true, song }));
+    fireEvent.change(input, { target: { value: "Changed" } });
+    expect(screen.queryByRole("list", { name: "Gefundene Songs" })).not.toBeInTheDocument();
+  });
+
+  it("explains a catalogue miss without starting ingestion", async () => {
+    vi.mocked(searchSongs).mockResolvedValue([]);
+    render(<UrlInput onMatch={vi.fn()} />);
+    fireEvent.change(screen.getByTestId("url-input"), { target: { value: "Missing song" } });
+    fireEvent.click(screen.getByTestId("url-submit"));
+    expect(await screen.findByRole("status")).toHaveTextContent("Kein Katalogtreffer");
+    expect(identifyUrl).not.toHaveBeenCalled();
   });
 });

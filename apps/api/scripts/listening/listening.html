@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Beattrack · Hörvergleich</title>
+<style>
+:root{color-scheme:dark;font:16px/1.55 system-ui;background:#111317;color:#f1f3f5}body{max-width:900px;margin:auto;padding:32px 20px}h1{font-size:2rem;line-height:1.2}h2{font-size:1.3rem}p{color:#bfc5ce}.card{background:#1c2027;border:1px solid #343b46;border-radius:14px;padding:20px;margin:16px 0}.controls{display:flex;gap:16px;flex-wrap:wrap}label{display:grid;gap:6px;flex:1;min-width:160px}button,select,textarea{font:inherit;color:inherit;border:1px solid #586270;border-radius:8px;background:#272e39;padding:10px}button{cursor:pointer}button:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid #efb653;outline-offset:3px}a{color:#efb653}textarea{width:100%;box-sizing:border-box;margin-top:12px}iframe{border:0;width:100%;height:90px;margin:12px 0}.toolbar{position:sticky;bottom:0;background:#111317ed;padding:16px 0;display:flex;gap:16px;align-items:center;flex-wrap:wrap}#download{background:#d79b38;color:#111;font-weight:600}.reference{border-left:4px solid #efb653;padding-left:16px;margin-top:40px}small{color:#a9b1bd}
+</style>
+<h1>Trifft es das Klanggefühl?</h1>
+<p>Höre zuerst deinen Ausgangssong und danach die Vorschläge. Die Verfahren und ihre Rangplätze bleiben verborgen; Songtitel bleiben sichtbar. Jeden Vorschlag bewertest du nur einmal pro Ausgangssong.</p>
+<p>Beurteile dieselbe musikalische Eigenschaft wie beim Ausgangssong. Eine Vorschau kann einen anderen Abschnitt zeigen. Wenn du nicht sinnvoll vergleichen kannst, wähle „Nicht beurteilbar“.</p>
+<p>Bewertungen bleiben bis zum Export nur in diesem geöffneten Tab. Exportiere vor dem Schließen. Die Hörproben werden erst beim Abspielen direkt von Deezer geladen.</p>
+<label>Ausgangssong auswählen<select id="reference"></select></label>
+<main id="cases"></main>
+<div class="toolbar"><button id="download">Bewertungen exportieren</button><span role="status" id="status">Noch keine Bewertungen</span></div>
+<script id="experiment-data" type="application/json">__EXPERIMENT_DATA__</script>
+<script>
+const data=JSON.parse(document.getElementById('experiment-data').textContent);
+const ratings=new Map();
+const el=(tag,text)=>{const n=document.createElement(tag);if(text)n.textContent=text;return n};
+function listen(song,parent){
+ const id=String(song.deezer_id||'');
+ if(!/^[1-9]\d*$/.test(id)){parent.append(el('p','Keine Deezer-Hörprobe verknüpft. Bitte gegebenenfalls nicht beurteilbar wählen.'));return;}
+ const audio=el('audio');audio.controls=true;audio.preload='none';audio.src=`/preview/${id}`;audio.setAttribute('aria-label',`Hörprobe: ${song.title}`);audio.style.cssText='display:block;width:100%;margin:12px 0';audio.onplay=()=>{document.querySelectorAll('audio').forEach(other=>{if(other!==audio)other.pause()})};audio.onerror=()=>{if(!audio.nextElementSibling?.classList.contains('audio-error')){const error=el('p','Hörprobe nicht verfügbar. Nutze den Deezer-Link oder wähle nicht beurteilbar.');error.className='audio-error';audio.after(error)}};parent.append(audio);
+ const link=el('a',' Auf Deezer öffnen');link.href=`https://www.deezer.com/track/${id}`;link.target='_blank';link.rel='noopener noreferrer';parent.append(link);
+}
+function progress(){document.getElementById('status').textContent=`${[...ratings.values()].filter(r=>r.fit).length} von ${data.cases.reduce((n,c)=>n+c.candidates.length,0)} bewertet`}
+for(const [index,c] of data.cases.entries()){
+ const section=el('section');section.hidden=index!==0;const option=el('option',`${index+1}. ${c.seed.artist} — ${c.seed.title}`);option.value=String(index);document.getElementById('reference').append(option);const ref=el('div');ref.className='reference';ref.append(el('h2',`${index+1}. ${c.seed.artist} — ${c.seed.title}`));listen(c.seed,ref);section.append(ref);
+ for(const candidate of c.candidates){
+  const card=el('article');card.className='card';card.append(el('h3',`${candidate.artist} — ${candidate.title}`));listen(candidate,card);
+  const row={judgment:candidate.judgment,fit:'',known:'unknown',save:'unknown',note:''};ratings.set(row.judgment,row);
+  const controls=el('div');controls.className='controls';
+  const choices={fit:[['','Bitte bewerten'],['yes','Ja, klanglich passend'],['partly','Teilweise passend'],['no','Nein, passt nicht'],['unavailable','Nicht beurteilbar']],known:[['unknown','Noch offen'],['no','Nein'],['yes','Ja']],save:[['unknown','Noch offen'],['yes','Ja'],['no','Nein']]};
+  const labels={fit:'Ähnliches Klanggefühl?',known:'Kanntest du den Song?',save:'Würdest du ihn merken?'};
+  for(const field of ['fit','known','save']){const label=el('label',labels[field]);const select=el('select');for(const [value,text] of choices[field]){const option=el('option',text);option.value=value;select.append(option)}select.onchange=()=>{row[field]=select.value;progress()};label.append(select);controls.append(label)}
+  card.append(controls);const label=el('label','Was passt oder fehlt? (optional)');const note=el('textarea');note.rows=2;note.oninput=()=>row.note=note.value;label.append(note);card.append(label);section.append(card);
+ }document.getElementById('cases').append(section);
+}
+document.getElementById('reference').onchange=(e)=>{document.querySelectorAll('audio').forEach(a=>a.pause());[...document.getElementById('cases').children].forEach((section,i)=>section.hidden=i!==Number(e.target.value))};
+document.getElementById('download').onclick=()=>{const payload={experiment:data.experiment,ratings:[...ratings.values()].filter(r=>r.fit)};const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));const a=el('a');a.href=url;a.download='beattrack-ratings.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+progress();
+</script></html>

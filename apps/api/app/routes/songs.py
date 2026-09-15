@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from supabase import Client
 
 from app.db import get_supabase
+from app.services.vectors import parse_vector
 
 router = APIRouter(prefix="/songs", tags=["songs"])
 
@@ -156,7 +157,7 @@ async def get_song_features(
     if not result.data:
         raise HTTPException(status_code=404, detail="Song not found")
 
-    hc = result.data.get("handcrafted_norm")
+    hc = parse_vector(result.data.get("handcrafted_norm"), 44)
     if not hc:
         raise HTTPException(status_code=422, detail="Song has no features")
 
@@ -187,7 +188,7 @@ async def get_batch_features(
     )
     items = []
     for row in result.data or []:
-        hc = row.get("handcrafted_norm")
+        hc = parse_vector(row.get("handcrafted_norm"), 44)
         if hc:
             items.append(BatchFeaturesItem(
                 song_id=str(row["id"]),

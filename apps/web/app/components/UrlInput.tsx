@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { identifyUrl, detectPlatform, type IdentifyResponse } from "@/lib/api";
+import { identifyUrl, detectPlatform, searchSongs, type IdentifyResponse, type Song } from "@/lib/api";
 
 type UrlInputProps = {
   onMatch: (result: IdentifyResponse) => void;
@@ -50,6 +50,8 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [matches, setMatches] = useState<Song[]>([]);
+  const [searched, setSearched] = useState(false);
 
   const detected = url.trim() ? detectPlatform(url.trim()) : null;
 
@@ -58,17 +60,24 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
     const trimmed = url.trim();
     if (!trimmed) return;
 
-    if (!detected) {
+    if (!detected && /^(?:https?:\/\/|www\.)/i.test(trimmed)) {
       setError("Bitte eine YouTube, SoundCloud, Spotify, Apple Music oder Deezer URL eingeben.");
       return;
     }
 
     setLoading(true);
     setError(null);
+    setMatches([]);
+    setSearched(false);
 
     try {
-      const result = await identifyUrl(trimmed);
-      onMatch(result);
+      if (detected) {
+        const result = await identifyUrl(trimmed);
+        onMatch(result);
+      } else {
+        setMatches(await searchSongs(trimmed, { limit: 10 }));
+        setSearched(true);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Identifikation fehlgeschlagen.");
     } finally {
@@ -99,15 +108,18 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
           }
         >
           <input
-            type="url"
+            type="text"
+            aria-label="Titel, Künstler oder Song-Link"
             value={url}
             onChange={(e) => {
               setUrl(e.target.value);
               setError(null);
+              setMatches([]);
+              setSearched(false);
             }}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            placeholder="YouTube, SoundCloud, Spotify, Apple Music oder Deezer URL..."
+            placeholder="Lieblingssong: Titel, Künstler oder Link …"
             className="glass w-full rounded-xl border border-border-glass px-4 py-3 text-sm text-text-primary placeholder-text-tertiary outline-none transition-colors duration-300 focus:border-amber/30"
             disabled={disabled || loading}
             data-testid="url-input"
@@ -155,13 +167,34 @@ export default function UrlInput({ onMatch, disabled }: UrlInputProps) {
       </div>
 
       {error && (
-        <p className="text-xs text-red-400" data-testid="url-error">
+        <p role="alert" className="text-xs text-red-400" data-testid="url-error">
           {error}
         </p>
       )}
 
+      {searched && (
+        <div className="space-y-2">
+          <p role="status" className="text-sm text-text-secondary">
+            {matches.length ? "Wähle deinen Song und die passende Version:" :
+              "Kein Katalogtreffer. Versuche nur den Titel oder Künstler, einen Song-Link oder eine Audiodatei."}
+          </p>
+          {matches.length > 0 && <ul className="space-y-2" aria-label="Gefundene Songs">
+            {matches.map((song) => <li key={song.id}>
+              <button type="button" disabled={disabled || loading}
+                className="glass w-full rounded-xl px-4 py-3 text-left focus-visible:outline focus-visible:outline-amber"
+                onClick={() => onMatch({ matched: true, song,
+                  parsed_artist: song.artist, parsed_title: song.title,
+                  message: "Song aus dem Katalog ausgewählt." })}>
+                <span className="block text-sm text-text-primary">{song.title}</span>
+                <span className="block text-xs text-text-secondary">{song.artist}{song.album ? ` · ${song.album}` : ""}</span>
+              </button>
+            </li>)}
+          </ul>}
+        </div>
+      )}
+
       {/* Supported platforms */}
-      <div className="flex items-center gap-2 pt-1">
+      <div className="flex flex-wrap items-center gap-2 pt-1">
         <span className="text-xs text-text-tertiary">Unterstützt:</span>
         {(["youtube", "soundcloud", "spotify", "apple_music", "deezer"] as const).map((p) => {
           const isActive = detected === p;
