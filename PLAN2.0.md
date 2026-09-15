@@ -1,5 +1,8 @@
 # Beattrack - Sonically Similar Song Finder (v2.0)
 
+> **Historischer Entwurf – eingeordnet am 2026-09-15.** Keine aktuelle Aufgabenliste und kein Produktionsnachweis. Aktuelle [Roadmap](docs/roadmap.md), [Projektübersicht](project.md) und datierte Bestandsaufnahme haben Vorrang. Inhalt zur Nachvollziehbarkeit unverändert erhalten.
+
+
 ## Context
 
 Plattform-Radios (Spotify, YouTube, etc.) empfehlen Songs mit einem Mix aus kollaborativem Filtering und Audio-Features. Beattrack verfolgt einen **transparenten, Open-Source-Ansatz**: Audio-Features werden direkt analysiert und dem User erklärt — keine Black-Box, keine Engagement-Optimierung, kein Lock-in.

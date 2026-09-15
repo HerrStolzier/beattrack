@@ -1,120 +1,64 @@
-# Known Errors
+# Bekannte Fehler und offene Grenzen
 
-> **Zweck:** Bekannte Fehler in Beattrack mit Symptom, Ursache und Lösung.
-> **Scope:** Test-Runner, Audit-Befunde, Build- und Laufzeit-Stolpersteine. Nicht: allgemeine Gotchas (die stehen in CLAUDE.md).
-> **Suchbegriffe:** bun, vitest, test, runner, audit, postcss, npm, pip-audit, essentia, libmagic, libpq
-> **Stand:** 2026-07-31
+> **Zweck:** Nachvollziehbare offene Probleme statt pauschaler Projektbewertung.
+> **Scope:** Funktion, Daten, Entwicklung und Betrieb; kein vollständiges Sicherheitsaudit.
+> **Suchbegriffe:** radar, fusion, normalization, mert, deploy, backup, vitest
+> **Stand:** 2026-09-15
 
-## Raw `bun test` Fails With Missing DOM APIs
+Messungen und Grenzen: [Statusbericht](docs/status-2026-09-15.md). IDs beziehen sich auf die [Roadmap](docs/roadmap.md). Ein Dokumentationsupdate behebt keinen dieser Fehler.
 
-### Symptom
+## K1 – Radar scheitert bei vorhandenen Merkmalen (R2)
 
-Frontend tests fail with errors like `ReferenceError: document is not defined`, `window is not defined`, or `vi.mocked is not a function`.
+**Live reproduziert:** GET /api/songs/06e7e1b4-73a7-45d4-9f22-02574c9ee964/features lieferte HTTP 500. Für diesen Song existiert handcrafted_norm; der laufende DB-Client liefert ihn als str. Serverlog: TypeError bei Multiplikation von Zeichenketten.
 
-### Ursache
+**Ursache im Code:** apps/api/app/routes/songs.py gibt den ungeparsten Wert an die numerische Radarberechnung weiter. Einzel- und Batchpfad prüfen. Eine bloße Konvertierung reicht als Qualitätsabnahme nicht: Einheiten und Skalierung der Radarwerte müssen ebenfalls stimmen.
 
-Raw `bun test` uses Bun's test runner and bypasses the project's Vitest/jsdom setup.
+## K2 – Einzelähnlichkeit fällt still auf MusiCNN zurück (R2)
 
-### Loesung
+**Live reproduziert:** POST /api/similar mit dem Song aus K1 lieferte HTTP 200; das passende Log meldete „Late fusion failed, returning learned-only results“. Im Einzelpfad wird der Query-Handcrafted-Vektor nicht wie die Kandidaten geparst.
 
-Use the project script:
+**Folge:** HTTP-Erfolg belegt keine aktive Fusion, MERT- oder Fokuswirkung. Gesamthäufigkeit nicht gemessen. Fehlende MERT-Daten pro Kandidat sind zusätzlich ein Code-Prüfpunkt, kein bereits katalogweit vermessener Fehler.
 
-```bash
-cd apps/web && bun run test
-```
+## K3 – Normalisierung unvollständig (R3)
 
-## Next Internal PostCSS Audit Finding
+588.707 Rohvektoren, 121.773 normalisierte Vektoren; Normalisierungsstatistik basiert ebenfalls auf 121.773 Songs. Für den geprüften Song 244d1d5a-5ec5-41da-86af-3188d12baf00 liefert Radar HTTP 422 „Song has no features“. Das ist ein anderer Fall als K1.
 
-### Symptom
+Fehlende Merkmale nicht mit Nullwerten als echte Analyse ausgeben. Die vorhandenen Rohmerkmale erlauben Nachverarbeitung; Gültigkeit und einheitliche Statistik zuerst prüfen.
 
-`npm audit --workspaces --omit=dev` reports `node_modules/next/node_modules/postcss <8.5.10`.
+## K4 – Produktionsstand und GitHub unterscheiden sich (R1)
 
-### Ursache
+Server-Checkout vom 31.07. lag bei der Prüfung 13 Commits hinter main. Im laufenden API-Container: cryptography 49.0.0 und h2 4.3.0; entsprechende Updates sind auf GitHub bereits gemergt. Vollständiger Image-zu-Commit-Abgleich offen.
 
-Stable Next.js versions currently pin an internal `postcss@8.4.31`. A canary version may contain a newer PostCSS, but using canary only for audit cleanliness is not an acceptable production tradeoff.
+Vercel erzeugt weiterhin GitHub-Deployments. „Nur noch Registrar/DNS“ reicht als Beschreibung der Integrationen nicht. Hosting-Effekte vor Push/Merge klären.
 
-### Loesung
+## K5 – Upload-Identifikation nicht vollständig konfiguriert (R4)
 
-Keep stable Next.js, keep top-level PostCSS updated, and re-check when a stable Next.js release ships with internal `postcss >=8.5.10`.
+Im laufenden Worker war ACOUSTID_API_KEY nicht gesetzt. Die Metadatenanreicherung verwendet diesen Schlüssel im Worker. Extraktion kann trotzdem laufen; ein vollständiger aktueller Upload-/Identifikations-E2E fehlt. Konfigurationskorrektur und Live-Test sind eigene Umsetzung.
 
-This entry is the record of that decision. An earlier version pointed at a
-security-remediation note under docs/ that only ever existed on the unmerged
-`codex/beattrack-improvement-plan` branch and never reached `main` — the same gap
-that left two SQL migrations untracked until PR #21.
+## K6 – Rechte und Migrationsstand weichen ab (R8)
 
-## Python Audit Reports Optional Model Dependencies
+Live: anon besitzt kein SELECT auf songs, aber SELECT auf feedback_stats. Die jüngste entsprechende Migration entzieht letzteres. Ein externer anonym nutzbarer Datenzugriff wurde nicht getestet; Tabellenrecht und tatsächliche Erreichbarkeit getrennt behandeln.
 
-### Symptom
+Migrationen wurden historisch manuell angeglichen. Vor einem Neuaufbau oder weiteren SQL-Änderungen reale Objekte, Grants und Historie vergleichen. vector/pg_trgm nicht pauschal in ein anderes Schema verschieben: Funktionen, Typen und Indizes hängen daran.
 
-`pip-audit` reports advisories for `torch` and `transformers`.
+## K7 – Benutzerführung und Mehrfachabfragen (R6)
 
-### Ursache
+Startfeld akzeptiert URLs; Titelsuche ist erst in Blend/Vibe zugänglich. Im Browser bestätigt. Mehrfachergebnisse verwenden im Frontend song_id=multi; Folgeaktionen für gespeicherte Songs müssen gesondert geprüft werden. Dieser zweite Punkt ist ein Codebefund, keine vollständige Live-Reproduktion aller Folgeaktionen.
 
-These packages belong to the optional MERT/model dependency area. They are not the same issue as the public upload parser dependency.
+## K8 – Container-Scan rot, Runtime-Betroffenheit gesondert prüfen (R1)
 
-### Loesung
+Der Basisimage-Scan vom 14.09. scheiterte für Python, Node und Bun mit kritischen Befunden. Der Node-Fall betrifft unter anderem npm-Abhängigkeiten; npm wird aus dem Web-Runtime-Image entfernt. Das erklärt nicht automatisch die übrigen Befunde. Alte Hinweise „nur Node ist rot“ oder „kein Fix verfügbar“ nicht ungeprüft weiterverwenden. Aktuelle Logs und tatsächliche Runtime prüfen.
 
-Do not treat this as blocking the upload-parser fix. Decide separately whether MERT dependencies belong in the production API image or in an isolated model worker.
+## Entwicklungsfallen
 
-## Supabase Local Status Fails Without Docker
+- **Raw bun test:** falscher Runner für Vitest/jsdom. Im Web-Paket bun run test --run verwenden.
+- **Root-Dev-Script:** existiert nicht; Befehle im Web-Paket ausführen.
+- **Native API-Abhängigkeiten:** libmagic/libpq und Essentia-Wheels können fehlen. Kein Erfolg ohne tatsächlichen Import-/Laufnachweis.
+- **Lokales Lint:** Workspace-Hoisting-Probleme sind historisch bekannt. CI und lokale Maschine getrennt betrachten; Hook nicht pauschal umgehen.
+- **MERT:** zusätzliche Modellabhängigkeiten außerhalb des normalen API-Pakets. Vor Installation und Lauf Umfang klären.
+- **Supabase CLI:** lokaler Status benötigt lokalen Docker-Stack; ist kein Produktionscheck für Hetzner.
+- **Audit-Historie:** frühere PostCSS-/torch-/transformers-Hinweise sind keine aktuellen Auditresultate. Gegen das betroffene Lockfile bzw. Image prüfen, keine Canary-Umstellung nur für einen grünen Scan.
 
-### Symptom
+## Offene Nachweise
 
-`supabase status` fails with a Docker daemon connection error.
-
-### Ursache
-
-`supabase status` inspects the local Supabase stack and requires Docker. Remote project access can still work.
-
-### Loesung
-
-For remote migration checks use:
-
-```bash
-supabase projects list
-supabase migration list
-```
-
-Only use `supabase status` when the local Docker-based Supabase stack is actually needed.
-
-## Supabase Migration History Drift
-
-### Symptom
-
-`supabase db push` reports local/remote migration mismatch or tries to apply unexpected migrations.
-
-### Ursache
-
-The remote migration history can drift from local files if SQL was applied manually or migrations were renamed.
-
-### Loesung
-
-Stop before applying more SQL. Run `supabase migration list`, compare local and remote entries, and document the exact mismatch before choosing repair SQL or migration-history cleanup.
-
-## Supabase Advisor Meldet Public Genre Weight Materialized View
-
-### Symptom
-
-Supabase Advisor meldet `materialized_view_in_api` fuer `public.genre_focus_weights`.
-
-### Ursache
-
-`genre_focus_weights` liefert oeffentliche Aggregat-Gewichtungen fuer die Recommendation-API. Das Live-Backend liest Supabase aktuell mit einem echten `anon`-Key; ein Revoke wuerde das Ranking oder den Fallback-Pfad verschlechtern. Direkte Rohdaten-Tabellen, interne Jobs und Reporting-Surfaces muessen getrennt davon geschlossen bleiben.
-
-### Loesung
-
-Nicht pauschal `anon SELECT` entziehen, solange die App diese Aggregate ueber den oeffentlichen API-Pfad braucht. Erlaubt ist nur `anon SELECT`; `authenticated` und `PUBLIC` sollen keine Select-Rechte haben. `feedback_stats` ist dagegen kein oeffentliches App-Surface mehr: `/feedback/stats` ist admin-geschuetzt, nutzt `SUPABASE_SERVICE_ROLE_KEY`, und `anon SELECT` auf `feedback_stats` ist entzogen. Wenn die App spaeter vollstaendig ueber einen Service-Role-Backendpfad liest, kann auch `genre_focus_weights` privat werden.
-
-## Supabase Advisor Meldet Extensions In Public
-
-### Symptom
-
-Supabase Advisor meldet `extension_in_public` fuer `vector` und `pg_trgm`.
-
-### Ursache
-
-Die bestehende Datenbank nutzt `vector`-Typen und Trigram/Vector-Objekte aus dem `public`-Schema. Ein direktes Verschieben der Extensions kann Funktionssignaturen, Typreferenzen, Indexe oder alte Migrationen brechen.
-
-### Loesung
-
-Nicht als Schnellfix verschieben. Dafuer ist eine eigene geplante Migration noetig: Extension-Abhaengigkeiten inventarisieren, Funktionen/Typreferenzen auf das neue Schema umstellen, lokal und live testen, dann erst `alter extension ... set schema ...` anwenden.
+Restore des aktuellen Dumps, externe Alarmzustellung, repräsentative Hörqualität, vollständige Upload-/Journey-/Playlist-/DJ-Abnahme und komplette effektive Produktionsrechte. Weder „alles kaputt“ noch „alles bestanden“ ist aus Teiltests ableitbar.

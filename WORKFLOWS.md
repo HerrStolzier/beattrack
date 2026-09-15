@@ -1,71 +1,61 @@
-# Workflows
+# Arbeitsabläufe
 
-> **Zweck:** Register der wiederkehrenden Abläufe, die über einen einzelnen Befehl hinausgehen.
-> **Scope:** Entwicklung, Deploy, Batch-Jobs am Katalog. Nicht: Architektur (steht in CLAUDE.md) und nicht: Server-Runbooks (Repo `infra-migration`).
-> **Suchbegriffe:** deploy, docker, compose, infra-01, hetzner, seeding, backfill, mert, essentia, migration, postgres, worker, dev, lokal
-> **Stand:** 2026-07-31
+> **Zweck:** Wiederkehrende Abläufe für Änderungen, Daten und Betrieb.
+> **Scope:** Entwicklung, Git, Deploy, Migration, Backfill. Keine automatische Ausführung.
+> **Suchbegriffe:** deploy, docker, git, migration, backfill, roadmap
+> **Stand:** 2026-09-15
+
+## Änderung vorbereiten und abschließen
+
+1. Auftrag und gegebenenfalls Roadmap-ID festhalten. Branch und vorhandene Nutzeränderungen prüfen.
+2. Aktuellen Remote-Stand lesen; keine alten Pläne als heutigen Auftrag behandeln.
+3. Auf einem benannten Branch, standardmäßig mit Präfix codex/, atomar arbeiten.
+4. Passende Prüfungen aus [CHECKS.md](CHECKS.md) durchführen; betroffene Dokumente aktualisieren.
+5. Diff prüfen und gezielt eigene Dateien committen. Unbekannte Artefakte nicht mit git add -A übernehmen.
+6. Vor Push und Merge tatsächliche Hosting-Nebenwirkungen prüfen. GitHub zeigte am 15.09. weiterhin Vercel-Preview-Deployments; ein altes Hosting-Dokument widerlegt das nicht.
+7. Bei konkreter Veröffentlichungsfreigabe Push/PR, erforderliche Checks und geprüften Merge durchführen. Fehlt sie, mit lokalem Commit und konkreter Beschreibung der externen Wirkung zur Freigabe vorlegen.
+8. Ergebnis, Prüfungen, Commit/PR und Veröffentlichungsstand nennen.
+
+Die Vorlage in [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md) hält Ergebnis, Prüfung und externe Wirkung zusammen. Der Pre-Commit-Hook lintet nur bei Änderungen unter apps/web. Kein pauschales --no-verify aus alten Anleitungen übernehmen.
 
 ## Lokal entwickeln
 
-- Zweck: Frontend oder Backend auf dem eigenen Rechner laufen lassen.
-- Start: `cd apps/web && bun dev` bzw. `cd apps/api && uv run uvicorn app.main:app --reload`
-- Input: `apps/web/.env.local` (`NEXT_PUBLIC_API_URL`), `apps/api/.env` (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `ACOUSTID_API_KEY`)
-- Output: Dev-Server auf Port 3000 bzw. 8000
-- Wichtige Dateien: `.claude/launch.json` (Browser-Preview), `apps/api/app/main.py`
-- Abhaengigkeiten: `bun install` im Root, `uv sync` in `apps/api`; für das Backend zusätzlich `libmagic` und `libpq` (macOS: `brew install libmagic libpq`)
-- Bekannte Fehlerfaelle: Ohne `libmagic` bricht schon der Import ab, ohne `libpq` scheitert der Procrastinate-Start im Lifespan. Beide Meldungen sehen nach Python-Fehlern aus, sind aber fehlende Systembibliotheken.
-- Pruefung: `curl -s localhost:8000/health`
-- Letzter Review: 2026-07-31
+Voraussetzungen, Variablen und Startbefehle: [docs/development.md](docs/development.md). Nur isolierte Testdatenbanken verwenden. Eine .env-Datei allein ist keine Garantie, dass der Prozess die Werte lädt. Ein Frontendstart ist keine Aufforderung, Produktion oder alle Schichten zu testen.
 
-## Deploy auf infra-01
+## Hetzner-Deployment – nur nach konkreter Freigabe
 
-- Zweck: Neuen Stand von `main` in Produktion bringen.
-- Start: auf dem Server, in dieser Reihenfolge:
-  ```bash
-  cd /opt/apps/beattrack && git pull --ff-only origin main
-  cd /opt/stack && docker compose build beattrack-api beattrack-web beattrack-worker
-  cd /opt/stack && docker compose up -d beattrack-api beattrack-web beattrack-worker
-  ```
-- Input: gemergter Stand auf `main`
-- Output: neu gebaute Images, neu erzeugte Container
-- Wichtige Dateien: `apps/api/Dockerfile` (ROLE=api/worker), `apps/web/Dockerfile`, `/opt/stack/docker-compose.yml` (Quelle: Repo `infra-migration`)
-- Abhaengigkeiten: SSH-Zugang mit `~/.ssh/hetzner_infra`, Docker auf infra-01
-- Bekannte Fehlerfaelle: **`git pull` allein deployt nichts.** Die Container laufen aus Images; ohne `build` und `up -d` läuft der alte Code weiter, während der Checkout schon neu aussieht. Genau das ist am 2026-07-30 passiert und fiel erst über die Image-IDs auf.
-- Pruefung: siehe CHECKS.md, Abschnitt Deploy-Verifikation. Nur Doku- oder Test-Änderungen brauchen keinen Rebuild.
-- Letzter Review: 2026-07-31
+Voraussetzungen: Zielcommit geprüft, bisherige Images und Rückweg dokumentiert, passende Backup-/Schema-Voraussetzungen erfüllt. Das aktuelle Compose stammt aus infra-migration, nicht aus diesem Repository.
 
-## Datenbank-Migration
+Der bestehende Ablauf auf dem Server lautet:
 
-- Zweck: Schemaänderung auf der eigenen Postgres ausrollen.
-- Start: `docker exec -i postgres psql -U postgres -d beattrack < supabase/migrations/<datei>.sql`
-- Input: SQL-Datei in `supabase/migrations/`
-- Output: geändertes Schema
-- Wichtige Dateien: `supabase/migrations/` (001–022 plus datierte Dateien)
-- Abhaengigkeiten: laufender `postgres`-Container auf infra-01
-- Bekannte Fehlerfaelle: Die Migrationen sind über die Zeit auseinandergelaufen. Zwei Dateien fehlten zeitweise ganz in der Versionskontrolle, obwohl die Live-DB die Objekte hatte; ein Neuaufbau rein aus dem Ordner wäre gescheitert. Vor Verlass auf den Ordner gegen die echte DB prüfen.
-- Pruefung: `docker exec postgres psql -U postgres -d beattrack -c '\d <tabelle>'`
-- Letzter Review: 2026-07-31
+```sh
+cd /opt/apps/beattrack
+git pull --ff-only origin main
+cd /opt/stack
+docker compose build beattrack-api beattrack-web beattrack-worker
+docker compose up -d beattrack-api beattrack-web beattrack-worker
+```
 
-## Katalog-Backfill (MERT, Genre)
+Vor dem Build bestätigen, dass HEAD dem freigegebenen Commit entspricht. Wenn main inzwischen weitergelaufen ist, den neuen Stand nicht still mitveröffentlichen. Git pull allein deployt nichts. Keine anderen Dienste durch ein unbeschränktes compose up mitverändern.
 
-- Zweck: Fehlende Embeddings und Genres für bestehende Songs nachziehen.
-- Start: `cd apps/api && .venv/bin/python scripts/extract_mert_batch.py --apply` bzw. `scripts/backfill_genre.py --apply`
-- Input: Envvars `SUPABASE_URL` und `SUPABASE_ANON_KEY`, wobei letzterer den **service_role**-Wert braucht, weil die Scripts über RPC schreiben
-- Output: gefüllte `mert_embedding` bzw. `genre` Spalten, Checkpoint-Dateien
-- Wichtige Dateien: `apps/api/scripts/`, `app/workers/mert.py`
-- Abhaengigkeiten: Checkpoint/Resume, Retry mit Backoff
-- Bekannte Fehlerfaelle: Läuft seit dem Katalogwachstum hinterher (Stand 2026-07-31: MERT 53 %, handcrafted 21 % bei 588.707 Songs). Lange Jobs mit `nohup` starten. `app/workers/__init__.py` zieht Procrastinate mit, für reine MERT-Läufe `mert.py` direkt importieren.
-- Pruefung: `select count(mert_embedding), count(*) from songs;`
-- Letzter Review: 2026-07-31
+Danach geänderte Image-IDs und wesentlichen Image-Inhalt mit dem Zielstand vergleichen, Logs prüfen sowie Health und betroffenen echten Benutzerweg von außen testen. Vorherige Images bis nach Abnahme behalten. Code-Rollback ist kein Datenbank-Rollback.
 
-## Abschluss einer Änderung
+## Datenbankmigration
 
-- Zweck: Nicht-triviale Arbeit belegt abschließen.
-- Start: `python3 scripts/agent_finish.py --auto-claims` (läuft auch als Stop-Hook)
-- Input: aktueller Arbeitsbaum
-- Output: Eintrag in `.agents/finish_runs.jsonl`
-- Wichtige Dateien: `scripts/`, `.agents/project_check`, `.agents/review_required`
-- Abhaengigkeiten: Das Review-Gate ist scharf und verlangt bei Code-Änderungen ein Cross-Model-Review (`scripts/agent_review`).
-- Bekannte Fehlerfaelle: Ein abgebrochenes Review schreibt bewusst keinen Beleg und hält das Gate zu. Login via `codex login` in einem echten Terminal.
-- Pruefung: Exit-Code des Scripts
-- Letzter Review: 2026-07-31
+1. Nur lesend: vorhandenes Schema, Migrationshistorie und effektive Rechte vergleichen.
+2. Migration auf isolierter Kopie testen, einschließlich Rückweg. Procrastinate-Schema wird separat initialisiert.
+3. Backup und Restore-Voraussetzungen bestätigen; konkrete produktive Änderung freigeben lassen.
+4. Nur freigegebene SQL-Datei gegen die richtige Datenbank anwenden; keine pauschale Ausführung aller historischen SQL-Dateien.
+5. Schema, Rechte und abhängige Benutzerwege prüfen. Erfolg im datierten Bericht festhalten.
+
+Der Ordner supabase/migrations enthält historisch manuell angeglichene Stände. Ein vollständiger Neuaufbau daraus ist noch nicht als reproduzierbar abgenommen.
+
+## Katalog-Normalisierung und Backfill
+
+Vorbereitung nach [R3/R7](docs/roadmap.md): Daten-/Statistikversion, Zielmenge, Laufzeit, Sperren, Wiederaufnahme und Abbruchkriterium festlegen. Normalisierte Bestände nicht mit unterschiedlichen Statistiken mischen. compute_stats.py erzeugt SQL; das ist keine Freigabe zur Anwendung.
+
+Batch-Scripts können andere Variablennamen/Key-Annahmen als der reguläre API-Client besitzen. Vor jedem Lauf Quellcode und Zielsystem prüfen; niemals Tokens als Kommandozeilenargumente in Logs übernehmen. Große Jobs erst nach passender Freigabe starten, nicht aufgrund einer alten Checkpoint-Datei.
+
+## Dokumentation pflegen
+
+Roadmap-ID und Status bei echten Fortschritten aktualisieren. Messungen in einem datierten Bericht mit Methode, Stand und Grenze sichern. Historische Pläne nicht als erledigte aktuelle Aufgaben umetikettieren. Zusammenhänge in architecture/infrastructure pflegen; CLAUDE bleibt ein kurzer Verweis auf AGENTS und project.

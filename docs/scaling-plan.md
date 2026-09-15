@@ -1,5 +1,8 @@
 # Beattrack Scaling Plan
 
+> **Historischer Entwurf – eingeordnet am 2026-09-15.** Keine aktuelle Aufgabenliste und kein Produktionsnachweis. Aktuelle [Roadmap](roadmap.md), [Projektübersicht](../project.md) und datierte Bestandsaufnahme haben Vorrang. Inhalt zur Nachvollziehbarkeit unverändert erhalten.
+
+
 > Stand: 2026-03-16 | Aktuell: ~21.5K FMA + ~27K Jamendo (in Arbeit) | Ziel: 500K–1M Songs
 
 ## Scope
