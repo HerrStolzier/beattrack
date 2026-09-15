@@ -29,7 +29,7 @@ Fehlende Merkmale nicht mit Nullwerten als echte Analyse ausgeben. Die vorhanden
 
 Server-Checkout vom 31.07. lag bei der Prüfung 13 Commits hinter main. Im laufenden API-Container: cryptography 49.0.0 und h2 4.3.0; entsprechende Updates sind auf GitHub bereits gemergt. Vollständiger Image-zu-Commit-Abgleich offen.
 
-GitHub enthält historische Vercel-Erfolgseinträge. Basti bestätigt die Kündigung; die Produktion auf Hetzner ist geprüft. Ein aktuell wirksamer Vercel-Deployment-Trigger ist nicht belegt. Historische Statusmeldungen nicht mit heutigem Hosting oder Vertragsstatus gleichsetzen.
+GitHub enthält historische Vercel-Erfolgseinträge. Basti bestätigt die Kündigung; die Produktion auf Hetzner ist geprüft. Nachtrag zum autorisierten Push für PR #47: Vercel startete erneut und meldete success für 9dd2ea3. Der Trigger ist damit aktuell belegt, ein kostenpflichtiger Vertrag oder Wechsel des Hetzner-Hostings dagegen nicht.
 
 ## K5 – Upload-Identifikation nicht vollständig konfiguriert (R4)
 

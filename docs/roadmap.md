@@ -19,7 +19,7 @@ Grundlage: [Bestandsaufnahme](status-2026-09-15.md). Die bisherigen PLAN-Dateien
 
 ## R1 – Versionsstände und Wartung
 
-**Problem:** GitHub und laufende Images unterscheiden sich. Gemergte Abhängigkeitsupdates fehlen in Produktion; Historische Vercel-Deployment-Einträge existieren; ob ein heutiger Push dort noch veröffentlicht, ist ungeklärt.
+**Problem:** GitHub und laufende Images unterscheiden sich. Gemergte Abhängigkeitsupdates fehlen in Produktion; Beim autorisierten Dokumentations-Push für PR #47 reagierte die Vercel-Anbindung erneut mit einem erfolgreichen Deployment-Status. Vertragsstatus und gewünschter Umgang mit der Integration sind getrennt zu klären.
 
 1. Sauberen Arbeitsstand auf aktuellem main herstellen; fremde Änderungen erhalten.
 2. Server-Checkout, Image-IDs, installierte Pakete und Image-Inhalt gegen Zielcommit vergleichen.
