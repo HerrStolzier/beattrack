@@ -1,5 +1,7 @@
 # Infrastruktur und Betrieb
 
+> **Eingestellt am 16.09.2026 auf Nutzerauftrag.** Die Entwicklung wird nicht fortgesetzt. Frühere Ziele und Pläne sind historisch, kein aktiver Umsetzungsauftrag. [Rückbau und Nachweise](retirement-2026-09-16.md).
+
 Stand: 2026-09-15. Messungen: [Statusbericht](status-2026-09-15.md). Kanonische Serverkonfiguration liegt im separaten [infra-migration-Repository](https://github.com/HerrStolzier/infra-migration), insbesondere [Compose](https://github.com/HerrStolzier/infra-migration/blob/4b2b8dee6e673afba6f5745d4fb967acede8c7f9/stack/docker-compose.yml) und [Serverdokumentation](https://github.com/HerrStolzier/infra-migration/blob/4b2b8dee6e673afba6f5745d4fb967acede8c7f9/docs/server.md). Konfiguration nicht als zweite Compose-Kopie in diesem Repo pflegen.
 
 ## Aktuelles Produktionsmodell

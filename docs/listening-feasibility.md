@@ -1,5 +1,7 @@
 # Lieblingssong → klanglich passende Entdeckungen
 
+> **Eingestellt am 16.09.2026 auf Nutzerauftrag.** Die Entwicklung wird nicht fortgesetzt. Frühere Ziele und Pläne sind historisch, kein aktiver Umsetzungsauftrag. [Rückbau und Nachweise](retirement-2026-09-16.md).
+
 Stand: 2026-09-15 · **Plan nach unabhängigem Review aktualisiert. Bisheriger Nachsortierungsversuch vorbereitet; eigenständiger Modellvergleich noch nicht umgesetzt.**
 
 ## Bestätigte Vision
@@ -16,7 +18,7 @@ Der unabhängige Astra-High-Review vom 15.09. bestätigt einen begrenzten Versuc
 
 ### P0 – Nutzbaren Audiobestand sichern
 
-Für jede Quelle dokumentieren, ob Analyse, Speicherung, Hörtest und gegebenenfalls Training abgedeckt sind. Öffentlich abspielbare Vorschauen sind kein Nachweis dafür. Anbieterbedingungen und etwaige Vereinbarungen prüfen; alternativ ausdrücklich freigegebenes Künstler-/Labelmaterial oder passend lizenzierte Aufnahmen verwenden. Modellgewichte und Audiomaterial getrennt betrachten.
+Für jede Quelle dokumentieren, ob Analyse, Speicherung, Hörtest und gegebenenfalls Training abgedeckt sind. Öffentlich abspielbare Vorschauen sind kein Nachweis dafür. Anbieterbedingungen und etwaige Vereinbarungen prüfen; alternativ ausdrücklich freigegebenes Künstler-/Labelmaterial oder passend lizenzierte Aufnahmen verwenden. Modellgewichte und Audiomaterial getrennt betrachten. Die [konkrete Quellenprüfung vom 16.09.](audio-source-decision-2026-09-16.md) behandelt die ausdrückliche Mining-Beschränkung bei Deezer und die noch offenen Alternativen für den Zielversuch.
 
 **Weiter, wenn:** die vorgesehene Verarbeitung für den Versuch abgedeckt ist. Sonst Quelle wechseln oder den Versuch ausdrücklich auf einen freigegebenen Bestand begrenzen. Keine Aussage über beliebige Lieblingssongs aus einem eingeschränkten Katalog ableiten.
 
@@ -73,7 +75,7 @@ Forschungsgrenzen: Die [CLAP/MuQ-Wahrnehmungsstudie](https://arxiv.org/html/2601
 
 ## Referenzen
 
-Die von Basti gelieferten Album-Links wurden über die Deezer-API aufgelöst. Basti hat die Titeltracks „Believe“ und „Deep Down“ für die beiden EPs ausdrücklich bestätigt. Die anderen Links enthalten jeweils einen Track. Einzelne qualitative Fehlerbeschreibungen liegen vor; positive Vergleichspaare und genaue Referenzabschnitte sind noch offen. Persönliche Einzelbewertungen bleiben in den lokalen Versuchsdaten.
+Die von Basti gelieferten Album-Links wurden über die Deezer-API aufgelöst. Basti hat die Titeltracks „Believe“ und „Deep Down“ für die beiden EPs ausdrücklich bestätigt. Die anderen Links enthalten jeweils einen Track. Einzelne qualitative Fehlerbeschreibungen liegen vor; zwei positive Vergleichssongs wurden am 16.09. bestätigt und lokal erfasst; genaue Referenzabschnitte und nutzbare Audiodateien bleiben offen. Persönliche Einzelbewertungen bleiben in den lokalen Versuchsdaten.
 
 | Aufnahme | Deezer Track-ID | Exakte Aufnahme im Katalog am 15.09. |
 |---|---:|---|

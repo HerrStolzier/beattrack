@@ -1,5 +1,7 @@
 # Arbeitsabläufe
 
+> **Eingestellt am 16.09.2026 auf Nutzerauftrag.** Die Entwicklung wird nicht fortgesetzt. Frühere Ziele und Pläne sind historisch, kein aktiver Umsetzungsauftrag. [Rückbau und Nachweise](docs/retirement-2026-09-16.md).
+
 > **Zweck:** Wiederkehrende Abläufe für Änderungen, Daten und Betrieb.
 > **Scope:** Entwicklung, Git, Deploy, Migration, Backfill. Keine automatische Ausführung.
 > **Suchbegriffe:** deploy, docker, git, migration, backfill, roadmap

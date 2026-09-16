@@ -1,8 +1,10 @@
 # Beattrack
 
+> **Eingestellt am 16.09.2026 auf Nutzerauftrag.** Die Entwicklung wird nicht fortgesetzt. Frühere Ziele und Pläne sind historisch, kein aktiver Umsetzungsauftrag. [Rückbau und Nachweise](docs/retirement-2026-09-16.md).
+
 Musik anhand ihres Klangs entdecken: ähnliche Songs, Sonic Blend und Vibe aus einem Electronic-Katalog. Open Source unter [AGPL-3.0](LICENSE).
 
-**Live:** [beattrack.app](https://beattrack.app) · **API:** [Health](https://beattrack.app/api/health)
+**Betrieb:** eingestellt. Website und API wurden abgeschaltet.
 
 ## Einstieg
 

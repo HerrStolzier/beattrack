@@ -1,5 +1,7 @@
 # Beattrack – Projektübersicht
 
+> **Eingestellt am 16.09.2026 auf Nutzerauftrag.** Die Entwicklung wird nicht fortgesetzt. Frühere Ziele und Pläne sind historisch, kein aktiver Umsetzungsauftrag. [Rückbau und Nachweise](docs/retirement-2026-09-16.md).
+
 Stand: 2026-09-16. Pflege bei Änderungen von Ziel, Architektur, Prioritäten oder Betrieb.
 
 ## Ziel und Grenzen
@@ -41,7 +43,7 @@ Aktueller Code und direkte Messungen haben bei Tatsachen Vorrang vor älteren Be
 
 Am 15.09. wurde der begrenzte Machbarkeitstest beauftragt. Ranking-Reparaturen, Titelsuche und Hörvergleich wurden geprüft und mit PR #48 gemergt; Vercel meldete die Veröffentlichung für Merge ca02e7c als abgeschlossen. Kein Hetzner-Deployment in dieser Runde. Die musikalische Abnahme ist offen.
 
-Nach unabhängigem Review wurde der Plan aktualisiert: Audioquellen und positive Vergleichspaare klären, vortrainierte Modelle unabhängig suchen lassen, Nutzen an unbenutzten Referenzen prüfen. Training und Katalogumbau benötigen belegten Nutzen. Am 16.09. wurde die Umsetzung bis zum bestätigten Endziel beauftragt. Die separate lokale Installation für MERT/CLAP wurde konkret freigegeben. Der unabhängige Offline-Vergleich wird umgesetzt; neue Live-Veröffentlichungen bleiben separat freigabepflichtig. Einzelne persönliche Hörurteile bleiben lokal.
+Nach unabhängigem Review wurde der Plan aktualisiert: Audioquellen und positive Vergleichspaare klären, vortrainierte Modelle unabhängig suchen lassen, Nutzen an unbenutzten Referenzen prüfen. Training und Katalogumbau benötigen belegten Nutzen. Am 16.09. wurde die Umsetzung bis zum bestätigten Endziel beauftragt. Die separate lokale Installation für MERT/CLAP wurde konkret freigegeben. Der unabhängige Offline-Vergleich ist mit PR #49 gemergt und lokal auf 18 realen CC-BY-Aufnahmen ausgeführt. Eine separate Top-5-Hörseite ist lokal umgesetzt und teilweise im Browser geprüft ([Nachweise](docs/retrieval-progress-2026-09-16.md)); musikalische Qualität bleibt offen; neue Live-Veröffentlichungen bleiben separat freigabepflichtig. Einzelne persönliche Hörurteile bleiben lokal.
 
 ## Umfang der Dokumentationsrunde
 
