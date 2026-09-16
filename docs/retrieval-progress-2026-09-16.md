@@ -93,3 +93,7 @@ Das Manifest benötigt zusätzlich `title`, `artist`, `source_path` (absoluter l
 Safari: Referenz spielte bis 10/10 Sekunden, Testauswahl erhöhte den Fortschritt von 0 auf 1 und zeigte Titel/Attribution; Screenshot auf Darstellung geprüft. Der Codex-In-App-Browser stürzte beim Play-Klick ab. Safari-Export erreichte eine Download-Berechtigungsabfrage; diese wurde abgebrochen, keine Browsereinstellung geändert. Exportdatei und erneuter UI-Import sind daher **nicht Ende-zu-Ende verifiziert**. Keine Testbewertung als echtes Hörurteil gespeichert. Safari-Testtab geschlossen und lokaler Testserver beendet; der abgestürzte In-App-Testtab ließ sich wegen einer Werkzeug-URL-Sperre nicht explizit schließen.
 
 Weiterhin entscheidend: nutzbare Audioquelle für die bestätigten Lieblingssongs/Positiven, fairer größerer Bestand, Hörurteile und unbenutzte Referenzen. Der CC-Pilot ersetzt diese Anforderungen nicht und rechtfertigt weder Modellwahl noch Training oder Backfill.
+
+## Quellenentscheidung nach direkter Bedingungenprüfung
+
+Die [Quellenentscheidung](audio-source-decision-2026-09-16.md) hält die aktuelle Deezer-Mining-Beschränkung und zulässige nächste Prüfschritte fest. Für die Zielaufnahmen ist kein neuer Audioabruf erfolgt. Vorhandene lokale Dateien sind angefragt; ein kostenpflichtiger Bezug oder externer Kontakt wurde nicht ausgelöst.
