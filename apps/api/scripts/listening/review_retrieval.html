@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Beattrack · Unabhängiger Hörvergleich</title>
+<style>
+:root{color-scheme:dark;font:16px/1.5 system-ui;background:#111317;color:#f1f3f5}body{max-width:900px;margin:auto;padding:30px 20px}p,small{color:#bbc2cc}.card{background:#1c2027;border:1px solid #343b46;border-radius:14px;padding:18px;margin:16px 0}.controls{display:flex;gap:12px;flex-wrap:wrap}label{display:grid;gap:6px;flex:1;min-width:165px}button,select,textarea,input{font:inherit;color:inherit;border:1px solid #586270;border-radius:8px;background:#272e39;padding:9px}button{cursor:pointer}button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid #efb653;outline-offset:3px}textarea{width:100%;box-sizing:border-box}.toolbar{position:sticky;bottom:0;background:#111317ed;padding:14px 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap}.reveal{border-left:3px solid #efb653;padding-left:12px}.credits{margin-top:30px}audio{display:block;width:100%;margin:10px 0}
+</style>
+<h1>Unabhängiger Hörvergleich</h1>
+<p>Bewerte zuerst nur nach Gehör. Titel, Künstler und Quellenhinweise erscheinen nach der Fit-Bewertung. Verfahren, Scores und Ränge bleiben verborgen. Alle Audiodateien liegen lokal; Bewertungen werden ausschließlich als lokale Datei exportiert.</p>
+<p id="review-note"></p>
+<label>Referenz auswählen <select id="reference"></select></label>
+<main id="cases"></main>
+<details class="credits"><summary>Quellen, Attribution und Lizenzen</summary><p>Diese Angaben sind aus Compliance-Gründen jederzeit zugänglich und können die Verblindung einschränken.</p><div id="credits"></div></details>
+<div class="toolbar"><button id="download">Bewertungen exportieren</button><label>Bewertungen fortsetzen <input id="import" type="file" accept="application/json"></label><span role="status" id="status"></span></div>
+<script id="experiment-data" type="application/json">__EXPERIMENT_DATA__</script>
+<script>
+const data=JSON.parse(document.getElementById('experiment-data').textContent),ratings=new Map(),widgets=new Map();
+document.getElementById('review-note').textContent=data.review_note||'';
+const el=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n};
+const choices={fit:[['','Bitte bewerten'],['yes','Ja, passend'],['partly','Teilweise'],['no','Nein'],['unavailable','Nicht beurteilbar']],known:[['unknown','Noch nicht beantwortet'],['no','Nein, neu für mich'],['yes','Ja']],save:[['unknown','Noch nicht beantwortet'],['yes','Ja'],['no','Nein']]};
+function audio(name,label){const a=el('audio');a.controls=true;a.preload='none';a.src=`/clips/${encodeURIComponent(name)}`;a.setAttribute('aria-label',label);a.onplay=()=>document.querySelectorAll('audio').forEach(x=>{if(x!==a)x.pause()});return a}
+function progress(){document.getElementById('status').textContent=`${[...ratings.values()].filter(r=>r.fit).length} von ${ratings.size} bewertet`}
+function reveal(candidate,node){node.hidden=false;node.textContent=`${candidate.artist} — ${candidate.title} · ${candidate.attribution} · ${candidate.license}`}
+for(const [caseIndex,c] of data.cases.entries()){
+ const section=el('section');section.hidden=caseIndex!==0;const option=el('option',`${caseIndex+1}. ${c.seed.artist} — ${c.seed.title}`);option.value=caseIndex;document.getElementById('reference').append(option);
+ const heading=el('h2',`${c.seed.artist} — ${c.seed.title}`);section.append(heading,audio(c.seed.clip,'Referenz-Hörprobe'));
+ for(const candidate of c.candidates){const card=el('article');card.className='card';card.append(el('h3','Unbekannter Vorschlag'),audio(candidate.clip,'Verblindete Hörprobe'));
+  const revealNode=el('p');revealNode.className='reveal';revealNode.hidden=true;card.append(revealNode);
+  const row={judgment:candidate.judgment,fit:'',known:'unknown',save:'unknown',note:''};ratings.set(row.judgment,row);const controls=el('div');controls.className='controls';const controlsByField={};
+  for(const [field,labelText] of [['fit','Klanglich passend?'],['known','Schon gekannt?'],['save','Würdest du ihn merken?']]){const label=el('label',labelText),select=el('select');for(const [value,text] of choices[field]){const o=el('option',text);o.value=value;select.append(o)}select.onchange=()=>{row[field]=select.value;if(field==='fit'&&row.fit)reveal(candidate,revealNode);progress()};label.append(select);controls.append(label);controlsByField[field]=select}card.append(controls);
+  const noteLabel=el('label','Notiz (optional)'),note=el('textarea');note.rows=2;note.oninput=()=>row.note=note.value;noteLabel.append(note);card.append(noteLabel);widgets.set(row.judgment,{controls:controlsByField,note,reveal:()=>reveal(candidate,revealNode)});section.append(card)}document.getElementById('cases').append(section)}
+document.getElementById('reference').onchange=e=>{document.querySelectorAll('audio').forEach(a=>a.pause());[...document.getElementById('cases').children].forEach((s,i)=>s.hidden=i!==Number(e.target.value))};
+document.getElementById('download').onclick=()=>{const payload={experiment:data.experiment,ratings:[...ratings.values()].filter(r=>r.fit)};const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'})),a=el('a');a.href=url;a.download='beattrack-retrieval-ratings.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+document.getElementById('import').onchange=async e=>{try{const payload=JSON.parse(await e.target.files[0].text());if(payload.experiment!==data.experiment||!Array.isArray(payload.ratings))throw Error('Die Datei gehört zu einem anderen Versuch.');const seen=new Set(),staged=[];for(const imported of payload.ratings){if(!ratings.has(imported.judgment)||seen.has(imported.judgment)||!imported.fit||!choices.fit.some(x=>x[0]===imported.fit)||!choices.known.some(x=>x[0]===imported.known)||!choices.save.some(x=>x[0]===imported.save)||typeof imported.note!=='string')throw Error('Ungültige oder doppelte Bewertung.');seen.add(imported.judgment);staged.push(imported)}for(const imported of staged){Object.assign(ratings.get(imported.judgment),imported);const w=widgets.get(imported.judgment);for(const field of ['fit','known','save'])w.controls[field].value=imported[field];w.note.value=imported.note;w.reveal()}progress()}catch(error){alert(error.message)}finally{e.target.value=''}};
+for(const credit of data.credits){document.getElementById('credits').append(el('p',`${credit.artist} — ${credit.title}: ${credit.attribution} · ${credit.license}`))}progress();
+</script></html>

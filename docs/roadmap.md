@@ -1,6 +1,6 @@
 # Roadmap und Umsetzungsplan
 
-Stand: 2026-09-16 · **Machbarkeitstest autorisiert und in Arbeit; weitere Ausbaupakete bleiben vorgeschlagen.**
+Stand: 2026-09-16 · **Umsetzung bis zum Endziel beauftragt; Ausbau bleibt an die Nachweise der vorherigen Etappen gebunden.**
 
 Grundlage: [Bestandsaufnahme](status-2026-09-15.md). Die bisherigen PLAN-Dateien sind historische Entwürfe. Reihenfolge nach Nutzerwirkung, Datenintegrität und Betriebsrisiko; keine verbindlichen Termine ohne Diagnose und Umfangsschätzung.
 
@@ -37,7 +37,7 @@ Die bestätigte Vision und der nach unabhängigem Review korrigierte Plan stehen
 | 2 | R2 | Radar und kombinierte Klangbewertung zuverlässig | reproduzierbarer Stand aus R1 | teilweise geprüft und in PR #48 gemergt; Radar-Skalierung offen |
 | 3 | R3 | Konsistente Merkmale für den vorhandenen Katalog | R2, Sicherung und Umstellungsplan | offen |
 | 4 | R4 | Upload und Identifikation vollständig geprüft | R1, R2 | offen |
-| parallel ab jetzt | R5 | Gemessene Empfehlungsqualität | P0/P1; vergleichbare Audiodaten | Nachsortierung vorbereitet; unabhängiger Vergleich geplant |
+| parallel ab jetzt | R5 | Gemessene Empfehlungsqualität | P0/P1; vergleichbare Audiodaten | Unabhängiger Vergleich auf 18 realen Pilotaufnahmen ausgeführt; Hörqualität offen |
 | 6 | R6 | Verständlicher Einstieg und konsistente Ergebnisaktionen | R2; R5 für Score-Kommunikation | Titelsuche geprüft und in PR #48 gemergt; weitere Aktionen offen |
 | 7 | R7 | Geeigneten Audiomotor nach belegtem Nutzen ausbauen | R5 | offen |
 | begleitend | R8 | Wiederherstellung, Rechte und Überwachung belegt | R1 für Veröffentlichungen | offen |

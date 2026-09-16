@@ -30,7 +30,7 @@ Das belegt lokale Ausführbarkeit und den technischen Datenweg, **keine musikali
 
 Offizielle [MTG-Jamendo-Daten](https://github.com/MTG/mtg-jamendo-dataset) einschließlich `audio_licenses.txt`, `raw.meta.tsv` und `raw_30s_cleantags_50artists.tsv` lokal gelesen. Schnittmenge aus ausgewiesener CC-BY-Lizenz und Electronic/House/Techno-Tags: **1.048 Aufnahmen von 133 Künstlergruppen**, darunter **312 mit House-/Techno-Tag**. Diese Tags helfen bei der Bestandsauswahl, nicht beim späteren Ranking.
 
-Metadaten und vorläufige Kandidaten liegen unter `data/listening/source-audit-2026-09-16/`. Keine Audiodateien dieses Bestands heruntergeladen. Individuelle Quellenzuordnung, Attribution, tatsächlich zugängliche Audiodateien und geeignete musikalische Beispiele bleiben zu prüfen. [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) beschreibt die Bedingungen; daraus folgt keine pauschale Prüfung aller gelieferten Aufnahmen. Die bisherigen Deezer-Referenzen erhalten dadurch keine zusätzliche Nutzungserlaubnis.
+Metadaten und vorläufige Kandidaten liegen unter `data/listening/source-audit-2026-09-16/`. Inzwischen wurden 18 Aufnahmen des unten beschriebenen technischen Piloten heruntergeladen und gegen offizielle Track-Prüfsummen geprüft. Die Quellenzuordnung stützt sich auf die veröffentlichten Datensatz-Lizenzzeilen; keine zusätzliche individuelle Rechtezusage der Künstler. Geeignete musikalische Beispiele für die Zielabnahme bleiben zu prüfen. [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) beschreibt die Bedingungen; daraus folgt keine pauschale Prüfung aller gelieferten Aufnahmen. Die bisherigen Deezer-Referenzen erhalten dadurch keine zusätzliche Nutzungserlaubnis.
 
 ## Verwendung
 
@@ -41,7 +41,7 @@ python apps/api/scripts/listening/encode.py MANIFEST.json --model mert --weights
 python apps/api/scripts/listening/retrieval.py MANIFEST.json --embeddings musicnn=musicnn.json --embeddings mert=mert.json --embeddings clap=clap.json --output report.json
 ```
 
-Für MERT/CLAP den Interpreter der neuen Umgebung verwenden, für MusiCNN den der API. Die bestehende Top-10-Hörseite/assess-Auswertung ist noch nicht an dieses neue unabhängige Top-5-Protokoll angeschlossen. Keine Kompatibilität vortäuschen und keine alten Urteile als neue Modellurteile verwenden.
+Für MERT/CLAP den Interpreter der neuen Umgebung verwenden, für MusiCNN den der API. Für das neue unabhängige Top-5-Protokoll gibt es eine separate Hörseite, siehe unten. Die alte Top-10-Seite und ihre Urteile bleiben ein eigener historischer Versuch; alte Urteile sind keine neuen Modellurteile.
 
 ## Nächste erforderliche Nachweise
 
@@ -51,3 +51,45 @@ Für MERT/CLAP den Interpreter der neuen Umgebung verwenden, für MusiCNN den de
 4. Top-5-Hörvergleich anbinden und musikalischen Vorteil auf neuen Referenzen prüfen.
 
 E1–E6 bleiben offen. Keine automatische Modellwahl, kein Training und kein Katalogbackfill aus dem synthetischen Test ableiten.
+
+
+## Reale Musikpipeline und Hörseite – weiterer Nachweis am 16.09.
+
+**Lokal umgesetzt und geprüft, noch nicht veröffentlicht.** PR #49 mit dem Retrieval-Kern und den Encodern ist zuvor als `4afe25e` gemergt worden; CI und Vercel melden Erfolg. Die neue Hörseite gehört nicht zu diesem veröffentlichten Stand. Kein Hetzner-Deployment.
+
+### Technischer Musikpilot
+
+18 CC-BY-Aufnahmen von 16 Künstlergruppen aus dem offiziellen MTG-Jamendo-Archiv `raw_30s_audio-23.tar`. Auswahl vor Modellläufen: alle 19 Electronic-/House-/Techno-Kandidaten dieses Archivs, abzüglich einer einzelnen Datei über dem lokalen 35-MB-Downloadlimit. Das ist eine praktische, **nicht repräsentative** Pilotstichprobe. Genre-Tags werden nicht fürs Ranking verwendet. Zugriff über HTTP-Teilabrufe am offiziellen Freesound-Mirror; jede MP3 stimmt mit `raw_30s_audio_sha256_tracks.txt` überein. Audio insgesamt 261.180.379 Bytes, keine vollständigen Archive gespeichert.
+
+Für alle Modelle exakt dieselben zehn Sekunden ab 00:45. Drei vor der Analyse festgelegte Pilotreferenzen, sämtliche Aufnahmen im Entwicklungssplit. Keine bestätigten Positiven, keine unbenutzte Gegenprobe, keine Nutzerurteile. Alle drei Modelle lieferten 18 gültige Vektoren und je Referenz 17 unabhängige Kandidatenbewertungen. Die vereinigten Top-5 ergeben insgesamt 32 zu bewertende Paare.
+
+| Modell | Prozessdauer für 18 Ausschnitte einschließlich Import/Modellladen |
+|---|---:|
+| MusiCNN | 3,29 s |
+| MERT-95M | 8,83 s |
+| CLAP | 4,35 s |
+
+Ein einzelner lokaler CPU-Lauf mit bereits vorhandenen Gewichten. Keine belastbare Hochrechnung auf Hetzner, Vollsongs oder Katalogkosten; RAM-Spitzen und Lastbetrieb noch nicht gemessen. Artefakte unter `data/listening/source-audit-2026-09-16/pilot-run/`: Manifest, Modellvektoren, Logs, Laufzeiten, Report und vorbereitete Hörseite. Quellenbelege und Download-Prüfsummen liegen im übergeordneten Verzeichnis.
+
+### Neuer Hörtest
+
+- [review_retrieval.py](../apps/api/scripts/listening/review_retrieval.py) erstellt lokale Hörproben aus den manifestierten Ausschnitten. Vollständiger Manifest-Hash, Audiofingerprint, IDs, Quellenprüfsumme und tatsächliche Clipdauer werden geprüft. Doppelte Query-Ergebnisse, Selbsttreffer und Split-Übertritte werden abgewiesen.
+- [review_retrieval.html](../apps/api/scripts/listening/review_retrieval.html) mischt die Top-5-Vereinigung deterministisch. Verfahren, Rang und Score erscheinen nicht. Titel/Künstler erst nach Klangurteil; Attribution und Lizenzen sind zusätzlich jederzeit zugänglich, wodurch die Verblindung bewusst begrenzt bleibt. Lokal exportieren und gültige Bewertungen atomar importieren.
+- [serve_local.py](../apps/api/scripts/listening/serve_local.py) bindet ausschließlich an Loopback und liefert nur die Seite und vorbereitete Clips. Schlüssel und Quelldateien werden nicht ausgeliefert.
+- Auswertung: Precision@5 nur bei fünf beurteilbaren Treffern. Eine Entdeckung zählt nur bei **passend + vorher unbekannt + merkenswert**. Fehlende Antworten sind kein negatives Urteil.
+
+```sh
+python3 apps/api/scripts/listening/review_retrieval.py prepare MANIFEST.json REPORT.json NEW_REVIEW_DIR
+python3 apps/api/scripts/listening/serve_local.py NEW_REVIEW_DIR --port 8110
+python3 apps/api/scripts/listening/review_retrieval.py assess NEW_REVIEW_DIR/key.json RATINGS.json
+```
+
+Das Manifest benötigt zusätzlich `title`, `artist`, `source_path` (absoluter lokaler Pfad), `attribution`, `license`; optional `review_note` für sichtbare Versuchsgrenzen. Für den vorhandenen Pilot `NEW_REVIEW_DIR` durch `data/listening/source-audit-2026-09-16/pilot-run/review` ersetzen und nur den Server starten. Vorbereitung überschreibt keine vorhandenen Versuche.
+
+### Prüfung und Grenzen
+
+31 gezielte Tests bestanden: Retrieval, Encoder-Preflight und neue Hörseite einschließlich realem synthetischem FFmpeg-/FFprobe-Durchlauf und HTTP-Zugriffsgrenzen. Zusätzlich echte MP3 → drei Encoder → unabhängige Ranglisten → lokale WAV-Hörseite ausgeführt.
+
+Safari: Referenz spielte bis 10/10 Sekunden, Testauswahl erhöhte den Fortschritt von 0 auf 1 und zeigte Titel/Attribution; Screenshot auf Darstellung geprüft. Der Codex-In-App-Browser stürzte beim Play-Klick ab. Safari-Export erreichte eine Download-Berechtigungsabfrage; diese wurde abgebrochen, keine Browsereinstellung geändert. Exportdatei und erneuter UI-Import sind daher **nicht Ende-zu-Ende verifiziert**. Keine Testbewertung als echtes Hörurteil gespeichert. Safari-Testtab geschlossen und lokaler Testserver beendet; der abgestürzte In-App-Testtab ließ sich wegen einer Werkzeug-URL-Sperre nicht explizit schließen.
+
+Weiterhin entscheidend: nutzbare Audioquelle für die bestätigten Lieblingssongs/Positiven, fairer größerer Bestand, Hörurteile und unbenutzte Referenzen. Der CC-Pilot ersetzt diese Anforderungen nicht und rechtfertigt weder Modellwahl noch Training oder Backfill.
