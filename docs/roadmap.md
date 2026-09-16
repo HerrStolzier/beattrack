@@ -10,7 +10,7 @@ Am 16.09.2026 bestätigt: **Beattrack findet zu einem Lieblingssong zuverlässig
 
 ## Weg vom Machbarkeitstest zum nutzbaren Produkt
 
-Alle folgenden Etappen sind geplant, nicht als erreicht markiert. Der detaillierte Versuch P0–P4 bleibt die Voraussetzung; diese Erweiterung startet keine Umsetzung oder Veröffentlichung.
+Die Umsetzung ist seit 16.09. beauftragt. Keine Etappe ist bereits als erreicht markiert. Der detaillierte Versuch P0–P4 bleibt Voraussetzung; Quellenprüfung und technische Vorbereitung laufen. Siehe [Umsetzungsnachweis](retrieval-progress-2026-09-16.md).
 
 | Etappe | Ergebnis | Voraussetzung und Abnahme |
 |---|---|---|
