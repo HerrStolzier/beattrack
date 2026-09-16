@@ -1,24 +1,79 @@
 # Lieblingssong → klanglich passende Entdeckungen
 
-Stand: 2026-09-15 · **Aktives Ziel. Technische Vorbereitung umgesetzt; Hörurteile und unabhängige Gegenprobe offen.**
+Stand: 2026-09-15 · **Plan nach unabhängigem Review aktualisiert. Bisheriger Nachsortierungsversuch vorbereitet; eigenständiger Modellvergleich noch nicht umgesetzt.**
 
 ## Bestätigte Vision
 
 Basti hat als Kern gewählt: „Einen Lieblingssong eingeben und wirklich ähnlich klingende Musik entdecken.“ Erfolg ist ein hörbar passender, interessanter Fund. Gleiche Genres, hohe Scores, funktionierende Requests oder zusätzliche Modelle belegen diesen Erfolg allein nicht.
 
-## Ablauf und Entscheidung
+## Zielpräzisierung und Planentscheidung
 
-1. Fünf Referenzaufnahmen identifizieren; den wichtigen Klangaspekt/Abschnitt festhalten.
-2. Verfälschende Verarbeitungsfehler reparieren und mit realistischen Datenformaten testen.
-3. Einen eingefrorenen Kandidatenbestand mit unterschiedlichen Verfahren bewerten und verdeckt anhören.
-4. Fehler trennen: falsche Aufnahme, fehlender Kataloginhalt, unpassender Ausschnitt, schlechte Kandidatensuche oder schlechte Sortierung.
-5. Auf zusätzlichen, vorher nicht zum Abstimmen verwendeten Songs gegenprüfen. Erst dann Gewichte, Datenaufbau oder Modellaufwand priorisieren.
+Gelernte Muster aus Audio sollen die Suche tragen. Tempo, Basshärte und Vorwärtsdrang sind Beschreibungen von Fehlertypen, keine neuen handgebauten Rankingregeln. Ein neuronaler Encoder allein garantiert keine wahrgenommene Ähnlichkeit: Trainingsziel, Ausschnitt und Suchverfahren müssen gemeinsam geprüft werden.
 
-Kein automatischer Qualitätsentscheid. Das zuvor diskutierte Ziel von drei passenden Top-10-Treffern bei acht von zehn Songs war ein Vorschlag, keine Prognose und kein mit fünf Songs prüfbares Erfolgskriterium. Zunächst Ausgangsniveau und konkrete Fehlermuster beschreiben.
+Der unabhängige Astra-High-Review vom 15.09. bestätigt einen begrenzten Versuch mit vortrainierten Modellen. Er begründet weder eigenes Training noch einen Katalogumbau. Code, Modellkarten und Literatur wurden geprüft; neue Modelle und deren Rechenbedarf wurden nicht ausgeführt beziehungsweise gemessen. Der aktuelle Auftrag aktualisiert die Planung und startet keine neue Analyse, Installation oder Veröffentlichung.
+
+## Neuer Ablauf mit Entscheidungspunkten
+
+### P0 – Nutzbaren Audiobestand sichern
+
+Für jede Quelle dokumentieren, ob Analyse, Speicherung, Hörtest und gegebenenfalls Training abgedeckt sind. Öffentlich abspielbare Vorschauen sind kein Nachweis dafür. Anbieterbedingungen und etwaige Vereinbarungen prüfen; alternativ ausdrücklich freigegebenes Künstler-/Labelmaterial oder passend lizenzierte Aufnahmen verwenden. Modellgewichte und Audiomaterial getrennt betrachten.
+
+**Weiter, wenn:** die vorgesehene Verarbeitung für den Versuch abgedeckt ist. Sonst Quelle wechseln oder den Versuch ausdrücklich auf einen freigegebenen Bestand begrenzen. Keine Aussage über beliebige Lieblingssongs aus einem eingeschränkten Katalog ableiten.
+
+### P1 – Positive Beispiele und unabhängigen Bestand vorbereiten
+
+Die fünf bisherigen Referenzen sind Entwicklungsfälle. Verschiedene Songs als passende Vergleichspaare bestätigen; schwierige Negative und unabhängig ausgewählte Hintergrundtitel ergänzen. Unbewertete Aufnahmen bleiben unbewertet. Original, Remix, Remaster und Ausschnitte derselben Aufnahmefamilie bleiben gemeinsam in Entwicklung oder Test; möglichst auch Künstler trennen. Die beiden Eli-Brown-Songs sind keine unabhängigen Künstlerfälle.
+
+**Umfangsvorschlag, keine Mindestgröße:** fünf neue Referenzen und zwei getrennte Suchbestände mit jeweils 150–300 Aufnahmen. Je Entwicklungsreferenz möglichst ein bis zwei bestätigte Positive. Umfang nach Audiozugang und Hörbudget begrenzen. Bekannte Positive dienen der Diagnose und zählen nicht als neue Entdeckungen.
+
+**Weiter, wenn:** passende und unpassende Beispiele in verdeckten Wiederholungen hinreichend stabil beurteilt werden. Sonst Referenzabschnitt oder Suchziel präzisieren. Ohne positive Beispiele kein Tripeltraining.
+
+### P2 – Drei eigenständige Suchverfahren vergleichen
+
+Startvorschlag: bestehendes MusiCNN als Ausgangsniveau, MERT-v1-95M und CLAP `laion/larger_clap_music`. Jedes Modell durchsucht denselben vollständigen zulässigen Bestand per exaktem Vektorvergleich. Keine MusiCNN-Vorauswahl, handgewichtete Fusion, BPM-Filter oder MMR im isolierten Vergleich. Neue Suchinfrastruktur ist dafür nicht erforderlich.
+
+Quellaudio und Zeitbereiche gleich halten; modellgerechte Vorverarbeitung verwenden. Modellrevision, Schicht, Pooling, Normalisierung und Ausschnitte einfrieren. Fehlende Vektoren und Fehler sichtbar zählen, kein stiller Ersatz durch ein anderes Modell. Identische Aufnahmen zusammenführen; verschiedene Remixe nicht allein wegen des Basistitels entfernen. Unbekannte Überlappung mit dem ursprünglichen Modelltraining als Grenze nennen.
+
+**Weiter, wenn:** alle Verfahren auf vergleichbarer Basis laufen. Andernfalls technische oder Datenprobleme lösen, bevor Qualität verglichen wird.
+
+### P3 – Hörqualität und Entdeckungsnutzen prüfen
+
+Top 5 je Verfahren und Entwicklungsreferenz ergeben höchstens 75 einzigartige Paare. Die Vereinigung entsteht erst nach unabhängiger Suche. Methode, Rang und Score sowie möglichst Titel/Künstler zunächst verbergen. Vergleichbare Wiedergabelautheit ohne klangverändernde Kompression; einige verdeckte Wiederholungen. Persönliche Urteile bleiben lokal.
+
+Danach nur den gewählten Herausforderer gegen MusiCNN auf fünf unbenutzten Referenzen prüfen: höchstens 50 weitere Paare. Insgesamt höchstens 125 Paare zuzüglich positiver Bestätigungspaare und Wiederholungen; Überschneidungen senken den Aufwand. Kein Anspruch, dass diese Größen statistisch genügen.
+
+Messen: Rang bestätigter Positiver; vollständig bewertete passende Top-5-Treffer; unbekannte, passende und merkenswerte Funde; Gewinne/Verluste pro Referenz und Künstlergruppe; Wiederholungsstabilität. Fehlende oder nicht beurteilbare Urteile sind keine negativen Stimmen. Vorschauähnlichkeit und Vollsongähnlichkeit getrennt ausweisen.
+
+**Vor dem Versuch festzulegen:** Nutzenschwelle und Hör-/Rechenbudget. Review-Vorschlag: mindestens zwei unbekannte, passende und merkenswerte Top-5-Treffer bei mindestens drei von fünf neuen Referenzen und insgesamt mehr solche Funde als MusiCNN. Das ist keine bestätigte Nutzervorgabe oder Erfolgsprognose. Der frühere Top-10-Vorschlag ist ebenfalls nicht beschlossen.
+
+**Entscheidung:** Bei Vorteil größeren Bestand prüfen. Werden nur bekannte Positive gefunden, bleibt Entdeckungsnutzen offen. Scheitern alle Modelle, genau einen begründeten Diagnosezweig wählen: Bestand, anderer Abschnitt oder zusätzlicher Encoder. Bleibt ein Vorteil aus, den Ansatz beenden oder auf eine belegte Teilaufgabe begrenzen. Ein zur Auswahl verwendeter Test ist danach nicht mehr unangetastet.
+
+### P4 – Nur begründete Erweiterungen
+
+- **Abschnitte:** Bei verfügbarem Vollaudio mehrere festgelegte Zeitbereiche symmetrisch vergleichen. Ein zweiter Abschnitt soll den Vorteil bestätigen. Fehlendes Audio kann ein Modell nicht rekonstruieren.
+- **Training:** Erst bei stabilen Urteilen, vorhandenen Positiven und systematischen Rankingfehlern eine kleine regularisierte Projektion versuchen. Nach Song-/Künstlergruppen trennen, dann Tripel bilden. Gegen denselben Encoder ohne Projektion auf unbenutzten Songs prüfen. Kein Gewinn außerhalb des Trainings: Trainingszweig beenden.
+- **Weitere Modelle:** MuQ-MuLan oder MERIT nur mit konkreter Hypothese hinzufügen. MERITs Instrumentklassen sind kein Nachweis für Basshärte. Keine nachträgliche Auswahl günstiger Gewichtsmischungen am Testsatz.
+- **Betrieb:** Kaltstart, warme Analyse, Decodierung, Suche, RAM/GPU-Speicher, Durchsatz, Fehler und Vektorspeicher messen. Erst dann Aufwand hochrechnen. Kein pauschaler GPU-Server und kein Training eines Grundmodells von null.
+- **Katalogumbau:** Erst bei hörbarem Nutzen, geklärter Nutzung und akzeptablem gemessenem Aufwand; versionierter Rückweg und konkrete Veröffentlichungsfreigabe erforderlich.
+
+## Modellquellen und Grenzen
+
+| Kandidat | Rolle und Stand laut Review | Nutzungsgrenze laut Veröffentlichung |
+|---|---|---|
+| MusiCNN / MTG | Bestehende Vergleichsbasis | MTG nennt CC BY-NC-SA bzw. gesonderte Lizenzierung; konkreten Modellstand prüfen |
+| MERT-v1-95M | Vorhandene Repräsentation unabhängig suchen lassen | CC BY-NC 4.0 |
+| CLAP larger_clap_music | Anders trainierter Gegenkandidat mit verfügbaren Gewichten | Modellkarte Apache-2.0; anderer Checkpoint als in der zitierten Wahrnehmungsstudie |
+| MuQ-MuLan-large | Optionaler zweiter Versuch | Gewichte CC BY-NC 4.0, Code separat |
+| MERIT | Optionale getrennte Rhythmus-/Klangfarbenprüfung | Köpfe MIT; MERT-330M-Basis separat CC BY-NC |
+| MULE | Für ersten Versuch zurückgestellt | Gewichte CC BY-NC, Code GPL-3.0 |
+
+Quellen: [Essentia-Modelle](https://essentia.upf.edu/models.html), [MERT](https://huggingface.co/m-a-p/MERT-v1-95M), [CLAP](https://huggingface.co/laion/larger_clap_music), [MuQ-MuLan](https://huggingface.co/OpenMuQ/MuQ-MuLan-large), [MERIT](https://huggingface.co/amaai-lab/merit), [MERT-330M](https://huggingface.co/m-a-p/MERT-v1-330M), [MULE](https://github.com/PandoraMedia/music-audio-representations).
+
+Forschungsgrenzen: Die [CLAP/MuQ-Wahrnehmungsstudie](https://arxiv.org/html/2601.19109v1) verwendet kurze Ausschnitte synthetischer Musik. [MERIT](https://arxiv.org/html/2605.27346v1) prüft unter anderem Instrumentklassen und ausgewählte Trainingspaare. Beides belegt keine Entdeckungsqualität für Beattracks Referenzen. Audioquelle gesondert anhand der [Deezer-Bedingungen](https://www.deezer.com/legal/cgu) und [Entwicklerbedingungen](https://developers.deezer.com/termsofuse) beziehungsweise eigener Erlaubnisse prüfen; keine pauschale rechtliche Freigabe aus diesem Plan ableiten.
 
 ## Referenzen
 
-Die von Basti gelieferten Album-Links wurden über die Deezer-API aufgelöst. Basti hat die Titeltracks „Believe“ und „Deep Down“ für die beiden EPs ausdrücklich bestätigt. Die anderen Links enthalten jeweils einen Track. Klangaspekte/Abschnitte sind noch nicht benannt.
+Die von Basti gelieferten Album-Links wurden über die Deezer-API aufgelöst. Basti hat die Titeltracks „Believe“ und „Deep Down“ für die beiden EPs ausdrücklich bestätigt. Die anderen Links enthalten jeweils einen Track. Einzelne qualitative Fehlerbeschreibungen liegen vor; positive Vergleichspaare und genaue Referenzabschnitte sind noch offen. Persönliche Einzelbewertungen bleiben in den lokalen Versuchsdaten.
 
 | Aufnahme | Deezer Track-ID | Exakte Aufnahme im Katalog am 15.09. |
 |---|---:|---|
@@ -32,7 +87,7 @@ Quellen: [Believe](https://api.deezer.com/album/284078032), [Deep Down](https://
 
 Für Hiko und Jerri wurden ausschließlich die offiziellen Vorschauen temporär im bestehenden Worker analysiert. Die Dateien wurden im TemporaryDirectory aufgeräumt. Kein Ingest, keine Nachbarerweiterung, keine Produktionsschreiboperation. Der Snapshot enthält Merkmale und Preview-Prüfsummen, keine Audiodateien oder Zugangsdaten.
 
-## Vergleichsprotokoll
+## Bisheriger Versuch – Nachsortierung (historisches Protokoll)
 
 Werkzeuge: [capture.py](../apps/api/scripts/listening/capture.py), [experiment.py](../apps/api/scripts/listening/experiment.py), [serve.py](../apps/api/scripts/listening/serve.py).
 
@@ -48,9 +103,9 @@ Werkzeuge: [capture.py](../apps/api/scripts/listening/capture.py), [experiment.p
 
 **Wichtige Grenzen:** Für die neu analysierten Hiko-/Jerri-Referenzen fehlt MERT. Dort sind zweite und dritte Variante identisch und kein MERT-Vergleich. Auch bei den anderen Referenzen ist MERT nicht für jeden Kandidaten verfügbar. Fünfmal 31 Merkmalszeilen konnten lokal normalisiert werden; das belegt keine katalogweite Normalisierung. Vorschau- und Vollsongähnlichkeit sind getrennte Fragen.
 
-## Lokaler Ablauf
+## Lokaler Ablauf des bisherigen Versuchs
 
-Vorhandene API-Python-Umgebung verwenden, keine neue Installation nötig. Aus dem Repository-Root:
+Diese Werkzeuge implementieren noch nicht P0–P4. Vor erneuter Audioerfassung die vorgesehene Nutzung gemäß P0 klären. Vorhandene API-Python-Umgebung verwenden, keine neue Installation nötig. Aus dem Repository-Root:
 
 ```sh
 # Capture nur in einer bereits konfigurierten API-Umgebung; Ausgabe nicht ins Git.
@@ -73,4 +128,4 @@ Aktuelle lokale Artefakte liegen unter `data/listening/references-2026-09-15/` (
 
 Umgesetzt: gültige PostgREST-Textvektoren parsen; ungültige optionale Vektoren isolieren; kandidatenspezifische Gewichtung; doppelte Deezer-Aufnahmen entfernen; Titelsuche mit Aufnahmewahl; verständlicher Fehler nach fehlgeschlagener Ähnlichkeitssuche; einzelne/batch Radar-Endpunkte akzeptieren Textvektoren.
 
-Offen: musikalische Hörurteile, unabhängige Referenzen, Live-Veröffentlichung, katalogweite Merkmalskonsistenz. Die inhaltliche Radar-Skalierung und bestehende Prozentdarstellung sind weiterhin ungeprüft bzw. problematisch; der Hörvergleich zeigt sie bewusst nicht. Die bestehenden Deezer-Widgets der Anwendung konnten im Codex-Browser nicht zur Wiedergabe gebracht werden; der separate Hörvergleich spielt native Audio-Vorschauen in Safari.
+Offen: vollständige musikalische Abnahme, unabhängige Referenzen und Modellsuche, Audioquellenklärung, gemessener Modellaufwand und katalogweite Merkmalskonsistenz. Technische Änderungen wurden mit PR #48 gemergt; Vercel meldete für Merge ca02e7c am 15.09. eine abgeschlossene Veröffentlichung. Kein Hetzner-Deployment in dieser Runde. Die inhaltliche Radar-Skalierung und bestehende Prozentdarstellung sind weiterhin ungeprüft bzw. problematisch; der Hörvergleich zeigt sie bewusst nicht. Die bestehenden Deezer-Widgets der Anwendung konnten im Codex-Browser nicht zur Wiedergabe gebracht werden; der separate Hörvergleich spielt native Audio-Vorschauen in Safari.

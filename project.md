@@ -1,8 +1,10 @@
 # Beattrack – Projektübersicht
 
-Stand: 2026-09-15. Pflege bei Änderungen von Ziel, Architektur, Prioritäten oder Betrieb.
+Stand: 2026-09-16. Pflege bei Änderungen von Ziel, Architektur, Prioritäten oder Betrieb.
 
 ## Ziel und Grenzen
+
+Bestätigtes langfristiges Endziel (16.09.2026): **Beattrack findet zu einem Lieblingssong zuverlässig unbekannte, hörbar ähnliche Musik – mit geprüftem Nutzen und bezahlbarem Betrieb.** Die [Roadmap](docs/roadmap.md) führt vom begrenzten Machbarkeitstest bis zur wiederholten Produktabnahme; die Erreichbarkeit bleibt nachweispflichtig.
 
 Beattrack hilft beim Entdecken klanglich ähnlicher Musik und soll Gemeinsamkeiten verständlich erklären. Der dokumentierte Katalogschwerpunkt ist Electronic. Playlist, Verlauf, Blend/Vibe und DJ-Hilfen unterstützen diesen Ablauf.
 
@@ -37,7 +39,9 @@ Aktueller Code und direkte Messungen haben bei Tatsachen Vorrang vor älteren Be
 
 ## Aktueller Umsetzungsauftrag
 
-Am 15.09. wurde der begrenzte Machbarkeitstest ausdrücklich beauftragt. Ranking-Reparaturen, Titelsuche und ein reproduzierbarer Hörvergleich werden lokal umgesetzt und geprüft. Der Nachweis musikalischer Qualität bleibt bis zu Bastis Hörurteilen und einer unabhängigen Gegenprobe offen. Live-Veröffentlichungen benötigen konkrete Freigabe.
+Am 15.09. wurde der begrenzte Machbarkeitstest beauftragt. Ranking-Reparaturen, Titelsuche und Hörvergleich wurden geprüft und mit PR #48 gemergt; Vercel meldete die Veröffentlichung für Merge ca02e7c als abgeschlossen. Kein Hetzner-Deployment in dieser Runde. Die musikalische Abnahme ist offen.
+
+Nach unabhängigem Review wurde der Plan aktualisiert: Audioquellen und positive Vergleichspaare klären, vortrainierte Modelle unabhängig suchen lassen, Nutzen an unbenutzten Referenzen prüfen. Training und Katalogumbau benötigen belegten Nutzen. Am 16.09. wurde die Umsetzung bis zum bestätigten Endziel beauftragt. Die separate lokale Installation für MERT/CLAP wurde konkret freigegeben. Der unabhängige Offline-Vergleich wird umgesetzt; neue Live-Veröffentlichungen bleiben separat freigabepflichtig. Einzelne persönliche Hörurteile bleiben lokal.
 
 ## Umfang der Dokumentationsrunde
 
