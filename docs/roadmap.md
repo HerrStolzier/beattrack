@@ -1,8 +1,29 @@
 # Roadmap und Umsetzungsplan
 
-Stand: 2026-09-15 · **Machbarkeitstest autorisiert und in Arbeit; weitere Ausbaupakete bleiben vorgeschlagen.**
+Stand: 2026-09-16 · **Machbarkeitstest autorisiert und in Arbeit; weitere Ausbaupakete bleiben vorgeschlagen.**
 
 Grundlage: [Bestandsaufnahme](status-2026-09-15.md). Die bisherigen PLAN-Dateien sind historische Entwürfe. Reihenfolge nach Nutzerwirkung, Datenintegrität und Betriebsrisiko; keine verbindlichen Termine ohne Diagnose und Umfangsschätzung.
+
+## Bestätigtes langfristiges Endziel
+
+Am 16.09.2026 bestätigt: **Beattrack findet zu einem Lieblingssong zuverlässig unbekannte, hörbar ähnliche Musik – mit geprüftem Nutzen und bezahlbarem Betrieb.** Das ist das Produktziel, keine Zusage universeller Treffer für jeden Song. Unterstützter Katalog, Audiozugang und nachgewiesene musikalische Bereiche bestimmen die erreichbare Abdeckung. Fehlende passende Musik darf als solche sichtbar werden.
+
+## Weg vom Machbarkeitstest zum nutzbaren Produkt
+
+Alle folgenden Etappen sind geplant, nicht als erreicht markiert. Der detaillierte Versuch P0–P4 bleibt die Voraussetzung; diese Erweiterung startet keine Umsetzung oder Veröffentlichung.
+
+| Etappe | Ergebnis | Voraussetzung und Abnahme |
+|---|---|---|
+| E1 · Grundlage | Zulässig nutzbarer Audiobestand, positive und schwierige negative Beispiele | P0/P1: Quellen und Verarbeitung geklärt; Entwicklung und Gegenprobe getrennt |
+| E2 · Klangähnlichkeit | Ein Verfahren findet hörbar passende Musik auf unbenutzten Referenzen | P2/P3: unabhängige Suche, verdeckte Hörurteile, vorher festgelegte Nutzenschwelle; bei Scheitern begrenzte Diagnose statt automatischem Training |
+| E3 · Katalogtauglichkeit | Vorteil bleibt in einem größeren, repräsentativeren Bestand erhalten | Nicht nur eingestreute Positive; Abdeckung, Fehlertypen und unbekannte Entdeckungen je musikalischem Bereich messen; Modell-/Datenversionen und zulässige Quellen dokumentieren |
+| E4 · Durchgängiges Produkt | Lieblingssong eingeben → Aufnahme wählen → ähnliche Musik anhören → Fund merken | R2/R4/R6: reale Benutzerwege auf Desktop und Mobilgeräten prüfen, Audioausfälle und Bestandslücken verständlich behandeln; Scores nicht als unbewiesene Gewissheit darstellen |
+| E5 · Bezahlbarer, stabiler Betrieb | Nachvollziehbar aktualisierter Katalog und zuverlässige Suche | R1/R7/R8: Analysezeit, Antwortzeit, Last, Speicher und laufende Kosten messen; Budget und Betriebsgrenzen vor Ausbau festlegen; Wiederherstellung und Rückweg testen; Live-Freigabe einholen |
+| E6 · Dauerhafter Nutzen | Wiederholbar unbekannte, passende und merkenswerte Funde im Alltag | Über mehrere Sitzungen und frische Referenzen bewerten; bekannte Titel getrennt erfassen; Rückschritte vor Modellwechsel erkennen; zusätzliche Hörende nötig, bevor allgemeine Nutzerqualität behauptet wird |
+
+**Endabnahme:** E3–E6 gemeinsam belegt: musikalischer Nutzen in dokumentiertem Umfang, funktionierender realer Such-/Hörweg, wiederholte Entdeckungen und gemessener Betrieb innerhalb des vereinbarten Budgets. Konkrete Qualitäts-, Latenz- und Kostengrenzen werden vor den jeweiligen Versuchen festgelegt; derzeit keine erfundenen Zahlen oder Termine.
+
+**Wenn Grenzen bleiben:** Quellen oder Katalog gezielt erweitern, sofern erlaubt und sinnvoll; andernfalls den belegten Umfang offen begrenzen. Kein erzwungenes Auffüllen mit unpassenden Treffern. Training bleibt ein optionaler, evidenzabhängiger Zweig. Konten, Bezahlung, Genre-Vollständigkeit und ein selbst trainiertes Grundmodell sind keine Voraussetzung dieses Endziels.
 
 ## Aktueller Schwerpunkt: musikalische Machbarkeit
 

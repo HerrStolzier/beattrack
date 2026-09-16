@@ -1,8 +1,10 @@
 # Beattrack – Projektübersicht
 
-Stand: 2026-09-15. Pflege bei Änderungen von Ziel, Architektur, Prioritäten oder Betrieb.
+Stand: 2026-09-16. Pflege bei Änderungen von Ziel, Architektur, Prioritäten oder Betrieb.
 
 ## Ziel und Grenzen
+
+Bestätigtes langfristiges Endziel (16.09.2026): **Beattrack findet zu einem Lieblingssong zuverlässig unbekannte, hörbar ähnliche Musik – mit geprüftem Nutzen und bezahlbarem Betrieb.** Die [Roadmap](docs/roadmap.md) führt vom begrenzten Machbarkeitstest bis zur wiederholten Produktabnahme; die Erreichbarkeit bleibt nachweispflichtig.
 
 Beattrack hilft beim Entdecken klanglich ähnlicher Musik und soll Gemeinsamkeiten verständlich erklären. Der dokumentierte Katalogschwerpunkt ist Electronic. Playlist, Verlauf, Blend/Vibe und DJ-Hilfen unterstützen diesen Ablauf.
 
