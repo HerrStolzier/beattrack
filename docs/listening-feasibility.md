@@ -1,5 +1,7 @@
 # Lieblingssong → klanglich passende Entdeckungen
 
+> **Eingestellt am 16.09.2026 auf Nutzerauftrag.** Die Entwicklung wird nicht fortgesetzt. Frühere Ziele und Pläne sind historisch, kein aktiver Umsetzungsauftrag. [Rückbau und Nachweise](retirement-2026-09-16.md).
+
 Stand: 2026-09-15 · **Plan nach unabhängigem Review aktualisiert. Bisheriger Nachsortierungsversuch vorbereitet; eigenständiger Modellvergleich noch nicht umgesetzt.**
 
 ## Bestätigte Vision

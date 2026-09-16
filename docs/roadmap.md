@@ -1,6 +1,8 @@
 # Roadmap und Umsetzungsplan
 
-Stand: 2026-09-16 · **Umsetzung bis zum Endziel beauftragt; Ausbau bleibt an die Nachweise der vorherigen Etappen gebunden.**
+> **Eingestellt am 16.09.2026 auf Nutzerauftrag.** Die Entwicklung wird nicht fortgesetzt. Frühere Ziele und Pläne sind historisch, kein aktiver Umsetzungsauftrag. [Rückbau und Nachweise](retirement-2026-09-16.md).
+
+Stand: 2026-09-16 · **Beendet; die nachfolgenden Etappen dokumentieren die frühere Planung.**
 
 Grundlage: [Bestandsaufnahme](status-2026-09-15.md). Die bisherigen PLAN-Dateien sind historische Entwürfe. Reihenfolge nach Nutzerwirkung, Datenintegrität und Betriebsrisiko; keine verbindlichen Termine ohne Diagnose und Umfangsschätzung.
 

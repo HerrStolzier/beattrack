@@ -1,5 +1,7 @@
 # Beattrack – Projektübersicht
 
+> **Eingestellt am 16.09.2026 auf Nutzerauftrag.** Die Entwicklung wird nicht fortgesetzt. Frühere Ziele und Pläne sind historisch, kein aktiver Umsetzungsauftrag. [Rückbau und Nachweise](docs/retirement-2026-09-16.md).
+
 Stand: 2026-09-16. Pflege bei Änderungen von Ziel, Architektur, Prioritäten oder Betrieb.
 
 ## Ziel und Grenzen
